@@ -222,29 +222,22 @@
             box-shadow: var(--shadow-medium);
         }
 
+        /*.live-badge {*/
+        /*    position: absolute;*/
+        /*    top: -33px;*/
+        /*    right: -16px;*/
+        /*    width: 100px; !* 可根据需要调整大小 *!*/
+        /*    height: 100px; !* 可根据需要调整大小 *!*/
+        /*    z-index: 2;*/
+        /*}*/
+
         .live-badge {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: var(--live-color);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            top: 0;
+            right: 20px;
+            width: 22%;
+            height: 15%;
             z-index: 2;
-        }
-
-        .live-badge::before {
-            content: '';
-            width: 5px;
-            height: 5px;
-            background-color: white;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
         }
 
         .offline-badge {
@@ -266,8 +259,31 @@
         .avatar-section {
             position: relative;
             overflow: hidden;
-            border-radius: 12px 12px 0 0; /* 根据你的设计调整 */
+            border-radius: 12px 12px 0 0;
             background: #777777;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            aspect-ratio: 16/9;
+            min-height: 100px;
+        }
+
+        .cover-container {
+            position: absolute;
+            z-index: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            inset: 0;
+        }
+
+        .cover-container::before {
+            content: '';
+            position: absolute;
+            z-index: 1;
+            inset: 0;
+            pointer-events: none;
         }
 
         .avatar-frame {
@@ -275,10 +291,12 @@
             height: 85px;
             border-radius: 50%;
             padding: 5px;
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            /*background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));*/
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative; /* 添加相对定位 */
+            z-index: 2; /* 确保头像在遮罩之上 */
         }
 
         .streamer-avatar {
@@ -313,40 +331,7 @@
             font-size: 13px;
         }
 
-        .cover-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
 
-        .cover-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            filter: blur(1px); /* 可选：添加轻微模糊效果 */
-        }
-
-        .cover-mask {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                    to bottom,
-                    rgba(0, 0, 0, 0.1) 0%,
-                    rgba(0, 0, 0, 0.3) 50%,
-                    rgba(0, 0, 0, 0.6) 100%
-            );
-            z-index: 2;
-        }
-
-        .streamer-card:hover .card-cover {
-            transform: scale(1.05);
-        }
 
         .streamer-info i {
             width: 14px;
@@ -1047,6 +1032,11 @@
         }
 
         @media (max-width: 768px) {
+
+            .avatar-frame {
+                width: 70px;
+                height: 70px;
+            }
             .cards-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
@@ -1076,22 +1066,8 @@
                 padding: 12px;
             }
 
-            /* 移动端卡片尺寸缩小 */
-            .streamer-card {
-                border-radius: var(--radius-sm);
-            }
-
             .avatar-section {
-                height: 130px;
-            }
-
-            .avatar-frame {
-                position: relative;
-                z-index: 3;
-                /* 调整头像位置，使其在遮罩层之上 */
-                margin: 20px auto;
-                width: 80px; /* 根据你的设计调整 */
-                height: 80px;
+                width: 100%;
             }
 
             .card-content {
@@ -1145,22 +1121,6 @@
                 font-size: 13px;
             }
 
-            /* 移动端特别小的设备，确保一行两个卡片 */
-            @media (max-width: 400px) {
-                .cards-grid {
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 10px;
-                }
-
-                .avatar-section {
-                    height: 120px;
-                }
-
-                .avatar-frame {
-                    width: 65px;
-                    height: 65px;
-                }
-            }
         }
 
         @media (max-width: 350px) {
@@ -1829,16 +1789,14 @@
                 const card = document.createElement('div');
                 card.className = 'streamer-card';
                 card.innerHTML = `
-                    ${streamer.status === 'live'
-                    ? '<div class="live-badge">直播中</div>'
-                    : '<div class="offline-badge">未开播</div>'}
-                     <div class="avatar-section ${streamer.status === 'live' ? 'has-cover' : ''}">
+                    <div class="${streamer.status === 'live' ? 'live-badge' : 'offline-badge'}">
+                        ${streamer.status === 'live' ? '' : '未开播'}
+                    </div>
+                    <div class="avatar-section ${streamer.status === 'live' ? 'has-cover' : ''}">
                         ${streamer.status === 'live'
-                    ? `<div class="cover-container">
-                                <img src="${streamer.cover || streamer.avatar}" alt="${streamer.name}封面" class="cover-image">
-                                <div class="cover-mask"></div>
-                               </div>`
-                    : ''}
+                                    ? `<div class="cover-container"></div>`
+                                    : ''
+                                }
                         <div class="avatar-frame">
                             <img src="${streamer.avatar}" alt="${streamer.name}" class="streamer-avatar">
                         </div>
@@ -1918,6 +1876,7 @@
                 });
 
                 container.appendChild(card);
+                initLiveAnimations(card, streamer)
             });
 
             // 点击页面其他区域关闭设置面板
@@ -1927,6 +1886,56 @@
                 });
             });
         }
+
+        function initLiveAnimations(card, streamer) {
+            if (!card || streamer.status !== 'live') return;
+
+            // ====== live badge 动画 ======
+            const liveBadge = card.querySelector('.live-badge');
+            if (liveBadge && !liveBadge._lottieInstance) {
+                liveBadge._lottieInstance = lottie.loadAnimation({
+                    container: liveBadge,
+                    renderer: 'canvas',
+                    loop: true,
+                    autoplay: true,
+                    path: '/animation/Live.json'
+                });
+            }
+
+            // ====== 背景 cover 动画（随机） ======
+            const coverContainer = card.querySelector('.cover-container');
+            if (coverContainer && !coverContainer._lottieInstance) {
+
+                const animationList = [
+                    'Background',
+                    'Animated',
+                    'florallanding',
+                    'UnderwaterTurtle'
+                ];
+
+                // 防止重复初始化时重新随机
+                if (!coverContainer.dataset.bgAnim) {
+                    const randomIndex = Math.floor(Math.random() * animationList.length);
+                    coverContainer.dataset.bgAnim = animationList[randomIndex];
+                }
+
+                const animName = coverContainer.dataset.bgAnim;
+
+                coverContainer._lottieInstance = lottie.loadAnimation({
+                    container: coverContainer,
+                    renderer: 'canvas',
+                    loop: true,
+                    autoplay: true,
+                    path: `/animation/${animName}.json`,
+                    rendererSettings: {
+                        clearCanvas: true,
+                        progressiveLoad: true,
+                        preserveAspectRatio: 'xMidYMid slice'
+                    }
+                });
+            }
+        }
+
 
         // 渲染表情
         function renderEmojis() {
