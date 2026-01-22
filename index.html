@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>直播聚合平台</title>
+    <title>Saidao</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/live2d-widget@3.x/lib/L2Dwidget.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+
 
     <!-- 链接 Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -266,6 +270,17 @@
             background: #777777;
         }
 
+        .avatar-frame {
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            padding: 5px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .streamer-avatar {
             width: 100%;
             height: 100%;
@@ -307,27 +322,27 @@
             z-index: 1;
         }
 
-        /*.cover-image {*/
-        /*    width: 100%;*/
-        /*    height: 100%;*/
-        /*    object-fit: cover;*/
-        /*    filter: blur(1px); !* 可选：添加轻微模糊效果 *!*/
-        /*}*/
+        .cover-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: blur(1px); /* 可选：添加轻微模糊效果 */
+        }
 
-        /*.cover-mask {*/
-        /*    position: absolute;*/
-        /*    top: 0;*/
-        /*    left: 0;*/
-        /*    width: 100%;*/
-        /*    height: 100%;*/
-        /*    background: linear-gradient(*/
-        /*            to bottom,*/
-        /*            rgba(0, 0, 0, 0.1) 0%,*/
-        /*            rgba(0, 0, 0, 0.3) 50%,*/
-        /*            rgba(0, 0, 0, 0.6) 100%*/
-        /*    );*/
-        /*    z-index: 2;*/
-        /*}*/
+        .cover-mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                    to bottom,
+                    rgba(0, 0, 0, 0.1) 0%,
+                    rgba(0, 0, 0, 0.3) 50%,
+                    rgba(0, 0, 0, 0.6) 100%
+            );
+            z-index: 2;
+        }
 
         .streamer-card:hover .card-cover {
             transform: scale(1.05);
@@ -442,7 +457,7 @@
             top: 0;
             right: 0;
             height: 100vh;
-            width: 340px;
+            width: 540px;
             background-color: var(--chat-bg);
             border-left: 1px solid var(--chat-border);
             box-shadow: -3px 0 10px rgba(0, 0, 0, 0.03);
@@ -482,20 +497,42 @@
             font-weight: 600;
         }
 
+
         .chat-toggle {
-            background: none;
             border: none;
+            position: absolute;
+            top: 50%;
+            left: -40px;
+            width: 40px;
+            height: 100px;
             font-size: 18px;
             color: var(--text-light);
+            background-color: #bdbdbd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: var(--transition);
+            transform: translateY(-50%);
             padding: 3px;
-            border-radius: 4px;
+            border-radius: 18px 0 0 18px;
         }
 
-        .chat-toggle:hover {
-            color: var(--primary-color);
-            background-color: #f5f5f5;
+        .chat-toggle i {
+            font-size: 1.5rem;
+            animation: pulse-blue 2s infinite;
+        }
+
+        .chat-close {
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            font-size: 14px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .chat-close:hover {
+            color: #ff4d4f;
         }
 
         .chat-body {
@@ -954,11 +991,48 @@
         .toast.warning { background-color: #ff9800; }
         .toast.info    { background-color: #2196f3; }
 
+        .logo-text {
+            position: relative;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: linear-gradient(45deg,
+            var(--primary-color) 0%,
+            #ffeabd 60%,
+            #ff523b 100%);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientFlow 6s ease infinite;
+            padding-bottom: 4px;
+        }
+
+        /* 底部装饰条 */
+        .logo-text::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 27px;
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(45deg,
+            var(--primary-color) 0%,
+            #ffeabd 60%,
+            #ff523b 100%);
+            background-size: 200% 100%;
+            animation: gradientFlow 4s ease infinite;
+            opacity: 0.7;
+        }
+
 
         /* 响应式设计 - 重点优化移动端 */
         @media (max-width: 1200px) {
             .cards-grid {
                 grid-template-columns: repeat(4, 1fr);
+            }
+            .chat-sidebar {
+                width: 520px;
             }
         }
 
@@ -968,7 +1042,7 @@
             }
 
             .chat-sidebar {
-                width: 320px;
+                width: 520px;
             }
         }
 
@@ -998,10 +1072,6 @@
                 padding: 8px;
             }
 
-            .logo-text {
-                font-size: 18px;
-            }
-
             .container {
                 padding: 12px;
             }
@@ -1018,6 +1088,7 @@
             .avatar-frame {
                 position: relative;
                 z-index: 3;
+                /* 调整头像位置，使其在遮罩层之上 */
                 margin: 20px auto;
                 width: 80px; /* 根据你的设计调整 */
                 height: 80px;
@@ -1072,11 +1143,6 @@
             .filter-tab {
                 padding: 7px 14px;
                 font-size: 13px;
-            }
-
-            .avatar-frame {
-                width: 65px;
-                height: 65px;
             }
 
             /* 移动端特别小的设备，确保一行两个卡片 */
@@ -1173,16 +1239,40 @@
             }
         }
 
+        #global-loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+
     </style>
 </head>
 <body>
 <div class="container">
     <!-- 头部 -->
     <header>
+<!--        <div class="logo">-->
+<!--            <i class="fas fa-broadcast-tower logo-icon"></i>-->
+<!--            <span class="logo-text">直播聚合</span>-->
+<!--        </div>-->
+
         <div class="logo">
-            <i class="fas fa-broadcast-tower logo-icon"></i>
-            <span class="logo-text">直播聚合</span>
+            <div id="logo-container" style="width:60px;height:60px;"></div>
+            <span class="logo-text">抽象赛道网</span>
         </div>
+
+        <div id="global-loading" style="display:flex">
+            <div id="lottie-container" style="width:120px;height:120px;"></div>
+        </div>
+<!--        <div id="lottie-container" ></div>-->
+
+        <!--        <canvas id="canvas" width="300" height="300"></canvas>-->
+
         <div class="header-controls">
             <button class="btn btn-secondary btn-icon" id="chatToggle">
                 <i class="fas fa-comments"></i>
@@ -1225,14 +1315,18 @@
                 <i class="fas fa-comments"></i>
                 聊天室
                 <span class="online-count" id="onlineCount"></span>
+                <button class="chat-close" id="closeChat">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <button class="chat-toggle" id="collapseChat">
-                <i class="fas fa-chevron-right"></i>
+                <i class="fas fa-comment-dots"></i>
             </button>
         </div>
         <div class="chat-body" id="chatBody">
             <!-- 聊天消息将通过JavaScript动态生成 -->
         </div>
+
         <div class="chat-footer">
             <div class="emoji-section" id="emojiSection">
                 <div class="emoji-tabs">
@@ -1478,244 +1572,248 @@
                     <h3 class="detail-name" id="detailName"></h3>
                     <p class="detail-bio" id="detailBio"></p>
                 </div>
-<!--                <div class="detail-stats">-->
-<!--                    <div class="stat-item">-->
-<!--                        <div class="stat-value" id="detailFollowers">1.2K</div>-->
-<!--                        <div class="stat-label">粉丝</div>-->
-<!--                    </div>-->
-<!--                    <div class="stat-item">-->
-<!--                        <div class="stat-value" id="detailFollowing">356</div>-->
-<!--                        <div class="stat-label">关注</div>-->
-<!--                    </div>-->
-<!--                    <div class="stat-item">-->
-<!--                        <div class="stat-value" id="detailStreams">128</div>-->
-<!--                        <div class="stat-label">直播场次</div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
+                <!--                <div class="detail-stats">-->
+                <!--                    <div class="stat-item">-->
+                <!--                        <div class="stat-value" id="detailFollowers">1.2K</div>-->
+                <!--                        <div class="stat-label">粉丝</div>-->
+                <!--                    </div>-->
+                <!--                    <div class="stat-item">-->
+                <!--                        <div class="stat-value" id="detailFollowing">356</div>-->
+                <!--                        <div class="stat-label">关注</div>-->
+                <!--                    </div>-->
+                <!--                    <div class="stat-item">-->
+                <!--                        <div class="stat-value" id="detailStreams">128</div>-->
+                <!--                        <div class="stat-label">直播场次</div>-->
+                <!--                    </div>-->
+                <!--                </div>-->
+                <!--            </div>-->
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-    // 应用状态管理
-    const state = {
-        isLoggedIn: false,
-        currentUser: null,
-        currentStatus: 'live', // 'live' 或 'all'
-        chatExpanded: false,
-        emojiExpanded: false,
-        currentEmojiGroup: 'common',
-        chatWidth: 340,
-        webhookType: '',
-        isMobile: window.innerWidth <= 768
-    };
 
-    // 检测设备类型
-    function detectDeviceType() {
-        state.isMobile = window.innerWidth <= 768;
-    }
 
-    let streamersData = [];
-    const emojiData = {
-        common: [
-            { id: 1, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704763447505third_party_s1296657489.png' },
-            { id: 2, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704776059816third_party_s1296748052.png' },
-            { id: 3, url: 'https://bd.a.yximgs.com/bs2/emotion/1704776021202third_party_s1296747457.png'},
-            { id: 4, url: 'https://bd.a.yximgs.com/bs2/emotion/1704775978144third_party_s1296746882.png' },
-            { id: 5, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775935917third_party_s1296746407.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775888472third_party_s1296745888.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775840073third_party_s1296745254.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704766004548third_party_s1296668542.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704765943430third_party_s1296668337.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775798640third_party_s1296744691.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775755675third_party_s1296744198.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775705283third_party_s1296743591.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704765876094third_party_s1296667852.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775660342third_party_s1296742992.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775610489third_party_s1296742417.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775560543third_party_s1296741805.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775517486third_party_s1296741380.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775445666third_party_s1296740420.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772289790third_party_s1296705324.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772231770third_party_s1296704846.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772177310third_party_s1296704283.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772118979third_party_s1296703810.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772048844third_party_s1296703216.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771654524third_party_s1296700611.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771603139third_party_s1296700263.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771554781third_party_s1296699971.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771498312third_party_s1296699382.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771450694third_party_s1296699070.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771395457third_party_s1296698891.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771346135third_party_s1296698660.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771294552third_party_s1296698182.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771236940third_party_s1296697797.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771184363third_party_s1296697359.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704766474596third_party_s1296670536.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771131055third_party_s1296696977.png' },
-            { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704771079728third_party_s1296696446.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771028940third_party_s1296696033.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770709451third_party_s1296694128.png' },
-            { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704770650664third_party_s1296693781.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770591150third_party_s1296693499.png' },
-            { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704770453439third_party_s1296692624.png' },
-            { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770395028third_party_s1296692231.png' },
 
-        ],
-        vip: [
+    <script>
+        // 应用状态管理
+        const state = {
+            isLoggedIn: false,
+            currentUser: null,
+            currentStatus: 'live', // 'live' 或 'all'
+            chatExpanded: false,
+            emojiExpanded: false,
+            currentEmojiGroup: 'common',
+            chatWidth: 540,
+            webhookType: '',
+            isMobile: window.innerWidth <= 768
+        };
 
-        ]
-    };
-
-    // 初始化页面
-    document.addEventListener('DOMContentLoaded', function() {
-        detectDeviceType();
-        initEventListeners();
-        fetchStreamers();
-        checkIsLogin();
-        setupWebSocket();
-        updateUIState();
-
-        // 初始化聊天室宽度
-        document.getElementById('chatSidebar').style.width = state.chatWidth + 'px';
-
-        // 如果是移动设备，默认收起聊天室
-        if (state.isMobile) {
-            document.getElementById('chatSidebar').classList.add('collapsed');
-            state.chatExpanded = false;
+        // 检测设备类型
+        function detectDeviceType() {
+            state.isMobile = window.innerWidth <= 768;
         }
 
-        // 监听窗口大小变化
-        window.addEventListener('resize', function() {
+        let streamersData = [];
+        const emojiData = {
+            common: [
+                { id: 1, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704763447505third_party_s1296657489.png' },
+                { id: 2, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704776059816third_party_s1296748052.png' },
+                { id: 3, url: 'https://bd.a.yximgs.com/bs2/emotion/1704776021202third_party_s1296747457.png'},
+                { id: 4, url: 'https://bd.a.yximgs.com/bs2/emotion/1704775978144third_party_s1296746882.png' },
+                { id: 5, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775935917third_party_s1296746407.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775888472third_party_s1296745888.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775840073third_party_s1296745254.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704766004548third_party_s1296668542.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704765943430third_party_s1296668337.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775798640third_party_s1296744691.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775755675third_party_s1296744198.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775705283third_party_s1296743591.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704765876094third_party_s1296667852.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775660342third_party_s1296742992.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775610489third_party_s1296742417.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775560543third_party_s1296741805.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775517486third_party_s1296741380.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775445666third_party_s1296740420.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772289790third_party_s1296705324.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772231770third_party_s1296704846.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772177310third_party_s1296704283.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772118979third_party_s1296703810.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772048844third_party_s1296703216.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771654524third_party_s1296700611.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771603139third_party_s1296700263.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771554781third_party_s1296699971.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771498312third_party_s1296699382.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771450694third_party_s1296699070.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771395457third_party_s1296698891.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771346135third_party_s1296698660.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771294552third_party_s1296698182.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771236940third_party_s1296697797.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771184363third_party_s1296697359.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704766474596third_party_s1296670536.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771131055third_party_s1296696977.png' },
+                { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704771079728third_party_s1296696446.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771028940third_party_s1296696033.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770709451third_party_s1296694128.png' },
+                { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704770650664third_party_s1296693781.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770591150third_party_s1296693499.png' },
+                { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704770453439third_party_s1296692624.png' },
+                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770395028third_party_s1296692231.png' },
+
+            ],
+            vip: [
+
+            ]
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
             detectDeviceType();
-            // 移动端展开聊天室时，确保铺满屏幕
-            const chatSidebar = document.getElementById('chatSidebar');
-            if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
-                chatSidebar.style.width = '100%';
+            initEventListeners();
+            fetchStreamers();
+            checkIsLogin();
+            setupWebSocket();
+            updateUIState();
+
+            // 初始化聊天室宽度
+            document.getElementById('chatSidebar').style.width = state.chatWidth + 'px';
+
+            // 如果是移动设备，默认收起聊天室
+            if (state.isMobile) {
+                document.getElementById('chatSidebar').classList.add('collapsed');
+                state.chatExpanded = false;
             }
-        });
-    });
 
-    // 初始化事件监听器
-    function initEventListeners() {
-        // 登录/注册按钮
-        document.getElementById('loginBtn').addEventListener('click', openLoginModal);
-        document.getElementById('userAvatar').addEventListener('click', openProfileModal);
-
-        // 聊天室按钮
-        document.getElementById('chatToggle').addEventListener('click', toggleChat);
-        document.getElementById('collapseChat').addEventListener('click', toggleChat);
-
-        // 筛选标签
-        document.querySelectorAll('.filter-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                state.currentStatus = this.dataset.status;
-                renderStreamerCards();
-            });
-        });
-
-        // 模态框关闭按钮
-        document.getElementById('closeLoginModal').addEventListener('click', closeLoginModal);
-        document.getElementById('closeRegisterModal').addEventListener('click', closeRegisterModal);
-        document.getElementById('closeForgotModal').addEventListener('click', closeForgotModal);
-        document.getElementById('closeProfileModal').addEventListener('click', closeProfileModal);
-        document.getElementById('closeUserDetailModal').addEventListener('click', closeUserDetailModal);
-
-        // 模态框切换
-        document.getElementById('switchToRegister').addEventListener('click', switchToRegister);
-        document.getElementById('switchToLogin').addEventListener('click', switchToLogin);
-        document.getElementById('forgotPassword').addEventListener('click', openForgotPasswordModal);
-
-        // 表单提交
-        document.getElementById('loginForm').addEventListener('submit', handleLogin);
-        document.getElementById('registerForm').addEventListener('submit', handleRegister);
-        document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
-        document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
-        document.getElementById('changeAvatarBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('avatarFileInput').click();
-        });
-        document.getElementById('avatarFileInput').addEventListener('change', handleChangeAvatar);
-
-        // 验证码发送
-        document.getElementById('sendCodeBtn').addEventListener('click', sendVerificationCode);
-        document.getElementById('sendForgotCodeBtn').addEventListener('click', sendForgotCode);
-
-        // 聊天室相关
-        document.getElementById('emojiToggle').addEventListener('click', toggleEmojiSection);
-        document.getElementById('chatInput').addEventListener('input', handleChatInput);
-        document.getElementById('sendBtn').addEventListener('click', sendMessage);
-
-        // 表情标签切换
-        document.querySelectorAll('.emoji-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.emoji-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                state.currentEmojiGroup = this.dataset.group;
-                renderEmojis();
-            });
-        });
-
-        // Webhook选项选择
-        document.querySelectorAll('.webhook-option').forEach(option => {
-            option.addEventListener('click', function() {
-                document.querySelectorAll('.webhook-option').forEach(o => o.classList.remove('selected'));
-                this.classList.add('selected');
-                state.webhookType = this.dataset.type;
-                document.getElementById('selectedWebhook').value = state.webhookType;
-                document.getElementById('webhookUrlContainer').style.display = 'block';
-                document.getElementById('webhookUrl').placeholder = `请输入${this.dataset.type === 'dingtalk' ? '钉钉' : this.dataset.type === 'wechat' ? '企微' : '飞书'} Webhook地址`;
-            });
-        });
-
-        // 拖拽调整聊天室宽度（仅在非移动端）
-        if (!state.isMobile) {
-            initChatResize();
-        }
-
-        // 点击模态框外部关闭
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.classList.remove('active');
+            // 监听窗口大小变化
+            window.addEventListener('resize', function() {
+                detectDeviceType();
+                // 移动端展开聊天室时，确保铺满屏幕
+                const chatSidebar = document.getElementById('chatSidebar');
+                if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
+                    chatSidebar.style.width = '100%';
                 }
             });
         });
-    }
 
-    const API_BASE_URL = 'https://api.saidao.cc';
-    const N8N_BASE_URL = 'https://n8n.saidao.cc';
-    const WS_BASE_URL = 'wss://api.saidao.cc';
-    const TOKEN_KEY = 'ACCESS_TOKEN';
+        // 初始化事件监听器
+        function initEventListeners() {
+            // 登录/注册按钮
+            document.getElementById('loginBtn').addEventListener('click', openLoginModal);
+            document.getElementById('userAvatar').addEventListener('click', openProfileModal);
 
-    const ApiEndpoints = {
-        saidao: () => request(`/saidao/`, {withAuth: true}),
-        showUserDetail: (userId) => request(`/user/${userId}`),
-        currentUser: () => request('/user/', {withAuth: true}),
-        login: (data) => request('/user/login', {method: 'POST', body: data}),
-        register: (data) => request('/user/register', {method: 'POST', body: data}),
-        forgotPassword: (data) => request('/user/forgotPassword', {method: 'POST', body: data}),
-        profileUpdate: (data) => request('/user/update', {method: 'POST', body: data, withAuth: true}),
-        sendVerificationCode: (data) => request('/webhook/sendRegisterCode', {method: 'POST', body: data, fromN8N: true}),
-        updateOptions: (data) => request('/saidao/options', {method: 'POST', body: data, withAuth: true}),
-        uploadImages: (data) => request('/api/image/upload', {method: 'POST', body: data, withAuth: true}),
-    };
+            // 聊天室按钮
+            document.getElementById('chatToggle').addEventListener('click', toggleChat);
+            document.getElementById('collapseChat').addEventListener('click', toggleChat);
+            document.getElementById('closeChat').addEventListener('click', toggleChat);
+
+            // 筛选标签
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    state.currentStatus = this.dataset.status;
+                    renderStreamerCards();
+                });
+            });
+
+            // 模态框关闭按钮
+            document.getElementById('closeLoginModal').addEventListener('click', closeLoginModal);
+            document.getElementById('closeRegisterModal').addEventListener('click', closeRegisterModal);
+            document.getElementById('closeForgotModal').addEventListener('click', closeForgotModal);
+            document.getElementById('closeProfileModal').addEventListener('click', closeProfileModal);
+            document.getElementById('closeUserDetailModal').addEventListener('click', closeUserDetailModal);
+
+            // 模态框切换
+            document.getElementById('switchToRegister').addEventListener('click', switchToRegister);
+            document.getElementById('switchToLogin').addEventListener('click', switchToLogin);
+            document.getElementById('forgotPassword').addEventListener('click', openForgotPasswordModal);
+
+            // 表单提交
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
+            document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+            document.getElementById('changeAvatarBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('avatarFileInput').click();
+            });
+            document.getElementById('avatarFileInput').addEventListener('change', handleChangeAvatar);
+
+            // 验证码发送
+            document.getElementById('sendCodeBtn').addEventListener('click', sendVerificationCode);
+            document.getElementById('sendForgotCodeBtn').addEventListener('click', sendForgotCode);
+
+            // 聊天室相关
+            document.getElementById('emojiToggle').addEventListener('click', toggleEmojiSection);
+            document.getElementById('chatInput').addEventListener('input', handleChatInput);
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
+
+            // 表情标签切换
+            document.querySelectorAll('.emoji-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.emoji-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    state.currentEmojiGroup = this.dataset.group;
+                    renderEmojis();
+                });
+            });
+
+            // Webhook选项选择
+            document.querySelectorAll('.webhook-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.webhook-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    state.webhookType = this.dataset.type;
+                    document.getElementById('selectedWebhook').value = state.webhookType;
+                    document.getElementById('webhookUrlContainer').style.display = 'block';
+                    document.getElementById('webhookUrl').placeholder = `请输入${this.dataset.type === 'dingtalk' ? '钉钉' : this.dataset.type === 'wechat' ? '企微' : '飞书'} Webhook地址`;
+                });
+            });
+
+            // 拖拽调整聊天室宽度（仅在非移动端）
+            if (!state.isMobile) {
+                initChatResize();
+            }
+
+            // 点击模态框外部关闭
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                    }
+                });
+            });
+        }
+
+        const API_BASE_URL = 'https://api.saidao.cc';
+        const N8N_BASE_URL = 'https://n8n.saidao.cc';
+        const WS_BASE_URL = 'wss://api.saidao.cc';
+        const TOKEN_KEY = 'ACCESS_TOKEN';
+
+        const ApiEndpoints = {
+            saidao: () => request(`/saidao/`, {withAuth: true}),
+            showUserDetail: (userId) => request(`/user/${userId}`),
+            currentUser: () => request('/user/', {withAuth: true}),
+            login: (data) => request('/user/login', {method: 'POST', body: data}),
+            register: (data) => request('/user/register', {method: 'POST', body: data}),
+            forgotPassword: (data) => request('/user/forgotPassword', {method: 'POST', body: data}),
+            profileUpdate: (data) => request('/user/update', {method: 'POST', body: data, withAuth: true}),
+            sendVerificationCode: (data) => request('/webhook/sendRegisterCode', {method: 'POST', body: data, fromN8N: true}),
+            updateOptions: (data) => request('/saidao/options', {method: 'POST', body: data, withAuth: true}),
+            uploadImages: (data) => request('/api/image/upload', {method: 'POST', body: data, withAuth: true}),
+        };
 
 
-    // 渲染主播卡片
-    function renderStreamerCards() {
-        const container = document.getElementById('cardsGrid');
-        container.innerHTML = '';
+        // 渲染主播卡片
+        function renderStreamerCards() {
+            const container = document.getElementById('cardsGrid');
+            container.innerHTML = '';
 
-        const filteredStreamers = state.currentStatus === 'live'
-            ? streamersData.filter(s => s.status === 'live' && !s.notificationEnabled)
-            : streamersData;
+            const filteredStreamers = state.currentStatus === 'live'
+                ? streamersData.filter(s => s.status === 'live' && !s.notificationEnabled)
+                : streamersData;
 
-        if (filteredStreamers.length === 0) {
-            container.innerHTML = `
+            if (filteredStreamers.length === 0) {
+                container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">
                             <i class="fas fa-video-slash"></i>
@@ -1724,23 +1822,23 @@
                         <p>当前没有${state.currentStatus === 'live' ? '直播中' : ''}的主播</p>
                     </div>
                 `;
-            return;
-        }
+                return;
+            }
 
-        filteredStreamers.forEach(streamer => {
-            const card = document.createElement('div');
-            card.className = 'streamer-card';
-            card.innerHTML = `
+            filteredStreamers.forEach(streamer => {
+                const card = document.createElement('div');
+                card.className = 'streamer-card';
+                card.innerHTML = `
                     ${streamer.status === 'live'
-                ? '<div class="live-badge">直播中</div>'
-                : '<div class="offline-badge">未开播</div>'}
-                    <div class="avatar-section ${streamer.status === 'live' ? 'has-cover' : ''}">
+                    ? '<div class="live-badge">直播中</div>'
+                    : '<div class="offline-badge">未开播</div>'}
+                     <div class="avatar-section ${streamer.status === 'live' ? 'has-cover' : ''}">
                         ${streamer.status === 'live'
-                                ? `<div class="cover-container">
+                    ? `<div class="cover-container">
                                 <img src="${streamer.cover || streamer.avatar}" alt="${streamer.name}封面" class="cover-image">
                                 <div class="cover-mask"></div>
                                </div>`
-                                : ''}
+                    : ''}
                         <div class="avatar-frame">
                             <img src="${streamer.avatar}" alt="${streamer.name}" class="streamer-avatar">
                         </div>
@@ -1771,532 +1869,532 @@
                     </div>
                 `;
 
-            // 点击进入直播间按钮跳转
-            const enterBtn = card.querySelector('.enter-btn');
-            enterBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // 防止触发卡片的点击事件两次
-                if (streamer.url) {
-                    window.open(streamer.url, '_blank');
-                }
-            });
-
-            // 点击整个卡片跳转
-            const avatarSection = card.querySelector('.avatar-section');
-            avatarSection.addEventListener('click', () => {
-                if (streamer.url) {
-                    window.open(streamer.url, '_blank');
-                }
-            });
-
-            // 添加设置按钮点击事件
-            const settingsBtn = card.querySelector('.settings-btn');
-            const settingsDropdown = card.querySelector('.settings-dropdown');
-
-            settingsBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                // 关闭其他打开的设置面板
-                document.querySelectorAll('.settings-dropdown.active').forEach(dropdown => {
-                    if (dropdown !== settingsDropdown) dropdown.classList.remove('active');
+                // 点击进入直播间按钮跳转
+                const enterBtn = card.querySelector('.enter-btn');
+                enterBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 防止触发卡片的点击事件两次
+                    if (streamer.url) {
+                        window.open(streamer.url, '_blank');
+                    }
                 });
-                settingsDropdown.classList.toggle('active');
+
+                // 点击整个卡片跳转
+                const avatarSection = card.querySelector('.avatar-section');
+                avatarSection.addEventListener('click', () => {
+                    if (streamer.url) {
+                        window.open(streamer.url, '_blank');
+                    }
+                });
+
+                // 添加设置按钮点击事件
+                const settingsBtn = card.querySelector('.settings-btn');
+                const settingsDropdown = card.querySelector('.settings-dropdown');
+
+                settingsBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // 关闭其他打开的设置面板
+                    document.querySelectorAll('.settings-dropdown.active').forEach(dropdown => {
+                        if (dropdown !== settingsDropdown) dropdown.classList.remove('active');
+                    });
+                    settingsDropdown.classList.toggle('active');
+                });
+
+                // 开关切换事件
+                const toggle = card.querySelector('.toggle-switch input');
+                toggle.addEventListener('change', async function() {
+                    const streamerId = parseInt(this.dataset.id);
+                    const streamer = streamersData.find(s => s.id === streamerId);
+                    if (streamer) {
+                        streamer.notificationEnabled = this.checked;
+                        // 这里可以调用API更新通知设置
+                        console.log(`更新主播 ${streamerId} 通知设置: ${this.checked}`);
+                        const result = await ApiEndpoints.updateOptions({'saidaoId': streamerId, 'notShow': streamer.notificationEnabled});
+                        if (result.code === '0') {
+                            Toast.show('操作成功，屏蔽后也将不会收到Webhook提醒了', 'success');
+                            fetchStreamers();
+                            // window.location.reload();
+                        }
+                    }
+                });
+
+                container.appendChild(card);
             });
 
-            // 开关切换事件
-            const toggle = card.querySelector('.toggle-switch input');
-            toggle.addEventListener('change', async function() {
-                const streamerId = parseInt(this.dataset.id);
-                const streamer = streamersData.find(s => s.id === streamerId);
-                if (streamer) {
-                    streamer.notificationEnabled = this.checked;
-                    // 这里可以调用API更新通知设置
-                    console.log(`更新主播 ${streamerId} 通知设置: ${this.checked}`);
-                    const result = await ApiEndpoints.updateOptions({'saidaoId': streamerId, 'notShow': streamer.notificationEnabled});
-                    if (result.code === '0') {
-                        Toast.show('操作成功，屏蔽后也将不会收到Webhook提醒了', 'success');
-                        fetchStreamers();
-                        // window.location.reload();
+            // 点击页面其他区域关闭设置面板
+            document.addEventListener('click', function() {
+                document.querySelectorAll('.settings-dropdown.active').forEach(dropdown => {
+                    dropdown.classList.remove('active');
+                });
+            });
+        }
+
+        // 渲染表情
+        function renderEmojis() {
+            const container = document.getElementById('emojiContainer');
+            container.innerHTML = '';
+
+            emojiData[state.currentEmojiGroup].forEach(emoji => {
+                const img = document.createElement('img');
+                img.src = emoji.url;
+                img.className = 'emoji-item';
+                img.alt = '表情';
+                img.addEventListener('click', function() {
+                    insertEmoji(emoji.url);
+                });
+                container.appendChild(img);
+            });
+        }
+
+        // 更新UI状态
+        function updateUIState() {
+            const loginBtn = document.getElementById('loginBtn');
+            const userAvatar = document.getElementById('userAvatar');
+            const sendBtn = document.getElementById('sendBtn');
+            const chatInput = document.getElementById('chatInput');
+
+            if (state.isLoggedIn) {
+                loginBtn.style.display = 'none';
+                userAvatar.style.display = 'block';
+                userAvatar.src = state.currentUser.avatar;
+                chatInput.disabled = false;
+                chatInput.placeholder = '输入消息...';
+                sendBtn.disabled = false;
+            } else {
+                loginBtn.style.display = 'flex';
+                userAvatar.style.display = 'none';
+                chatInput.disabled = true;
+                chatInput.placeholder = '请先登录才能发送消息';
+                sendBtn.disabled = true;
+            }
+        }
+
+        // 切换聊天室显示/隐藏
+        function toggleChat() {
+            const chatSidebar = document.getElementById('chatSidebar');
+            const chatToggleIcon = document.getElementById('collapseChat').querySelector('i');
+
+            state.chatExpanded = !state.chatExpanded;
+
+            if (state.chatExpanded) {
+                chatSidebar.classList.remove('collapsed');
+                chatToggleIcon.className = 'fas fa-comment-dots';
+
+                // 移动端展开聊天室时，设置宽度为100%
+                if (state.isMobile) {
+                    chatSidebar.style.width = '100%';
+                }
+            } else {
+                chatSidebar.classList.add('collapsed');
+                chatToggleIcon.className = 'fas fa-comment-dots';
+            }
+        }
+
+        // 切换表情面板
+        function toggleEmojiSection() {
+            const emojiSection = document.getElementById('emojiSection');
+            const emojiToggleIcon = document.getElementById('emojiToggle').querySelector('i');
+
+            state.emojiExpanded = !state.emojiExpanded;
+
+            if (state.emojiExpanded) {
+                emojiSection.classList.add('expanded');
+                emojiToggleIcon.className = 'fas fa-smile';
+                renderEmojis();
+            } else {
+                emojiSection.classList.remove('expanded');
+                emojiToggleIcon.className = 'far fa-smile';
+            }
+        }
+
+        // 插入表情到聊天输入框
+        function insertEmoji(emojiUrl) {
+            const chatInput = document.getElementById('chatInput');
+            chatInput.value += ` [表情] `;
+            chatInput.focus();
+        }
+
+        // 处理聊天输入
+        function handleChatInput() {
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = this.value.trim() === '';
+        }
+
+        // 显示用户详情
+        async function showUserDetail(userId) {
+
+            const result = await ApiEndpoints.showUserDetail(userId);
+            const userDetail = result.data;
+
+            document.getElementById('detailName').textContent = userDetail.name;
+            document.getElementById('detailAvatar').src = userDetail.avatar;
+            document.getElementById('detailBio').textContent = userDetail.bio;
+            // document.getElementById('detailFollowers').textContent = userDetail.followers;
+            // document.getElementById('detailFollowing').textContent = userDetail.following;
+            // document.getElementById('detailStreams').textContent = userDetail.streams;
+
+            document.getElementById('userDetailModal').classList.add('active');
+        }
+
+        // 初始化聊天室宽度拖拽
+        function initChatResize() {
+            const resizeHandle = document.getElementById('chatResizeHandle');
+            const chatSidebar = document.getElementById('chatSidebar');
+            let isResizing = false;
+
+            resizeHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+            });
+
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+
+                const newWidth = window.innerWidth - e.clientX;
+                if (newWidth >= 250 && newWidth <= 600) {
+                    state.chatWidth = newWidth;
+                    chatSidebar.style.width = newWidth + 'px';
+                }
+            }
+
+            function handleMouseUp() {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            }
+        }
+
+        // 模态框相关函数
+        function openLoginModal() {
+            closeAllModals();
+            document.getElementById('loginModal').classList.add('active');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.remove('active');
+        }
+
+        function openRegisterModal() {
+            closeAllModals();
+            document.getElementById('registerModal').classList.add('active');
+        }
+
+        function closeRegisterModal() {
+            document.getElementById('registerModal').classList.remove('active');
+        }
+
+        function openForgotPasswordModal() {
+            closeAllModals();
+            document.getElementById('forgotPasswordModal').classList.add('active');
+        }
+
+        function closeForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').classList.remove('active');
+        }
+
+        function openProfileModal() {
+            closeAllModals();
+            // 加载当前用户数据
+            if (state.currentUser) {
+                document.getElementById('profileName').value = state.currentUser.name;
+                document.getElementById('profileBio').value = state.currentUser.bio || '';
+                document.getElementById('profileAvatar').src = state.currentUser.avatar;
+
+                if (state.currentUser.webhookType) {
+                    const option = document.querySelector(`.webhook-option[data-type="${state.currentUser.webhookType}"]`);
+                    if (option) {
+                        option.click();
+                        document.getElementById('webhookUrl').value = state.currentUser.webhookUrl || '';
                     }
                 }
-            });
-
-            container.appendChild(card);
-        });
-
-        // 点击页面其他区域关闭设置面板
-        document.addEventListener('click', function() {
-            document.querySelectorAll('.settings-dropdown.active').forEach(dropdown => {
-                dropdown.classList.remove('active');
-            });
-        });
-    }
-
-    // 渲染表情
-    function renderEmojis() {
-        const container = document.getElementById('emojiContainer');
-        container.innerHTML = '';
-
-        emojiData[state.currentEmojiGroup].forEach(emoji => {
-            const img = document.createElement('img');
-            img.src = emoji.url;
-            img.className = 'emoji-item';
-            img.alt = '表情';
-            img.addEventListener('click', function() {
-                insertEmoji(emoji.url);
-            });
-            container.appendChild(img);
-        });
-    }
-
-    // 更新UI状态
-    function updateUIState() {
-        const loginBtn = document.getElementById('loginBtn');
-        const userAvatar = document.getElementById('userAvatar');
-        const sendBtn = document.getElementById('sendBtn');
-        const chatInput = document.getElementById('chatInput');
-
-        if (state.isLoggedIn) {
-            loginBtn.style.display = 'none';
-            userAvatar.style.display = 'block';
-            userAvatar.src = state.currentUser.avatar;
-            chatInput.disabled = false;
-            chatInput.placeholder = '输入消息...';
-            sendBtn.disabled = false;
-        } else {
-            loginBtn.style.display = 'flex';
-            userAvatar.style.display = 'none';
-            chatInput.disabled = true;
-            chatInput.placeholder = '请先登录才能发送消息';
-            sendBtn.disabled = true;
-        }
-    }
-
-    // 切换聊天室显示/隐藏
-    function toggleChat() {
-        const chatSidebar = document.getElementById('chatSidebar');
-        const chatToggleIcon = document.getElementById('collapseChat').querySelector('i');
-
-        state.chatExpanded = !state.chatExpanded;
-
-        if (state.chatExpanded) {
-            chatSidebar.classList.remove('collapsed');
-            chatToggleIcon.className = 'fas fa-chevron-right';
-
-            // 移动端展开聊天室时，设置宽度为100%
-            if (state.isMobile) {
-                chatSidebar.style.width = '100%';
             }
-        } else {
-            chatSidebar.classList.add('collapsed');
-            chatToggleIcon.className = 'fas fa-chevron-left';
-        }
-    }
-
-    // 切换表情面板
-    function toggleEmojiSection() {
-        const emojiSection = document.getElementById('emojiSection');
-        const emojiToggleIcon = document.getElementById('emojiToggle').querySelector('i');
-
-        state.emojiExpanded = !state.emojiExpanded;
-
-        if (state.emojiExpanded) {
-            emojiSection.classList.add('expanded');
-            emojiToggleIcon.className = 'fas fa-smile';
-            renderEmojis();
-        } else {
-            emojiSection.classList.remove('expanded');
-            emojiToggleIcon.className = 'far fa-smile';
-        }
-    }
-
-    // 插入表情到聊天输入框
-    function insertEmoji(emojiUrl) {
-        const chatInput = document.getElementById('chatInput');
-        chatInput.value += ` [表情] `;
-        chatInput.focus();
-    }
-
-    // 处理聊天输入
-    function handleChatInput() {
-        const sendBtn = document.getElementById('sendBtn');
-        sendBtn.disabled = this.value.trim() === '';
-    }
-
-    // 显示用户详情
-    async function showUserDetail(userId) {
-
-        const result = await ApiEndpoints.showUserDetail(userId);
-        const userDetail = result.data;
-
-        document.getElementById('detailName').textContent = userDetail.name;
-        document.getElementById('detailAvatar').src = userDetail.avatar;
-        document.getElementById('detailBio').textContent = userDetail.bio;
-        // document.getElementById('detailFollowers').textContent = userDetail.followers;
-        // document.getElementById('detailFollowing').textContent = userDetail.following;
-        // document.getElementById('detailStreams').textContent = userDetail.streams;
-
-        document.getElementById('userDetailModal').classList.add('active');
-    }
-
-    // 初始化聊天室宽度拖拽
-    function initChatResize() {
-        const resizeHandle = document.getElementById('chatResizeHandle');
-        const chatSidebar = document.getElementById('chatSidebar');
-        let isResizing = false;
-
-        resizeHandle.addEventListener('mousedown', function(e) {
-            isResizing = true;
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        });
-
-        function handleMouseMove(e) {
-            if (!isResizing) return;
-
-            const newWidth = window.innerWidth - e.clientX;
-            if (newWidth >= 250 && newWidth <= 600) {
-                state.chatWidth = newWidth;
-                chatSidebar.style.width = newWidth + 'px';
-            }
+            document.getElementById('profileModal').classList.add('active');
         }
 
-        function handleMouseUp() {
-            isResizing = false;
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.remove('active');
         }
-    }
 
-    // 模态框相关函数
-    function openLoginModal() {
-        closeAllModals();
-        document.getElementById('loginModal').classList.add('active');
-    }
-
-    function closeLoginModal() {
-        document.getElementById('loginModal').classList.remove('active');
-    }
-
-    function openRegisterModal() {
-        closeAllModals();
-        document.getElementById('registerModal').classList.add('active');
-    }
-
-    function closeRegisterModal() {
-        document.getElementById('registerModal').classList.remove('active');
-    }
-
-    function openForgotPasswordModal() {
-        closeAllModals();
-        document.getElementById('forgotPasswordModal').classList.add('active');
-    }
-
-    function closeForgotPasswordModal() {
-        document.getElementById('forgotPasswordModal').classList.remove('active');
-    }
-
-    function openProfileModal() {
-        closeAllModals();
-        // 加载当前用户数据
-        if (state.currentUser) {
-            document.getElementById('profileName').value = state.currentUser.name;
-            document.getElementById('profileBio').value = state.currentUser.bio || '';
-            document.getElementById('profileAvatar').src = state.currentUser.avatar;
-
-            if (state.currentUser.webhookType) {
-                const option = document.querySelector(`.webhook-option[data-type="${state.currentUser.webhookType}"]`);
-                if (option) {
-                    option.click();
-                    document.getElementById('webhookUrl').value = state.currentUser.webhookUrl || '';
-                }
-            }
+        function closeUserDetailModal() {
+            document.getElementById('userDetailModal').classList.remove('active');
         }
-        document.getElementById('profileModal').classList.add('active');
-    }
 
-    function closeProfileModal() {
-        document.getElementById('profileModal').classList.remove('active');
-    }
+        function closeAllModals() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.remove('active');
+            });
+        }
 
-    function closeUserDetailModal() {
-        document.getElementById('userDetailModal').classList.remove('active');
-    }
-
-    function closeAllModals() {
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.classList.remove('active');
-        });
-    }
-
-    function switchToRegister() {
-        closeLoginModal();
-        openRegisterModal();
-    }
-
-    function switchToLogin() {
-        closeRegisterModal();
-        openLoginModal();
-    }
-
-    async function checkIsLogin() {
-        const result = await ApiEndpoints.currentUser();
-        const data = result.data
-        if (data !== null && data.user !== null) {
-            state.isLoggedIn = true;
-            state.currentUser = {
-                id: data.user.id,
-                name: data.user.name,
-                email: data.user.email,
-                avatar: data.user.avatar,
-                bio: data.user.bio || '这个人很懒，什么都没写',
-                webhookType: data.user.webhookType,
-                webhookUrl: data.user.webhookUrl
-            };
-
-            updateUIState();
+        function switchToRegister() {
             closeLoginModal();
-        }
-    }
-
-    // 表单处理函数
-    async function handleLogin(e) {
-        e.preventDefault();
-
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-
-        if (!email || !password) {
-            Toast.show('请输入邮箱和密码', 'warning');
-            return;
+            openRegisterModal();
         }
 
-        const result = await ApiEndpoints.login({ email, password });
-        const { token, user } = result.data;
-        localStorage.setItem('ACCESS_TOKEN', token);
-        Toast.show('登录成功', 'success');
-
-        window.location.reload();
-
-    }
-
-
-    async function handleRegister(e) {
-        e.preventDefault();
-
-        const email = document.getElementById('registerEmail').value;
-        const password = document.getElementById('registerPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-        const verificationCode = document.getElementById('verificationCode').value;
-
-        if (password !== confirmPassword) {
-            Toast.show('两次输入的密码不一致', 'error');
-            return;
-        }
-
-        const result = await ApiEndpoints.register({ email, password, confirmPassword, verificationCode });
-        const { token, user } = result.data;
-
-        localStorage.setItem('ACCESS_TOKEN', token);
-        Toast.show('注册成功', 'success')
-        window.location.reload();
-
-    }
-
-    async function handleForgotPassword(e) {
-        e.preventDefault();
-
-        const email = document.getElementById('forgotEmail').value;
-        const code = document.getElementById('forgotCode').value;
-        const newPassword = document.getElementById('newPassword').value;
-
-        const result = await ApiEndpoints.forgotPassword({ email, code, newPassword });
-        if (result.code === '0') {
-            Toast.show('密码重置成功', 'success');
-            closeForgotPasswordModal();
+        function switchToLogin() {
+            closeRegisterModal();
             openLoginModal();
         }
 
-    }
+        async function checkIsLogin() {
+            const result = await ApiEndpoints.currentUser();
+            const data = result.data
+            if (data !== null && data.user !== null) {
+                state.isLoggedIn = true;
+                state.currentUser = {
+                    id: data.user.id,
+                    name: data.user.name,
+                    email: data.user.email,
+                    avatar: data.user.avatar,
+                    bio: data.user.bio || '这个人很懒，什么都没写',
+                    webhookType: data.user.webhookType,
+                    webhookUrl: data.user.webhookUrl
+                };
 
-    async function handleProfileUpdate(e) {
-        e.preventDefault();
+                updateUIState();
+                closeLoginModal();
+            }
+        }
 
-        const name = document.getElementById('profileName').value;
-        const bio = document.getElementById('profileBio').value;
-        const webhookType = document.getElementById('selectedWebhook').value;
-        const webhookUrl = document.getElementById('webhookUrl').value;
-        const avatar = document.getElementById('profileAvatar').src;
+        // 表单处理函数
+        async function handleLogin(e) {
+            e.preventDefault();
 
-        const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, webhookUrl, avatar })
-        if (result.code === '0') {
-            Toast.show('个人资料更新成功', 'success');
-            setTimeout(() => {
-                window.location.reload();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                Toast.show('请输入邮箱和密码', 'warning');
+                return;
+            }
+
+            const result = await ApiEndpoints.login({ email, password });
+            const { token, user } = result.data;
+            localStorage.setItem('ACCESS_TOKEN', token);
+            Toast.show('登录成功', 'success');
+
+            window.location.reload();
+
+        }
+
+
+        async function handleRegister(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const verificationCode = document.getElementById('verificationCode').value;
+
+            if (password !== confirmPassword) {
+                Toast.show('两次输入的密码不一致', 'error');
+                return;
+            }
+
+            const result = await ApiEndpoints.register({ email, password, confirmPassword, verificationCode });
+            const { token, user } = result.data;
+
+            localStorage.setItem('ACCESS_TOKEN', token);
+            Toast.show('注册成功', 'success')
+            window.location.reload();
+
+        }
+
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('forgotEmail').value;
+            const code = document.getElementById('forgotCode').value;
+            const newPassword = document.getElementById('newPassword').value;
+
+            const result = await ApiEndpoints.forgotPassword({ email, code, newPassword });
+            if (result.code === '0') {
+                Toast.show('密码重置成功', 'success');
+                closeForgotPasswordModal();
+                openLoginModal();
+            }
+
+        }
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('profileName').value;
+            const bio = document.getElementById('profileBio').value;
+            const webhookType = document.getElementById('selectedWebhook').value;
+            const webhookUrl = document.getElementById('webhookUrl').value;
+            const avatar = document.getElementById('profileAvatar').src;
+
+            const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, webhookUrl, avatar })
+            if (result.code === '0') {
+                // Toast.show('个人资料更新成功', 'success');
+                // setTimeout(() => {
+                    window.location.reload();
+                // }, 1000);
+            }
+
+        }
+
+        async function handleChangeAvatar(e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('avatarFileInput');
+
+            // 触发文件选择
+            if (!fileInput.files || fileInput.files.length === 0) {
+                fileInput.click();
+                return;
+            }
+
+            const file = fileInput.files[0];
+
+            // 1. 校验是否为图片
+            if (!file.type.startsWith('image/')) {
+                alert('只能上传图片文件');
+                fileInput.value = '';
+                return;
+            }
+
+            // 2. 校验大小（2MB）
+            const MAX_SIZE = 2 * 1024 * 1024;
+            if (file.size > MAX_SIZE) {
+                alert('图片大小不能超过 2MB');
+                fileInput.value = '';
+                return;
+            }
+
+            // 3. 构造 multipart/form-data
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadResult = await ApiEndpoints.uploadImages(formData);
+            const avatarUrl = uploadResult.data?.url;
+
+            if (!avatarUrl) {
+                alert('未获取到头像地址');
+                return;
+            }
+
+            // 5. 更新本地状态 & 页面头像
+            state.currentUser.avatar = avatarUrl;
+            document.getElementById('profileAvatar').src = avatarUrl;
+
+            // 清空 file input，避免无法重复选择同一文件
+            fileInput.value = '';
+        }
+
+        async function sendVerificationCode() {
+            const email = document.getElementById('registerEmail').value;
+            if (!email) {
+                alert('请输入邮箱地址');
+                return;
+            }
+
+            const result = await ApiEndpoints.sendVerificationCode({ email, scene: 'register'});
+            if (result.code === '0') {
+                Toast.show('验证码发送成功', 'success');
+            }
+
+            const btn = document.getElementById('sendCodeBtn');
+            btn.disabled = true;
+            btn.textContent = '60秒后重试';
+
+            let count = 60;
+            const timer = setInterval(() => {
+                count--;
+                btn.textContent = count + '秒后重试';
+
+                if (count <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.textContent = '发送验证码';
+                }
             }, 1000);
+
+            console.log('发送验证码到:', email);
         }
 
-    }
-
-    async function handleChangeAvatar(e) {
-        e.preventDefault();
-
-        const fileInput = document.getElementById('avatarFileInput');
-
-        // 触发文件选择
-        if (!fileInput.files || fileInput.files.length === 0) {
-            fileInput.click();
-            return;
-        }
-
-        const file = fileInput.files[0];
-
-        // 1. 校验是否为图片
-        if (!file.type.startsWith('image/')) {
-            alert('只能上传图片文件');
-            fileInput.value = '';
-            return;
-        }
-
-        // 2. 校验大小（2MB）
-        const MAX_SIZE = 2 * 1024 * 1024;
-        if (file.size > MAX_SIZE) {
-            alert('图片大小不能超过 2MB');
-            fileInput.value = '';
-            return;
-        }
-
-        // 3. 构造 multipart/form-data
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const uploadResult = await ApiEndpoints.uploadImages(formData);
-        const avatarUrl = uploadResult.data?.url;
-
-        if (!avatarUrl) {
-            alert('未获取到头像地址');
-            return;
-        }
-
-        // 5. 更新本地状态 & 页面头像
-        state.currentUser.avatar = avatarUrl;
-        document.getElementById('profileAvatar').src = avatarUrl;
-
-        // 清空 file input，避免无法重复选择同一文件
-        fileInput.value = '';
-    }
-
-    async function sendVerificationCode() {
-        const email = document.getElementById('registerEmail').value;
-        if (!email) {
-            alert('请输入邮箱地址');
-            return;
-        }
-
-        const result = await ApiEndpoints.sendVerificationCode({ email, scene: 'register'});
-        if (result.code === '0') {
-            Toast.show('验证码发送成功', 'success');
-        }
-
-        const btn = document.getElementById('sendCodeBtn');
-        btn.disabled = true;
-        btn.textContent = '60秒后重试';
-
-        let count = 60;
-        const timer = setInterval(() => {
-            count--;
-            btn.textContent = count + '秒后重试';
-
-            if (count <= 0) {
-                clearInterval(timer);
-                btn.disabled = false;
-                btn.textContent = '发送验证码';
+        async function sendForgotCode() {
+            const email = document.getElementById('forgotEmail').value;
+            if (!email) {
+                Toast.show('请输入邮箱地址', 'error');
+                return;
             }
-        }, 1000);
 
-        console.log('发送验证码到:', email);
-    }
-
-    async function sendForgotCode() {
-        const email = document.getElementById('forgotEmail').value;
-        if (!email) {
-            Toast.show('请输入邮箱地址', 'error');
-            return;
-        }
-
-        const result = await ApiEndpoints.sendVerificationCode({ email, scene: 'forgot_password'});
-        if (result.code === '0') {
-            Toast.show('验证码发送成功', 'success');
-        }
-
-        const btn = document.getElementById('sendForgotCodeBtn');
-        btn.disabled = true;
-        btn.textContent = '60秒后重试';
-
-        let count = 60;
-        const timer = setInterval(() => {
-            count--;
-            btn.textContent = count + '秒后重试';
-
-            if (count <= 0) {
-                clearInterval(timer);
-                btn.disabled = false;
-                btn.textContent = '发送验证码';
+            const result = await ApiEndpoints.sendVerificationCode({ email, scene: 'forgot_password'});
+            if (result.code === '0') {
+                Toast.show('验证码发送成功', 'success');
             }
-        }, 1000);
 
-        console.log('发送找回密码验证码到:', email);
-    }
+            const btn = document.getElementById('sendForgotCodeBtn');
+            btn.disabled = true;
+            btn.textContent = '60秒后重试';
 
-    async function fetchStreamers() {
+            let count = 60;
+            const timer = setInterval(() => {
+                count--;
+                btn.textContent = count + '秒后重试';
 
-        const result = await ApiEndpoints.saidao();
-        streamersData = result.data.map(item => ({
-            id: item.id,
-            name: item.name,
-            channel: item.channel,
-            startTime: item.startTime,
-            status: item.status === 1 ? 'live' : 'ended',
-            avatar: item.avatar,
-            url: item.url,
-            cover: item.cover,
-            notificationEnabled: item.notShow
-        }));
+                if (count <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.textContent = '发送验证码';
+                }
+            }, 1000);
 
-        renderStreamerCards();
-    }
-
-    // toast.js
-    const Toast = (() => {
-        const container = document.getElementById('toast-container');
-
-        function show(message, type = 'info', duration = 3000) {
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-
-            container.appendChild(toast);
-
-            // 动画显示
-            requestAnimationFrame(() => toast.classList.add('show'));
-
-            // 自动消失
-            setTimeout(() => {
-                toast.classList.remove('show');
-                toast.addEventListener('transitionend', () => toast.remove());
-            }, duration);
+            console.log('发送找回密码验证码到:', email);
         }
 
-        return { show };
-    })();
+        async function fetchStreamers() {
 
-    const container = document.getElementById('chatBody');
-    container.innerHTML = '';
+            const result = await ApiEndpoints.saidao();
+            streamersData = result.data.map(item => ({
+                id: item.id,
+                name: item.name,
+                channel: item.channel,
+                startTime: item.startTime,
+                status: item.status === 1 ? 'live' : 'ended',
+                avatar: item.avatar,
+                url: item.url,
+                cover: item.cover,
+                notificationEnabled: item.notShow
+            }));
 
-    let socket = null;
+            renderStreamerCards();
+        }
 
-    function addMessageToChat(data) {
-        const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message';
-        messageElement.innerHTML = `
+        // toast.js
+        const Toast = (() => {
+            const container = document.getElementById('toast-container');
+
+            function show(message, type = 'info', duration = 3000) {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+
+                container.appendChild(toast);
+
+                // 动画显示
+                requestAnimationFrame(() => toast.classList.add('show'));
+
+                // 自动消失
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    toast.addEventListener('transitionend', () => toast.remove());
+                }, duration);
+            }
+
+            return { show };
+        })();
+
+        const container = document.getElementById('chatBody');
+        container.innerHTML = '';
+
+        let socket = null;
+
+        function addMessageToChat(data) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'chat-message';
+            messageElement.innerHTML = `
                     <img src="${data.avatar}" alt="${data.uname}" class="message-avatar" data-user-id="${data.uid}">
                     <div class="message-content">
                         <div class="message-header">
@@ -2307,313 +2405,269 @@
                     </div>
                 `;
 
-        // 添加头像点击事件
-        const avatar = messageElement.querySelector('.message-avatar');
-        avatar.addEventListener('click', function () {
-            console.log('点击头像，用户ID:', this.dataset.userId)
-            showUserDetail(parseInt(this.dataset.userId));
-        });
-
-        container.appendChild(messageElement);
-
-        // 滚动到底部
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function setupWebSocket() {
-
-        const token = localStorage.getItem(TOKEN_KEY);
-        socket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}`);
-        socket.addEventListener('open', (event) => {
-            console.log('WebSocket连接已建立');
-        });
-
-        socket.addEventListener('message', (event) => {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'user') {
-                // 添加消息到聊天室
-                addMessageToChat(data);
-            } else if (data.type === 'history') {
-                // 添加消息到聊天室
-                data.messages.forEach(msg => {
-                    addMessageToChat(msg);
-                });
-            } else if (data.type === 'error') {
-                Toast.show(data.content, 'error');
-            } else if (data.type === 'system') {
-                addMessageToChat(data);
-            } else if (data.type === 'onlineCount') {
-                const onlineCount = document.getElementById('onlineCount');
-                onlineCount.textContent = `${data.count}人在线`;
-
-            }
-        });
-
-        socket.addEventListener('close', (event) => {
-            console.log('WebSocket连接已关闭');
-            // addSystemMessage('连接已断开，正在尝试重新连接...');
-            setTimeout(setupWebSocket, 3000);
-        });
-
-        socket.addEventListener('error', (event) => {
-            console.error('WebSocket错误:', event);
-            // addSystemMessage('连接发生错误');
-        });
-    }
-
-    // 发送消息
-    function sendMessage() {
-        const chatInput = document.getElementById('chatInput');
-        const message = chatInput.value.trim();
-
-        if (!message || !state.isLoggedIn) return;
-
-        const newMessage = {
-            type: 'chat', // 当前用户ID
-            content: message,
-        };
-
-        socket.send(JSON.stringify(newMessage));
-
-        chatInput.value = '';
-        document.getElementById('sendBtn').disabled = true;
-
-        // 这里可以调用API发送消息
-        console.log('发送消息:', message);
-    }
-
-
-    async function request(url, {
-        method = 'GET',
-        body,
-        withAuth = false,
-        fromN8N = false,
-        headers = {}
-    } = {}) {
-
-        const finalHeaders = {
-            'Accept': 'application/json',
-            ...headers
-        };
-
-        const isFormData = body instanceof FormData;
-        if (body && !isFormData) {
-            finalHeaders['Content-Type'] = 'application/json';
-        }
-
-        if (withAuth) {
-            const token = localStorage.getItem(TOKEN_KEY);
-            if (token) {
-                finalHeaders['Authorization'] = `${token}`;
-            }
-        }
-
-        const baseUrl = fromN8N ? N8N_BASE_URL : API_BASE_URL;
-
-        const response = await fetch(`${baseUrl}${url}`, {
-            method,
-            credentials: 'include',
-            headers: finalHeaders,
-            body: isFormData ? body : JSON.stringify(body)
-        });
-
-        const result = await response.json();
-
-        // === 401 统一处理 ===
-        if (response.status === 401) {
-            openLoginModal();
-            Toast.show('请先登录', 'error');
-            throw new Error('请先登录');
-        }
-
-        if (!response.ok) {
-            // 统一抛出异常，业务层处理
-            const message = result.message || '请求失败';
-            Toast.show(message, 'error');
-            throw new Error(message);
-        }
-
-        return result;
-    }
-
-
-
-    // 注册 Service Worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/service-worker.js').then(reg => {
-
-            // 新 SW 出现时立即激活
-            if (reg.waiting) {
-                reg.waiting.postMessage('SKIP_WAITING');
-            }
-
-            reg.addEventListener('updatefound', () => {
-                const newWorker = reg.installing;
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed') {
-                        newWorker.postMessage('SKIP_WAITING');
-                    }
-                });
+            // 添加头像点击事件
+            const avatar = messageElement.querySelector('.message-avatar');
+            avatar.addEventListener('click', function () {
+                console.log('点击头像，用户ID:', this.dataset.userId)
+                showUserDetail(parseInt(this.dataset.userId));
             });
 
-        });
-    }
+            container.appendChild(messageElement);
 
-    // PWA安装功能
-    let deferredPrompt;
-    const installButton = document.getElementById('installButton');
-
-    // 监听beforeinstallprompt事件
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installButton.style.display = 'flex';
-    });
-
-    // 安装按钮点击事件
-    installButton.addEventListener('click', async () => {
-        if (!deferredPrompt) {
-            alert('安装功能暂时不可用');
-            return;
+            // 滚动到底部
+            container.scrollTop = container.scrollHeight;
         }
 
-        try {
-            // 显示系统安装对话框
-            deferredPrompt.prompt();
+        function setupWebSocket() {
 
-            // 等待用户选择
-            const { outcome } = await deferredPrompt.userChoice;
+            const token = localStorage.getItem(TOKEN_KEY);
+            socket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}`);
+            socket.addEventListener('open', (event) => {
+                console.log('WebSocket连接已建立');
+            });
 
-            if (outcome === 'accepted') {
-                installButton.style.display = 'none';
-                Toast.show('应用已成功安装到桌面！', 'success');
-            } else {
-                Toast.show('已取消安装', 'info');
-                // 用户拒绝后，可以设置一个延迟后再次显示按钮
-                setTimeout(() => {
-                    if (deferredPrompt) {
-                        installButton.style.display = 'flex';
+            socket.addEventListener('message', (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'user') {
+                    // 添加消息到聊天室
+                    addMessageToChat(data);
+                } else if (data.type === 'history') {
+                    // 添加消息到聊天室
+                    data.messages.forEach(msg => {
+                        addMessageToChat(msg);
+                    });
+                } else if (data.type === 'error') {
+                    Toast.show(data.content, 'error');
+                } else if (data.type === 'system') {
+                    addMessageToChat(data);
+                } else if (data.type === 'onlineCount') {
+                    const onlineCount = document.getElementById('onlineCount');
+                    onlineCount.textContent = `${data.count}人在线`;
+
+                }
+            });
+
+            socket.addEventListener('close', (event) => {
+                console.log('WebSocket连接已关闭');
+                // addSystemMessage('连接已断开，正在尝试重新连接...');
+                setTimeout(setupWebSocket, 3000);
+            });
+
+            socket.addEventListener('error', (event) => {
+                console.error('WebSocket错误:', event);
+                // addSystemMessage('连接发生错误');
+            });
+        }
+
+        // 发送消息
+        function sendMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+
+            if (!message || !state.isLoggedIn) return;
+
+            const newMessage = {
+                type: 'chat', // 当前用户ID
+                content: message,
+            };
+
+            socket.send(JSON.stringify(newMessage));
+
+            chatInput.value = '';
+            document.getElementById('sendBtn').disabled = true;
+
+            // 这里可以调用API发送消息
+            console.log('发送消息:', message);
+        }
+
+
+        async function request(url, {
+            method = 'GET',
+            body,
+            withAuth = false,
+            fromN8N = false,
+            headers = {},
+            showLoading: useLoading = true
+        } = {}) {
+
+            if (useLoading) {
+                showLoading();
+            }
+
+            try {
+                const finalHeaders = {
+                    'Accept': 'application/json',
+                    ...headers
+                };
+
+                const isFormData = body instanceof FormData;
+                if (body && !isFormData) {
+                    finalHeaders['Content-Type'] = 'application/json';
+                }
+
+                if (withAuth) {
+                    const token = localStorage.getItem(TOKEN_KEY);
+                    if (token) {
+                        finalHeaders['Authorization'] = `${token}`;
                     }
-                }, 10000); // 10秒后再显示
+                }
+
+                const baseUrl = fromN8N ? N8N_BASE_URL : API_BASE_URL;
+
+                const response = await fetch(`${baseUrl}${url}`, {
+                    method,
+                    credentials: 'include',
+                    headers: finalHeaders,
+                    body: isFormData ? body : JSON.stringify(body)
+                });
+
+                const result = await response.json();
+
+                // === 401 统一处理 ===
+                if (response.status === 401) {
+                    openLoginModal();
+                    Toast.show('请先登录', 'error');
+                    throw new Error('请先登录');
+                }
+
+                if (!response.ok) {
+                    // 统一抛出异常，业务层处理
+                    const message = result.message || '请求失败';
+                    Toast.show(message, 'error');
+                    throw new Error(message);
+                }
+
+                return result;
+            } finally {
+                if (useLoading) {
+                    hideLoading();
+                }
             }
-        } catch (error) {
-            console.error('安装出错:', error);
-            Toast.show('安装失败，请重试', 'error');
-        }
-    });
-
-    // 监听应用已安装事件
-    window.addEventListener('appinstalled', () => {
-        console.log('应用已通过其他方式安装');
-        // 隐藏安装按钮
-        installButton.style.display = 'none';
-        // 清除deferredPrompt
-        deferredPrompt = null;
-    });
-
-    // 添加iOS检测和指导
-    function checkIOSInstallGuide() {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-        if (isIOS && isSafari && !deferredPrompt) {
-            // iOS Safari需要特殊指导
-            console.log('iOS Safari检测到，显示安装指导');
-
-            // 可以在需要时显示iOS安装指导
-            showIOSInstallGuide();
-        }
-    }
-
-    // 页面加载后检查iOS
-    setTimeout(checkIOSInstallGuide, 1000);
-
-    // iOS安装指导弹窗
-    function showIOSInstallGuide() {
-        // 检查是否最近已经显示过
-        const lastShown = localStorage.getItem('ios_guide_shown');
-        if (lastShown) {
-            const lastDate = new Date(lastShown);
-            const daysSince = (new Date() - lastDate) / (1000 * 60 * 60 * 24);
-            if (daysSince < 3) return; // 3天内只显示一次
         }
 
-        const guide = document.createElement('div');
-        guide.id = 'iosInstallGuide';
-        guide.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        z-index: 10001;
-        max-width: 90%;
-        width: 320px;
-        text-align: center;
-    `;
 
-        guide.innerHTML = `
-        <h3 style="margin: 0 0 15px 0; color: #333;">添加到主屏幕</h3>
-        <div style="margin: 0 0 20px 0; color: #666; font-size: 14px; line-height: 1.5;">
-            点击分享按钮 <span style="color: #007AFF;">(📤)</span><br>
-            选择"添加到主屏幕"<br>
-            即可安装应用
-        </div>
-        <div style="display: flex; justify-content: center; gap: 10px;">
-            <button id="closeIOSGuide" style="
-                background: #f5f5f5;
-                color: #666;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-                cursor: pointer;
-            ">稍后再说</button>
-        </div>
-    `;
 
-        // 添加遮罩层
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.5);
-        z-index: 10000;
-    `;
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service_work.js')
+                    .then(registration => {
+                        console.log('Service Worker 注册成功:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker 注册失败:', error);
+                    });
+            });
+        }
 
-        document.body.appendChild(overlay);
-        document.body.appendChild(guide);
+        // PWA安装功能
+        let deferredPrompt;
+        const installButton = document.getElementById('installButton');
 
-        // 关闭指导
-        document.getElementById('closeIOSGuide').addEventListener('click', () => {
-            localStorage.setItem('ios_guide_shown', new Date().toISOString());
-            guide.remove();
-            overlay.remove();
+        // 监听beforeinstallprompt事件
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installButton.style.display = 'flex';
         });
 
-        // 点击遮罩层也关闭
-        overlay.addEventListener('click', () => {
-            localStorage.setItem('ios_guide_shown', new Date().toISOString());
-            guide.remove();
-            overlay.remove();
+        // 安装按钮点击事件
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                alert('安装功能暂时不可用');
+                return;
+            }
+
+            try {
+                // 显示系统安装对话框
+                deferredPrompt.prompt();
+
+                // 等待用户选择
+                const { outcome } = await deferredPrompt.userChoice;
+
+                if (outcome === 'accepted') {
+                    installButton.style.display = 'none';
+                    Toast.show('应用已成功安装到桌面！', 'success');
+                } else {
+                    Toast.show('已取消安装', 'info');
+                    // 用户拒绝后，可以设置一个延迟后再次显示按钮
+                    setTimeout(() => {
+                        if (deferredPrompt) {
+                            installButton.style.display = 'flex';
+                        }
+                    }, 10000); // 10秒后再显示
+                }
+            } catch (error) {
+                console.error('安装出错:', error);
+                Toast.show('安装失败，请重试', 'error');
+            }
         });
 
-        // 10秒后自动关闭
-        setTimeout(() => {
-            if (guide.parentNode) {
-                localStorage.setItem('ios_guide_shown', new Date().toISOString());
-                guide.remove();
-                overlay.remove();
-            }
-        }, 10000);
-    }
+        // 监听应用已安装事件
+        window.addEventListener('appinstalled', () => {
+            console.log('应用已通过其他方式安装');
+            // 隐藏安装按钮
+            installButton.style.display = 'none';
+            // 清除deferredPrompt
+            deferredPrompt = null;
+        });
 
-</script>
+        L2Dwidget.init({
+            model: {
+                jsonPath: "https://unpkg.com/live2d-widget-model-shizuku/assets/shizuku.model.json"
+            },
+            display: {
+                position: "left",
+                width: 150,
+                height: 300,
+                hOffset: 0,
+                vOffset: -20
+            },
+            mobile: {
+                show: false
+            },
+            react: {
+                opacityDefault: 0.9,
+                opacityOnHover: 1
+            }
+        });
+
+        lottie.loadAnimation({
+            container: document.getElementById('logo-container'),
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: '/animation/SpringFestival.json'
+        }).play();
+
+        let loadingAnimation = null;
+
+        function initLoading() {
+            if (loadingAnimation) return;
+
+            loadingAnimation = lottie.loadAnimation({
+                container: document.getElementById('lottie-container'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: false,
+                path: '/animation/SandyLoading.json'
+            });
+        }
+
+        function showLoading() {
+            initLoading();
+            document.getElementById('global-loading').style.display = 'flex';
+            loadingAnimation.play();
+        }
+
+        function hideLoading() {
+            document.getElementById('global-loading').style.display = 'none';
+            loadingAnimation.stop();
+        }
+
+
+
+    </script>
 </body>
 </html>

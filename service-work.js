@@ -1,5 +1,5 @@
 /* ========= 基础配置 ========= */
-const SW_VERSION = 'v3.0.0'; // 🔴 每次发布必须修改
+const SW_VERSION = 'v1.0.1'; // 🔴 每次发布必须修改
 const CACHE_NAME = `pwa-cache-${SW_VERSION}`;
 
 /* 需要缓存的静态资源（不要放 HTML） */
@@ -60,19 +60,35 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // ✅ 静态资源：cache-first + 后台更新
-    event.respondWith(
-        caches.match(request).then(cacheRes => {
-            const fetchPromise = fetch(request).then(networkRes => {
-                caches.open(CACHE_NAME).then(cache => {
-                    cache.put(request, networkRes.clone());
+    // ✅ 缓存指定目录下的资源：例如 /animation 目录下的所有文件
+    if (request.url.startsWith(self.location.origin + '/animation') || request.url.startsWith('https://rustfs.saidao.cc/')) {
+        event.respondWith(
+            caches.match(request).then(cacheRes => {
+                const fetchPromise = fetch(request).then(networkRes => {
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(request, networkRes.clone());
+                    });
+                    return networkRes;
                 });
-                return networkRes;
-            });
 
-            return cacheRes || fetchPromise;
-        })
-    );
+                return cacheRes || fetchPromise; // 如果有缓存则返回缓存，否则发起网络请求
+            })
+        );
+    } else {
+        // 默认的静态资源缓存策略
+        event.respondWith(
+            caches.match(request).then(cacheRes => {
+                const fetchPromise = fetch(request).then(networkRes => {
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(request, networkRes.clone());
+                    });
+                    return networkRes;
+                });
+
+                return cacheRes || fetchPromise;
+            })
+        );
+    }
 });
 
 /* ========= 接收客户端指令（可选） ========= */
