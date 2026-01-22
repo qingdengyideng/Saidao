@@ -1765,6 +1765,7 @@
 
         // 渲染主播卡片
         function renderStreamerCards() {
+            destroyAllLotties();
             const container = document.getElementById('cardsGrid');
             container.innerHTML = '';
 
@@ -1887,13 +1888,14 @@
             });
         }
 
+        const LOTTIE_POOL = [];
+
         function initLiveAnimations(card, streamer) {
             if (!card || streamer.status !== 'live') return;
 
-            // ====== live badge 动画 ======
             const liveBadge = card.querySelector('.live-badge');
-            if (liveBadge && !liveBadge._lottieInstance) {
-                liveBadge._lottieInstance = lottie.loadAnimation({
+            if (liveBadge) {
+                createLottie({
                     container: liveBadge,
                     renderer: 'canvas',
                     loop: true,
@@ -1902,37 +1904,37 @@
                 });
             }
 
-            // ====== 背景 cover 动画（随机） ======
-            const coverContainer = card.querySelector('.cover-container');
-            if (coverContainer && !coverContainer._lottieInstance) {
+            const cover = card.querySelector('.cover-container');
+            if (cover) {
+                const list = ['Background', 'Animated', 'florallanding', 'UnderwaterTurtle'];
+                const name = cover.dataset.bgAnim
+                    || (cover.dataset.bgAnim = list[Math.floor(Math.random() * list.length)]);
 
-                const animationList = [
-                    'Background',
-                    'Animated',
-                    'florallanding',
-                    'UnderwaterTurtle'
-                ];
-
-                // 防止重复初始化时重新随机
-                if (!coverContainer.dataset.bgAnim) {
-                    const randomIndex = Math.floor(Math.random() * animationList.length);
-                    coverContainer.dataset.bgAnim = animationList[randomIndex];
-                }
-
-                const animName = coverContainer.dataset.bgAnim;
-
-                coverContainer._lottieInstance = lottie.loadAnimation({
-                    container: coverContainer,
+                createLottie({
+                    container: cover,
                     renderer: 'canvas',
                     loop: true,
                     autoplay: true,
-                    path: `/animation/${animName}.json`,
+                    path: `/animation/${name}.json`,
                     rendererSettings: {
                         clearCanvas: true,
                         progressiveLoad: true,
                         preserveAspectRatio: 'xMidYMid slice'
                     }
                 });
+            }
+        }
+
+        function createLottie(options) {
+            const anim = lottie.loadAnimation(options);
+            LOTTIE_POOL.push(anim);
+            return anim;
+        }
+
+        function destroyAllLotties() {
+            while (LOTTIE_POOL.length) {
+                const anim = LOTTIE_POOL.pop();
+                anim.destroy();
             }
         }
 
@@ -2644,11 +2646,11 @@
 
         lottie.loadAnimation({
             container: document.getElementById('logo-container'),
-            renderer: 'svg',
+            renderer: 'canvas',
             loop: true,
             autoplay: true,
             path: '/animation/SpringFestival.json'
-        }).play();
+        });
 
         let loadingAnimation = null;
 
@@ -2657,7 +2659,7 @@
 
             loadingAnimation = lottie.loadAnimation({
                 container: document.getElementById('lottie-container'),
-                renderer: 'svg',
+                renderer: 'canvas',
                 loop: true,
                 autoplay: false,
                 path: '/animation/SandyLoading.json'
