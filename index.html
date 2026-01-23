@@ -678,6 +678,16 @@
             transition: var(--transition);
         }
 
+        .chat-emoji {
+            height: 40px;
+            width: 40px;
+        }
+
+        .chat-emoji-animation {
+            height: 60px;
+            width: 60px;
+        }
+
         .chat-input:focus {
             outline: none;
             border-color: var(--primary-color);
@@ -1291,7 +1301,8 @@
             <div class="emoji-section" id="emojiSection">
                 <div class="emoji-tabs">
                     <button class="emoji-tab active" data-group="common">常用表情</button>
-                    <button class="emoji-tab" data-group="vip">会员表情</button>
+                    <button class="emoji-tab" data-group="animation">动画表情</button>
+                    <button class="emoji-tab" data-group="vip">休息</button>
                 </div>
                 <div class="emoji-container" id="emojiContainer">
                     <!-- 表情将通过JavaScript动态生成 -->
@@ -1478,7 +1489,7 @@
                             </div>
                             <div>
                                 <div style="font-weight: 500; font-size: 14px;">钉钉Webhook</div>
-                                <div style="font-size: 12px; color: var(--text-light);">通过钉钉机器人接收通知</div>
+                                <div style="font-size: 12px; color: var(--text-light);">通过钉钉机器人接收开播通知</div>
                             </div>
                         </div>
                         <div class="webhook-option" data-type="wechat">
@@ -1487,7 +1498,7 @@
                             </div>
                             <div>
                                 <div style="font-weight: 500; font-size: 14px;">企微Webhook</div>
-                                <div style="font-size: 12px; color: var(--text-light);">通过企业微信机器人接收通知</div>
+                                <div style="font-size: 12px; color: var(--text-light);">通过企业微信机器人接收开播通知</div>
                             </div>
                         </div>
                         <div class="webhook-option" data-type="feishu">
@@ -1496,7 +1507,7 @@
                             </div>
                             <div>
                                 <div style="font-weight: 500; font-size: 14px;">飞书Webhook</div>
-                                <div style="font-size: 12px; color: var(--text-light);">通过飞书机器人接收通知</div>
+                                <div style="font-size: 12px; color: var(--text-light);">通过飞书机器人接收开播通知</div>
                             </div>
                         </div>
                     </div>
@@ -1575,54 +1586,6 @@
 
         let streamersData = [];
         const emojiData = {
-            common: [
-                { id: 1, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704763447505third_party_s1296657489.png' },
-                { id: 2, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704776059816third_party_s1296748052.png' },
-                { id: 3, url: 'https://bd.a.yximgs.com/bs2/emotion/1704776021202third_party_s1296747457.png'},
-                { id: 4, url: 'https://bd.a.yximgs.com/bs2/emotion/1704775978144third_party_s1296746882.png' },
-                { id: 5, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775935917third_party_s1296746407.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775888472third_party_s1296745888.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775840073third_party_s1296745254.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704766004548third_party_s1296668542.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704765943430third_party_s1296668337.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775798640third_party_s1296744691.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775755675third_party_s1296744198.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775705283third_party_s1296743591.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704765876094third_party_s1296667852.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775660342third_party_s1296742992.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775610489third_party_s1296742417.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775560543third_party_s1296741805.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775517486third_party_s1296741380.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704775445666third_party_s1296740420.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772289790third_party_s1296705324.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772231770third_party_s1296704846.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772177310third_party_s1296704283.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772118979third_party_s1296703810.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704772048844third_party_s1296703216.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771654524third_party_s1296700611.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771603139third_party_s1296700263.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771554781third_party_s1296699971.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771498312third_party_s1296699382.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771450694third_party_s1296699070.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771395457third_party_s1296698891.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771346135third_party_s1296698660.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771294552third_party_s1296698182.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771236940third_party_s1296697797.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771184363third_party_s1296697359.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704766474596third_party_s1296670536.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771131055third_party_s1296696977.png' },
-                { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704771079728third_party_s1296696446.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704771028940third_party_s1296696033.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770709451third_party_s1296694128.png' },
-                { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704770650664third_party_s1296693781.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770591150third_party_s1296693499.png' },
-                { id: 6, url: 'https://bd.a.yximgs.com/bs2/emotion/1704770453439third_party_s1296692624.png' },
-                { id: 6, url: 'https://ali2.a.yximgs.com/bs2/emotion/1704770395028third_party_s1296692231.png' },
-
-            ],
-            vip: [
-
-            ]
         };
 
         // 初始化页面
@@ -1704,8 +1667,15 @@
 
             // 聊天室相关
             document.getElementById('emojiToggle').addEventListener('click', toggleEmojiSection);
-            document.getElementById('chatInput').addEventListener('input', handleChatInput);
             document.getElementById('sendBtn').addEventListener('click', sendMessage);
+            const input = document.getElementById('chatInput');
+            input.addEventListener('input', handleChatInput);
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
 
             // 表情标签切换
             document.querySelectorAll('.emoji-tab').forEach(tab => {
@@ -1757,9 +1727,11 @@
             register: (data) => request('/user/register', {method: 'POST', body: data}),
             forgotPassword: (data) => request('/user/forgotPassword', {method: 'POST', body: data}),
             profileUpdate: (data) => request('/user/update', {method: 'POST', body: data, withAuth: true}),
-            sendVerificationCode: (data) => request('/webhook/sendRegisterCode', {method: 'POST', body: data, fromN8N: true}),
+            sendVerificationCode: (data) => request('/user/sendVerificationCode', {method: 'POST', body: data}),
             updateOptions: (data) => request('/saidao/options', {method: 'POST', body: data, withAuth: true}),
             uploadImages: (data) => request('/api/image/upload', {method: 'POST', body: data, withAuth: true}),
+            queryEmojis: (currentEmojiGroup) => request(`/emoji/${currentEmojiGroup}`, {withAuth: true}),
+            uploadEmojis: (data) => request(`/emoji/upload`, {method: 'POST', body: data, withAuth: true}),
         };
 
 
@@ -1940,21 +1912,44 @@
 
 
         // 渲染表情
-        function renderEmojis() {
+        async function renderEmojis() {
             const container = document.getElementById('emojiContainer');
-            container.innerHTML = '';
+            container.innerHTML = ''; // 清空容器
 
-            emojiData[state.currentEmojiGroup].forEach(emoji => {
-                const img = document.createElement('img');
-                img.src = emoji.url;
-                img.className = 'emoji-item';
-                img.alt = '表情';
-                img.addEventListener('click', function() {
-                    insertEmoji(emoji.url);
-                });
-                container.appendChild(img);
+            if (state.currentEmojiGroup === 'vip') {
+            }
+
+            const result = await ApiEndpoints.queryEmojis(state.currentEmojiGroup);
+            result.data.forEach(emoji => {
+                if (state.currentEmojiGroup === 'animation') {
+                    // 如果是动画表情，渲染 video 标签
+                    const video = document.createElement('video');
+                    video.src = emoji.url;
+                    video.className = 'emoji-item';
+                    video.alt = emoji.name;
+                    video.autoplay = false;
+                    video.muted = true;
+                    video.width = 100;
+                    video.height = 150;
+                    video.title = emoji.name;
+                    video.addEventListener('click', function() {
+                        insertEmoji(emoji);
+                    });
+                    container.appendChild(video);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = emoji.url;
+                    img.className = 'emoji-item';
+                    img.alt = emoji.name;
+                    img.title = emoji.name;
+                    img.addEventListener('click', function() {
+                        insertEmoji(emoji);
+                    });
+                    container.appendChild(img);
+                }
             });
         }
+
 
         // 更新UI状态
         function updateUIState() {
@@ -2018,10 +2013,12 @@
         }
 
         // 插入表情到聊天输入框
-        function insertEmoji(emojiUrl) {
+        function insertEmoji(emoji) {
             const chatInput = document.getElementById('chatInput');
-            chatInput.value += ` [表情] `;
+            chatInput.value += `[${emoji.name}]`;
             chatInput.focus();
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = false;
         }
 
         // 处理聊天输入
@@ -2479,7 +2476,7 @@
             if (!message || !state.isLoggedIn) return;
 
             const newMessage = {
-                type: 'chat', // 当前用户ID
+                type: 'chat',
                 content: message,
             };
 
@@ -2487,9 +2484,6 @@
 
             chatInput.value = '';
             document.getElementById('sendBtn').disabled = true;
-
-            // 这里可以调用API发送消息
-            console.log('发送消息:', message);
         }
 
 
