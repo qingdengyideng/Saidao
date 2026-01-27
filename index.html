@@ -529,18 +529,47 @@
             gap: 14px;
         }
 
+        .avatar-container {
+            position: relative;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
         .chat-message {
             display: flex;
-            gap: 10px;
-            animation: fadeIn 0.3s ease;
+            margin-bottom: 15px;
+            align-items: flex-start;
         }
 
         .message-avatar {
-            width: 34px;
-            height: 34px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             object-fit: cover;
             flex-shrink: 0;
+            cursor: pointer; /* 添加光标提示，表明头像可点击 */
+        }
+
+        .faction-tag {
+            position: absolute;
+            bottom: 0px;    /* 稍微调整垂直位置 */
+            right: 0px;     /* 稍微调整水平位置 */
+            padding: 1px 6px; /* 调整内边距 */
+            font-size: 10px;  /* 调整字体大小 */
+            border-radius: 8px;
+            white-space: nowrap;
+            z-index: 1;
+            font-weight: bold; /* 加粗文字更清晰 */
+        }
+
+        .faction-tag.tooth {
+            background-color: #ff6b6b;
+            color: white;
+        }
+
+        .faction-tag.volume {
+            background-color: #337cdc;
+            color: white;
         }
 
         .message-content {
@@ -686,6 +715,7 @@
         .chat-emoji-animation {
             height: 60px;
             width: 60px;
+            background-color: var(--text-light);
         }
 
         .chat-input:focus {
@@ -850,7 +880,7 @@
         }
 
         .webhook-options {
-            display: flex;
+            display: -webkit-box;
             flex-direction: column;
             gap: 10px;
             margin-top: 8px;
@@ -988,7 +1018,7 @@
 
         .logo-text {
             position: relative;
-            font-size: 28px;
+            font-size: 25px;
             font-weight: bold;
             color: var(--primary-color);
             background: linear-gradient(45deg,
@@ -1217,6 +1247,138 @@
             align-items: center;
             justify-content: center;
             z-index: 9999;
+        }
+
+        .form-label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .faction-options-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .faction-option-row {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 0px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background-color: #f9f9f9;
+            position: relative;
+            overflow: hidden;
+            min-height: 90px;
+        }
+
+        .faction-option-row:hover {
+            border-color: #b0b0b0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .faction-option-row.selected {
+            border-color: #4a6cf7;
+            background-color: rgba(74, 108, 247, 0.05);
+        }
+
+        .faction-option-row[data-faction="ya"].selected {
+            border-color: #ff6b6b;
+            background-color: rgba(255, 107, 107, 0.05);
+        }
+
+        .faction-option-row[data-faction="juan"].selected {
+            border-color: #4a6cf7;
+            background-color: rgba(74, 108, 247, 0.05);
+        }
+
+        .faction-animation-row {
+            width: 100px;
+            height: 100px;
+            margin-right: 0px;
+            flex-shrink: 0;
+        }
+
+        .faction-content-row {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .faction-title-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .faction-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--primary-color);
+        }
+
+        .faction-option-row[data-faction="ya"] .faction-badge {
+            background-color: #ff6b6b;
+            color: white;
+        }
+
+        .faction-option-row[data-faction="juan"] .faction-badge {
+            background-color: #4a6cf7;
+            color: white;
+        }
+
+        .faction-select-row {
+            margin-left: 12px;
+            flex-shrink: 0;
+            position: relative;
+            width: 24px;
+            height: 24px;
+        }
+
+        .faction-select-row input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .faction-select-row label {
+            display: block;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .faction-select-row input[type="radio"]:checked + label {
+            border-color: #4a6cf7;
+            background-color: #4a6cf7;
+        }
+
+        .faction-select-row input[type="radio"]:checked + label::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: white;
+        }
+
+        .faction-option-row[data-faction="ya"] .faction-select-row input[type="radio"]:checked + label {
+            border-color: #ff6b6b;
+            background-color: #ff6b6b;
         }
 
 
@@ -1479,17 +1641,55 @@
                     <label class="form-label" for="profileBio">个性签名</label>
                     <textarea class="form-input" id="profileBio" placeholder="请输入个性签名" rows="3"></textarea>
                 </div>
+
                 <div class="form-group">
-                    <label class="form-label">Webhook通知设置</label>
-                    <p class="form-hint">选择一种接收通知的方式</p>
+                    <div class="form-label-row">
+                        <label class="form-label">选择阵营</label>
+                        <span class="form-hint" style="color: #f39c12;">
+                            <i class="fas fa-exclamation-circle"></i> 选择后30天内不能更换
+                        </span>
+                    </div>
+                    <div class="faction-options-row">
+                        <div class="faction-option-row" data-faction="ya">
+                            <div class="faction-animation-row" id="yaAnimation"></div>
+                            <div class="faction-content-row">
+                                <div class="faction-title-row">
+                                    <span class="faction-name">牙</span>
+                                </div>
+                            </div>
+                            <div class="faction-select-row">
+                                <input type="radio" name="faction" id="factionYa" value="ya">
+                                <label for="factionYa"></label>
+                            </div>
+                        </div>
+
+                        <div class="faction-option-row" data-faction="juan">
+                            <div class="faction-animation-row" id="juanAnimation"></div>
+                            <div class="faction-content-row">
+                                <div class="faction-title-row">
+                                    <span class="faction-name">卷</span>
+                                </div>
+                            </div>
+                            <div class="faction-select-row">
+                                <input type="radio" name="faction" id="factionJuan" value="juan">
+                                <label for="factionJuan"></label>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="selectedFaction" value="">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">开播通知</label>
+                    <p class="form-hint">选择一种接收开播通知的方式</p>
                     <div class="webhook-options">
                         <div class="webhook-option" data-type="dingtalk">
                             <div class="webhook-icon">
                                 <i class="fas fa-bell"></i>
                             </div>
                             <div>
-                                <div style="font-weight: 500; font-size: 14px;">钉钉Webhook</div>
-                                <div style="font-size: 12px; color: var(--text-light);">通过钉钉机器人接收开播通知</div>
+                                <div style="font-weight: 500; font-size: 14px;">钉钉</div>
+<!--                                <a style="font-size: 12px; color: var(&#45;&#45;text-light);" href="https://help.gitee.com/webhook/webhook-for-wecom-robot">创建机器人</a>-->
+<!--                                <div style="font-size: 12px; color: var(&#45;&#45;text-light);">通过钉钉机器人接收开播通知</div>-->
                             </div>
                         </div>
                         <div class="webhook-option" data-type="wechat">
@@ -1497,8 +1697,8 @@
                                 <i class="fab fa-weixin"></i>
                             </div>
                             <div>
-                                <div style="font-weight: 500; font-size: 14px;">企微Webhook</div>
-                                <div style="font-size: 12px; color: var(--text-light);">通过企业微信机器人接收开播通知</div>
+                                <div style="font-weight: 500; font-size: 14px;">企微</div>
+<!--                                <a style="font-size: 12px; color: var(&#45;&#45;text-light);" href="https://help.gitee.com/webhook/webhook-for-wecom-robot">创建机器人</a>-->
                             </div>
                         </div>
                         <div class="webhook-option" data-type="feishu">
@@ -1506,16 +1706,23 @@
                                 <i class="fas fa-feather-alt"></i>
                             </div>
                             <div>
-                                <div style="font-weight: 500; font-size: 14px;">飞书Webhook</div>
-                                <div style="font-size: 12px; color: var(--text-light);">通过飞书机器人接收开播通知</div>
+                                <div style="font-weight: 500; font-size: 14px;">飞书</div>
+<!--                                <a style="font-size: 12px; color: var(&#45;&#45;text-light);" href="https://help.gitee.com/webhook/webhook-for-wecom-robot">创建机器人</a>-->
+<!--                                <div style="font-size: 12px; color: var(&#45;&#45;text-light);">通过飞书机器人接收开播通知</div>-->
                             </div>
                         </div>
                     </div>
+                    <a style="font-size: 12px; color: var(--text-light);" href="https://open.dingtalk.com/document/dingstart/custom-bot-creation-and-installation" target="_blank">创建钉钉机器人?</a>
+                    <a style="font-size: 12px; color: var(--text-light);" href="https://help.gitee.com/webhook/webhook-for-wecom-robot" target="_blank">创建企微机器人?</a>
+                    <a style="font-size: 12px; color: var(--text-light);" href="https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot#461aa643" target="_blank">创建飞书机器人?</a>
                     <input type="hidden" id="selectedWebhook" value="">
                 </div>
                 <div class="form-group" id="webhookUrlContainer" style="display: none;">
                     <label class="form-label" for="webhookUrl">Webhook地址</label>
-                    <input type="text" class="form-input" id="webhookUrl" placeholder="请输入Webhook地址">
+                    <div style="display: flex; align-items: center;">
+                        <input type="text" class="form-input" id="webhookUrl" placeholder="请输入Webhook地址">
+                        <button type="button" class="btn btn-secondary" id="testWebhookBtn" style="margin-left: 10px; display: none;">测试</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
@@ -1576,7 +1783,8 @@
             currentEmojiGroup: 'common',
             chatWidth: 540,
             webhookType: '',
-            isMobile: window.innerWidth <= 768
+            isMobile: window.innerWidth <= 768,
+            faction: ''
         };
 
         // 检测设备类型
@@ -1617,6 +1825,65 @@
             });
         });
 
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化阵营选择交互
+            const factionOptions = document.querySelectorAll('.faction-option-row');
+            const selectedFactionInput = document.getElementById('selectedFaction');
+
+            // 为每个阵营选项添加点击事件
+            factionOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const faction = this.getAttribute('data-faction');
+                    const radioInput = this.querySelector('input[type="radio"]');
+
+                    // 更新选择状态
+                    factionOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+
+                    // 选中对应的单选按钮
+                    radioInput.checked = true;
+                    selectedFactionInput.value = faction;
+
+                    // 触发Lottie动画
+                    playFactionAnimation(faction);
+                });
+            });
+
+            let yaAnimation, juanAnimation;
+
+            if (document.getElementById('yaAnimation')) {
+                yaAnimation = lottie.loadAnimation({
+                    container: document.getElementById('yaAnimation'),
+                    renderer: 'svg',
+                    loop: true,
+                    autoplay: true,
+                    path: '/animation/Tooth.json'
+                });
+            }
+
+            // 加载"卷"阵营动画
+            if (document.getElementById('juanAnimation')) {
+                juanAnimation = lottie.loadAnimation({
+                    container: document.getElementById('juanAnimation'),
+                    renderer: 'svg',
+                    loop: true,
+                    autoplay: true,
+                    path: '/animation/Piggy.json'
+                });
+            }
+
+            // 播放对应阵营动画
+            function playFactionAnimation(faction) {
+                if (faction === 'ya' && yaAnimation) {
+                    yaAnimation.play();
+                    if (juanAnimation) juanAnimation.stop();
+                } else if (faction === 'juan' && juanAnimation) {
+                    juanAnimation.play();
+                    if (yaAnimation) yaAnimation.stop();
+                }
+            }
+        });
+
         // 初始化事件监听器
         function initEventListeners() {
             // 登录/注册按钮
@@ -1655,6 +1922,7 @@
             document.getElementById('registerForm').addEventListener('submit', handleRegister);
             document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
             document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+            document.getElementById('testWebhookBtn').addEventListener('click', handleTestWebhook);
             document.getElementById('changeAvatarBtn').addEventListener('click', (e) => {
                 e.preventDefault();
                 document.getElementById('avatarFileInput').click();
@@ -1695,6 +1963,7 @@
                     state.webhookType = this.dataset.type;
                     document.getElementById('selectedWebhook').value = state.webhookType;
                     document.getElementById('webhookUrlContainer').style.display = 'block';
+                    document.getElementById('testWebhookBtn').style.display = 'flex';
                     document.getElementById('webhookUrl').placeholder = `请输入${this.dataset.type === 'dingtalk' ? '钉钉' : this.dataset.type === 'wechat' ? '企微' : '飞书'} Webhook地址`;
                 });
             });
@@ -1732,6 +2001,7 @@
             uploadImages: (data) => request('/api/image/upload', {method: 'POST', body: data, withAuth: true}),
             queryEmojis: (currentEmojiGroup) => request(`/emoji/${currentEmojiGroup}`, {withAuth: true}),
             uploadEmojis: (data) => request(`/emoji/upload`, {method: 'POST', body: data, withAuth: true}),
+            testWebhook: (data) => request(`/webhook/testWebhook`, {method: 'POST', body: data, withAuth: true, fromN8N: true}),
         };
 
 
@@ -1912,43 +2182,70 @@
 
 
         // 渲染表情
+        // 用于缓存已经加载过的表情数据
+        const emojiCache = {};
+
         async function renderEmojis() {
             const container = document.getElementById('emojiContainer');
-            container.innerHTML = ''; // 清空容器
+            const group = state.currentEmojiGroup;
 
-            if (state.currentEmojiGroup === 'vip') {
+            // 如果缓存中有当前 group 的内容，直接渲染
+            if (emojiCache[group]) {
+                container.innerHTML = '';
+                emojiCache[group].forEach(node => container.appendChild(node));
+                return;
             }
 
-            const result = await ApiEndpoints.queryEmojis(state.currentEmojiGroup);
+            container.innerHTML = ''; // 第一次加载时清空容器
+            const result = await ApiEndpoints.queryEmojis(group);
+            const nodes = [];
             result.data.forEach(emoji => {
-                if (state.currentEmojiGroup === 'animation') {
-                    // 如果是动画表情，渲染 video 标签
-                    const video = document.createElement('video');
-                    video.src = emoji.url;
-                    video.className = 'emoji-item';
-                    video.alt = emoji.name;
-                    video.autoplay = false;
-                    video.muted = true;
-                    video.width = 100;
-                    video.height = 150;
-                    video.title = emoji.name;
-                    video.addEventListener('click', function() {
-                        insertEmoji(emoji);
+                let node;
+                if (group === 'animation') {
+                    // 动画表情使用 video
+                    node = document.createElement('video');
+                    node.src = emoji.url;
+                    node.className = 'emoji-item';
+                    node.playsInline = true;
+                    node.disablePictureInPicture = true;
+                    node.alt = emoji.name;
+                    node.autoplay = false;
+                    node.muted = true;
+                    node.width = 100;
+                    node.height = 150;
+                    node.title = emoji.name;
+
+                    node.addEventListener('mouseenter', () => {
+                        if (node.paused) {
+                            node.currentTime = 0;
+                            node.play().catch(() => {});
+                        }
                     });
-                    container.appendChild(video);
+
+                    node.addEventListener('mouseleave', () => {
+                        node.pause();
+                        node.currentTime = 0;
+                    });
+
+                    node.addEventListener('click', () => insertEmoji(emoji));
                 } else {
-                    const img = document.createElement('img');
-                    img.src = emoji.url;
-                    img.className = 'emoji-item';
-                    img.alt = emoji.name;
-                    img.title = emoji.name;
-                    img.addEventListener('click', function() {
-                        insertEmoji(emoji);
-                    });
-                    container.appendChild(img);
+                    // 静态表情使用 img
+                    node = document.createElement('img');
+                    node.src = emoji.url;
+                    node.className = 'emoji-item';
+                    node.alt = emoji.name;
+                    node.title = emoji.name;
+                    node.addEventListener('click', () => insertEmoji(emoji));
                 }
+
+                container.appendChild(node);
+                nodes.push(node);
             });
+
+            // 缓存 DOM 节点，下次直接用
+            emojiCache[group] = nodes;
         }
+
 
 
         // 更新UI状态
@@ -2115,6 +2412,17 @@
                         document.getElementById('webhookUrl').value = state.currentUser.webhookUrl || '';
                     }
                 }
+
+                // 根据 currentUser.faction 设置选择的阵营
+                if (state.currentUser.faction) {
+                    const selectedFaction = state.currentUser.faction;
+                    const factionOption = document.querySelector(`.faction-option-row[data-faction="${selectedFaction}"]`);
+                    if (factionOption) {
+                        factionOption.classList.add('selected');
+                        factionOption.querySelector('input[type="radio"]').checked = true;
+                        document.getElementById('selectedFaction').value = selectedFaction;
+                    }
+                }
             }
             document.getElementById('profileModal').classList.add('active');
         }
@@ -2155,7 +2463,8 @@
                     avatar: data.user.avatar,
                     bio: data.user.bio || '这个人很懒，什么都没写',
                     webhookType: data.user.webhookType,
-                    webhookUrl: data.user.webhookUrl
+                    webhookUrl: data.user.webhookUrl,
+                    faction: data.user.faction
                 };
 
                 updateUIState();
@@ -2231,13 +2540,32 @@
             const webhookType = document.getElementById('selectedWebhook').value;
             const webhookUrl = document.getElementById('webhookUrl').value;
             const avatar = document.getElementById('profileAvatar').src;
+            const faction = document.getElementById('selectedFaction').value;
 
-            const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, webhookUrl, avatar })
+            const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, webhookUrl, avatar, faction })
             if (result.code === '0') {
                 // Toast.show('个人资料更新成功', 'success');
                 // setTimeout(() => {
                     window.location.reload();
                 // }, 1000);
+            }
+
+        }
+
+        async function handleTestWebhook(e) {
+            e.preventDefault();
+
+            const type = document.getElementById('selectedWebhook').value;
+            const url = document.getElementById('webhookUrl').value;
+            if (!type || !url) {
+                Toast.show('请填写完整的 Webhook 地址', 'warning');
+                return;
+            }
+            const result = await ApiEndpoints.testWebhook({ type: type, url: url });
+            if (result.code !== '0') {
+                Toast.show('消息发送失败：' + result.message, 'error');
+            } else {
+                Toast.show('消息发送成功，请查收消息！', 'success');
             }
 
         }
@@ -2402,16 +2730,29 @@
         function addMessageToChat(data) {
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message';
+
+            // 根据 faction 值生成标签HTML
+            let factionHTML = '';
+            if (data.faction === 'ya') {
+                factionHTML = '<span class="faction-tag tooth">牙</span>';
+            } else if (data.faction === 'juan') {
+                factionHTML = '<span class="faction-tag volume">卷</span>';
+            }
+
             messageElement.innerHTML = `
+                <div class="avatar-container">
                     <img src="${data.avatar}" alt="${data.uname}" class="message-avatar" data-user-id="${data.uid}">
-                    <div class="message-content">
-                        <div class="message-header">
-                            <span class="message-user">${data.uname}</span>
-                            <span class="message-time">${data.timestamp}</span>
-                        </div>
-                        <div class="message-text">${data.content}</div>
+                    ${factionHTML}
+                </div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-user">${data.uname}</span>
+                        <span class="message-time">${data.timestamp}</span>
                     </div>
-                `;
+                    <div class="message-text">${data.content}</div>
+                </div>
+            `;
+
 
             // 添加头像点击事件
             const avatar = messageElement.querySelector('.message-avatar');
