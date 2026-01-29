@@ -1,10 +1,16 @@
-/* ========= 基础配置 ========= */
-const SW_VERSION = 'v1.0.1'; // 🔴 每次发布必须修改
+const SW_VERSION = 'v1.0.2'; // 🔴 每次发布必须修改
 const CACHE_NAME = `pwa-cache-${SW_VERSION}`;
 
 /* 需要缓存的静态资源（不要放 HTML） */
 const STATIC_ASSETS = [
     '/favicon.ico',
+];
+
+/* 要缓存的资源前缀 */
+const CACHE_PREFIXES = [
+    'https://ali2.a.yximgs.com/bs2/emotion',
+    'https://cdnl.iconscout.com/lottie/premium/thumb',
+    'https://rustfs.saidao.cc/images'
 ];
 
 /* ========= 安装阶段 ========= */
@@ -25,75 +31,62 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
     console.log('[SW] activate', SW_VERSION);
 
+    // 清理旧缓存
     event.waitUntil(
-        Promise.all([
-            // 删除所有旧版本缓存
-            caches.keys().then(keys => {
-                return Promise.all(
-                    keys
-                        .filter(key => key !== CACHE_NAME)
-                        .map(key => {
-                            console.log('[SW] delete old cache', key);
-                            return caches.delete(key);
-                        })
-                );
-            }),
-            // 立即接管页面（华为浏览器关键）
-            self.clients.claim()
-        ])
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('[SW] 删除旧缓存:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => {
+            // 激活后立即控制所有客户端
+            return self.clients.claim();
+        })
     );
 });
 
-/* ========= 请求拦截 ========= */
+/* ========= 拦截请求 ========= */
 self.addEventListener('fetch', event => {
-    const { request } = event;
+    // 检查请求URL是否匹配需要缓存的域名
+    const shouldCache = CACHE_PREFIXES.some(prefix =>
+        event.request.url.startsWith(prefix)
+    );
 
-    // ❌ 非 GET 请求不处理
-    if (request.method !== 'GET') return;
-
-    // ❌ 跳过跨域请求
-    if (!request.url.startsWith(self.location.origin)) return;
-
-    // ❌ 永远不缓存 HTML（防止 PWA 死缓存）
-    if (request.headers.get('accept')?.includes('text/html')) {
-        event.respondWith(fetch(request));
-        return;
-    }
-
-    // ✅ 缓存指定目录下的资源：例如 /animation 目录下的所有文件
-    if (request.url.startsWith(self.location.origin + '/animation') || request.url.startsWith('https://rustfs.saidao.cc/')) {
+    if (shouldCache) {
+        // 对于这些资源使用缓存优先策略
         event.respondWith(
-            caches.match(request).then(cacheRes => {
-                const fetchPromise = fetch(request).then(networkRes => {
-                    caches.open(CACHE_NAME).then(cache => {
-                        cache.put(request, networkRes.clone());
-                    });
-                    return networkRes;
-                });
+            caches.open(CACHE_NAME).then(cache => {
+                return cache.match(event.request).then(cachedResponse => {
+                    // 如果有缓存，直接返回
+                    if (cachedResponse) {
+                        console.log('[SW] 使用缓存:', event.request.url);
+                        return cachedResponse;
+                    }
 
-                return cacheRes || fetchPromise; // 如果有缓存则返回缓存，否则发起网络请求
+                    // 否则从网络获取
+                    console.log('[SW] 缓存新资源:', event.request.url);
+                    return fetch(event.request).then(response => {
+                        // 只缓存成功的响应
+                        if (response && response.status === 200) {
+                            // 克隆响应，因为响应是流，只能使用一次
+                            const responseToCache = response.clone();
+                            cache.put(event.request, responseToCache);
+                        }
+                        return response;
+                    }).catch(error => {
+                        console.error('[SW] 获取失败:', error);
+                        // 可以返回一个默认的响应
+                        return new Response('网络错误', {
+                            status: 408,
+                            headers: { 'Content-Type': 'text/plain' }
+                        });
+                    });
+                });
             })
         );
-    } else {
-        // 默认的静态资源缓存策略
-        event.respondWith(
-            caches.match(request).then(cacheRes => {
-                const fetchPromise = fetch(request).then(networkRes => {
-                    caches.open(CACHE_NAME).then(cache => {
-                        cache.put(request, networkRes.clone());
-                    });
-                    return networkRes;
-                });
-
-                return cacheRes || fetchPromise;
-            })
-        );
-    }
-});
-
-/* ========= 接收客户端指令（可选） ========= */
-self.addEventListener('message', event => {
-    if (event.data === 'SKIP_WAITING') {
-        self.skipWaiting();
     }
 });

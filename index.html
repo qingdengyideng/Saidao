@@ -533,6 +533,7 @@
             display: flex;
             flex-direction: column;
             gap: 14px;
+            background-color: var(--bg-color);
         }
 
         .avatar-container {
@@ -601,10 +602,10 @@
         }
 
         .message-text {
-            background-color: #f5f5f5;
+            background-color: #ffffff;
             padding: 8px 12px;
             border-radius: 16px;
-            font-size: 13px;
+            font-size: 14px;
             color: var(--text-primary);
             line-height: 1.5;
             max-width: 85%;
@@ -724,6 +725,10 @@
             box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
         }
 
+        .emoji-item.vip {
+            width: 77px;
+            height: 82px;
+        }
 
         .chat-input-container {
             display: flex;
@@ -741,14 +746,17 @@
         }
 
         .chat-emoji {
-            height: 40px;
-            width: 40px;
+            height: 13%;
+            width: 13%;
         }
 
         .chat-emoji-animation {
-            height: 60px;
-            width: 60px;
-            background-color: var(--text-light);
+            height: 25%;
+            width: 25%;
+        }
+        .chat-emoji.vip {
+            height: 60%;
+            width: 60%;
         }
 
         .chat-input:focus {
@@ -983,6 +991,15 @@
             color: var(--text-secondary);
             margin-bottom: 16px;
             line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .detail-user-id {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .detail-registration-time {
+            color: var(--text-secondary);
             font-size: 14px;
         }
 
@@ -1414,6 +1431,65 @@
             background-color: #ff6b6b;
         }
 
+        .emoji-upload-btn {
+            width: 75px;
+            height: 72px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        .upload-plus {
+            font-size: 32px;
+            color: #ccc;
+            line-height: 1;
+            transition: color 0.3s;
+        }
+
+        .emoji-upload-btn:hover .upload-plus {
+            color: var(--primary-color);
+        }
+
+        /* 遮罩层样式 */
+        .image-preview-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);  /* 半透明黑色背景 */
+            z-index: 9999;  /* 确保遮罩层在最上层 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 图片容器样式 */
+        .image-preview-content {
+            display: inline-block;
+            position: relative;
+            max-width: 80vw;  /* 最大宽度为屏幕的80% */
+            max-height: 80vh; /* 最大高度为屏幕的80% */
+            padding: 10px; /* 给图片添加一些内边距，避免紧贴容器 */
+        }
+
+        /* 图片样式 */
+        .image-preview-content img {
+            display: block;
+            max-width: 100%;  /* 确保图片不会超出容器 */
+            max-height: 100%;
+            object-fit: contain;  /* 保持图片比例，缩放适应容器 */
+        }
+
+        /* 点击关闭按钮时遮罩层消失 */
+        .image-preview-overlay:active {
+            cursor: pointer;
+        }
 
     </style>
 </head>
@@ -1507,7 +1583,7 @@
                 <button class="emoji-toggle" id="emojiToggle">
                     <i class="far fa-smile"></i>
                 </button>
-                <input type="text" class="chat-input" id="chatInput" placeholder="输入消息...">
+                <input type="text" class="chat-input" id="chatInput" placeholder="来嘟两句呗..." maxlength="256">
                 <button class="send-btn" id="sendBtn" disabled>
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -1668,11 +1744,11 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="profileName">昵称</label>
-                    <input type="text" class="form-input" id="profileName" placeholder="请输入昵称" required>
+                    <input type="text" class="form-input" id="profileName" placeholder="请输入昵称" required maxlength="16">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="profileBio">个性签名</label>
-                    <textarea class="form-input" id="profileBio" placeholder="请输入个性签名" rows="3"></textarea>
+                    <textarea class="form-input" id="profileBio" placeholder="请输入个性签名" rows="3" maxlength="100"></textarea>
                 </div>
 
                 <div class="form-group">
@@ -1782,22 +1858,10 @@
                 <div class="detail-info">
                     <h3 class="detail-name" id="detailName"></h3>
                     <p class="detail-bio" id="detailBio"></p>
+                    <!-- New Fields -->
+                    <p class="detail-user-id" id="detailUserId"></p>
+                    <p class="detail-registration-time" id="detailRegistrationTime"></p>
                 </div>
-                <!--                <div class="detail-stats">-->
-                <!--                    <div class="stat-item">-->
-                <!--                        <div class="stat-value" id="detailFollowers">1.2K</div>-->
-                <!--                        <div class="stat-label">粉丝</div>-->
-                <!--                    </div>-->
-                <!--                    <div class="stat-item">-->
-                <!--                        <div class="stat-value" id="detailFollowing">356</div>-->
-                <!--                        <div class="stat-label">关注</div>-->
-                <!--                    </div>-->
-                <!--                    <div class="stat-item">-->
-                <!--                        <div class="stat-value" id="detailStreams">128</div>-->
-                <!--                        <div class="stat-label">直播场次</div>-->
-                <!--                    </div>-->
-                <!--                </div>-->
-                <!--            </div>-->
             </div>
         </div>
     </div>
@@ -1917,6 +1981,30 @@
             }
         });
 
+        // 在页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 事件委托：监听整个文档的点击事件
+            document.addEventListener('click', function(event) {
+                // 检查点击的是否是图片，并且有 chat-emoji 类
+                if (event.target.tagName === 'IMG' &&
+                    event.target.classList.contains('chat-emoji')) {
+
+                    // 阻止默认行为（如果有）
+                    event.preventDefault();
+
+                    // 获取图片的src或data-src
+                    const imgSrc = event.target.src || event.target.getAttribute('data-src');
+
+                    // 调用已存在的函数，传入图片URL
+                    if (typeof window.showImagePreview === 'function') {
+                        window.showImagePreview(imgSrc);
+                    } else if (typeof showImagePreview === 'function') {
+                        showImagePreview(imgSrc);
+                    }
+                }
+            });
+        });
+
         // 初始化事件监听器
         function initEventListeners() {
             // 登录/注册按钮
@@ -2018,7 +2106,8 @@
 
         const API_BASE_URL = 'https://api.saidao.cc';
         const N8N_BASE_URL = 'https://n8n.saidao.cc';
-        const WS_BASE_URL = 'wss://api.saidao.cc';
+        // const WS_BASE_URL = 'wss://api.saidao.cc';
+        const WS_BASE_URL = 'ws://localhost:5080'
         const TOKEN_KEY = 'ACCESS_TOKEN';
 
         const ApiEndpoints = {
@@ -2181,9 +2270,13 @@
 
             const cover = card.querySelector('.cover-container');
             if (cover) {
-                const list = ['Background', 'Animated', 'florallanding', 'UnderwaterTurtle'];
+                const list = ['Background', 'Animated', 'florallanding', 'UnderwaterTurtle', 'luckymoney', 'Chinesenewyear', 'train'];
                 const name = cover.dataset.bgAnim
                     || (cover.dataset.bgAnim = list[Math.floor(Math.random() * list.length)]);
+
+                if (name === 'Chinesenewyear' || name === 'luckymoney' ) {
+                    cover.style.backgroundColor = '#aa1414';
+                }
 
                 createLottie({
                     container: cover,
@@ -2222,30 +2315,72 @@
             const container = document.getElementById('emojiContainer');
             const group = state.currentEmojiGroup;
 
-            // 如果缓存中有当前 group 的内容，直接渲染
+            // 清空容器
+            container.innerHTML = '';
+
+            // 如果是VIP分组，添加上传按钮
+            if (group === 'vip') {
+                const uploadBtn = document.createElement('div');
+                uploadBtn.className = 'emoji-upload-btn';
+                uploadBtn.innerHTML = '<div class="upload-plus">+</div>';
+                uploadBtn.title = '支持JPG/PNG/GIF/WEBP，最大2MB';
+
+                uploadBtn.addEventListener('click', async () => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+
+                    input.onchange = async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        // 文件大小验证
+                        if (file.size > 2 * 1024 * 1024) {
+                            alert('文件大小不能超过2MB');
+                            return;
+                        }
+
+                        // 上传文件
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        try {
+                            await ApiEndpoints.uploadEmojis(formData);
+                            // 清除缓存并重新渲染
+                            delete emojiCache[group];
+                            await renderEmojis();
+                        } catch (error) {
+                            alert('上传失败: ' + error.message);
+                        }
+                    };
+
+                    input.click();
+                });
+
+                container.appendChild(uploadBtn);
+            }
+
+            // 如果缓存中有当前group的内容，直接渲染
             if (emojiCache[group]) {
-                container.innerHTML = '';
                 emojiCache[group].forEach(node => container.appendChild(node));
                 return;
             }
 
-            container.innerHTML = ''; // 第一次加载时清空容器
+            // 获取数据并渲染
             const result = await ApiEndpoints.queryEmojis(group);
             const nodes = [];
+
             result.data.forEach(emoji => {
                 let node;
+
                 if (group === 'animation') {
-                    // 动画表情使用 video
                     node = document.createElement('video');
                     node.src = emoji.url;
                     node.className = 'emoji-item';
                     node.playsInline = true;
-                    node.disablePictureInPicture = true;
                     node.alt = emoji.name;
                     node.autoplay = false;
                     node.muted = true;
-                    node.width = 100;
-                    node.height = 150;
                     node.title = emoji.name;
 
                     node.addEventListener('mouseenter', () => {
@@ -2262,10 +2397,9 @@
 
                     node.addEventListener('click', () => insertEmoji(emoji));
                 } else {
-                    // 静态表情使用 img
                     node = document.createElement('img');
                     node.src = emoji.url;
-                    node.className = 'emoji-item';
+                    node.className = `emoji-item ${group}`;
                     node.alt = emoji.name;
                     node.title = emoji.name;
                     node.addEventListener('click', () => insertEmoji(emoji));
@@ -2275,11 +2409,9 @@
                 nodes.push(node);
             });
 
-            // 缓存 DOM 节点，下次直接用
+            // 缓存DOM节点
             emojiCache[group] = nodes;
         }
-
-
 
         // 更新UI状态
         function updateUIState() {
@@ -2293,7 +2425,7 @@
                 userAvatar.style.display = 'block';
                 userAvatar.src = state.currentUser.avatar;
                 chatInput.disabled = false;
-                chatInput.placeholder = '输入消息...';
+                chatInput.placeholder = '来嘟两句呗...';
                 sendBtn.disabled = false;
             } else {
                 loginBtn.style.display = 'flex';
@@ -2342,8 +2474,29 @@
             }
         }
 
+        function closeEmojiSection() {
+            if (!state.emojiExpanded) return;
+            const emojiSection = document.getElementById('emojiSection');
+            const emojiToggleIcon = document.getElementById('emojiToggle').querySelector('i');
+            emojiSection.classList.remove('expanded');
+            emojiToggleIcon.className = 'far fa-smile';
+            state.emojiExpanded = false;
+         }
+
         // 插入表情到聊天输入框
         function insertEmoji(emoji) {
+
+            if (emoji && emoji.hasOwnProperty('clickSend') && emoji.clickSend) {
+                const newMessage = {
+                    type: 'chat',
+                    content: `[${emoji.name}]`,
+                };
+
+                socket.send(JSON.stringify(newMessage));
+                closeEmojiSection();
+                return;
+            }
+
             const chatInput = document.getElementById('chatInput');
             chatInput.value += `[${emoji.name}]`;
             chatInput.focus();
@@ -2366,9 +2519,10 @@
             document.getElementById('detailName').textContent = userDetail.name;
             document.getElementById('detailAvatar').src = userDetail.avatar;
             document.getElementById('detailBio').textContent = userDetail.bio;
-            // document.getElementById('detailFollowers').textContent = userDetail.followers;
-            // document.getElementById('detailFollowing').textContent = userDetail.following;
-            // document.getElementById('detailStreams').textContent = userDetail.streams;
+            document.getElementById('detailUserId').textContent = `用户ID: ${userDetail.id}`;
+            document.getElementById('detailRegistrationTime').textContent = `注册时间: ${new Date(userDetail.registerDate).toLocaleDateString()}`;
+
+            document.getElementById('detailAvatar').addEventListener('click', () => showImagePreview(userDetail.avatar))
 
             document.getElementById('userDetailModal').classList.add('active');
         }
@@ -2437,6 +2591,8 @@
                 document.getElementById('profileName').value = state.currentUser.name;
                 document.getElementById('profileBio').value = state.currentUser.bio || '';
                 document.getElementById('profileAvatar').src = state.currentUser.avatar;
+
+                document.getElementById('profileAvatar').addEventListener('click', () => showImagePreview(state.currentUser.avatar))
 
                 if (state.currentUser.webhookType) {
                     const option = document.querySelector(`.webhook-option[data-type="${state.currentUser.webhookType}"]`);
@@ -2881,6 +3037,7 @@
 
             chatInput.value = '';
             document.getElementById('sendBtn').disabled = true;
+            closeEmojiSection();
         }
 
 
@@ -2948,12 +3105,10 @@
             }
         }
 
-
-
         // 注册 Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service_work.js')
+                navigator.serviceWorker.register('/service-work.js')
                     .then(registration => {
                         console.log('Service Worker 注册成功:', registration);
                     })
@@ -3066,6 +3221,40 @@
         function hideLoading() {
             document.getElementById('global-loading').style.display = 'none';
             loadingAnimation.stop();
+        }
+
+        let isImagePreviewOpen = false;
+        function showImagePreview(src) {
+
+            if (isImagePreviewOpen) return;
+            isImagePreviewOpen = true;
+
+            // 创建遮罩层
+            let preview = document.createElement("div");
+            preview.className = "image-preview-overlay";
+            preview.innerHTML = `
+                <div class="image-preview-content">
+                    <img src="${src}" alt="preview">
+                </div>
+            `;
+            document.body.appendChild(preview);
+
+            const img = preview.querySelector('img');
+
+            // 设置图片的样式
+            img.style.maxWidth = "80vw";
+            img.style.maxHeight = "80vh";
+            img.style.objectFit = "contain";
+            img.style.display = "block";
+            img.style.margin = "auto"; // 居中显示
+
+            // 点击遮罩层区域时，关闭预览
+            preview.addEventListener("click", (e) => {
+                if (e.target === preview) {
+                    document.body.removeChild(preview);
+                    isImagePreviewOpen = false;
+                }
+            });
         }
 
 
