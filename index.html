@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/live2d-widget@3.x/lib/L2Dwidget.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
 
 
 
@@ -2343,14 +2344,13 @@
                         const formData = new FormData();
                         formData.append('file', file);
 
-                        try {
-                            await ApiEndpoints.uploadEmojis(formData);
-                            // 清除缓存并重新渲染
-                            delete emojiCache[group];
-                            await renderEmojis();
-                        } catch (error) {
-                            alert('上传失败: ' + error.message);
+                        const result = await ApiEndpoints.uploadEmojis(formData);
+                        if (result.code === '0') {
+                            Toast.show('上传成功', 'success')
                         }
+                        // 清除缓存并重新渲染
+                        delete emojiCache[group];
+                        await renderEmojis();
                     };
 
                     input.click();
@@ -2972,10 +2972,12 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function setupWebSocket() {
+        async function setupWebSocket() {
 
             const token = localStorage.getItem(TOKEN_KEY);
-            socket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}`);
+            const fp = await getFingerprint();
+
+            socket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${fp}`);
             socket.addEventListener('open', (event) => {
                 console.log('WebSocket连接已建立');
             });
@@ -3256,6 +3258,43 @@
             });
         }
 
+        async function getFingerprint() {
+            return new Promise((resolve, reject) => {
+                const storedFingerprint = localStorage.getItem('fingerprint');
+                if (storedFingerprint) {
+                    resolve(storedFingerprint);
+                } else {
+                    FingerprintJS.load().then(fp => {
+                        fp.get().then(result => {
+                            const fingerprint = result.visitorId;
+                            localStorage.setItem('fingerprint', fingerprint);
+                            resolve(fingerprint);
+                        }).catch(error => {
+                            console.warn('指纹生成失败，降级使用 UUID', error);
+                            const uuid = generateUUID();
+                            localStorage.setItem('fingerprint', uuid);
+                            resolve(uuid);
+                        });
+                    }).catch(error => {
+                        console.warn('FingerprintJS 加载失败，降级使用 UUID', error);
+                        const uuid = generateUUID();
+                        localStorage.setItem('fingerprint', uuid);
+                        resolve(uuid);
+                    });
+                }
+            });
+        }
+
+        function generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
 
 
     </script>
