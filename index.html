@@ -2802,6 +2802,18 @@
             const faction = document.getElementById('selectedFaction').value;
             const url = webhookUrl.trim();
 
+            const validPrefixes = [
+                "https://qyapi.weixin.qq.com/cgi-bin/webhook/send",
+                "https://oapi.dingtalk.com/robot/send",
+                "https://open.feishu.cn/open-apis/bot"
+            ];
+
+            const isValidUrl = validPrefixes.some(prefix => url.startsWith(prefix));
+            if (!isValidUrl) {
+                Toast.show('请填写正确的 Webhook 地址，可见上方链接教程', 'error');
+                return;
+            }
+
             const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, webhookUrl: url, avatar, faction })
             if (result.code === '0') {
                 // Toast.show('个人资料更新成功', 'success');
