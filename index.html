@@ -3187,6 +3187,7 @@
             try {
                 const finalHeaders = {
                     'Accept': 'application/json',
+                    'fp': await getFingerprint(),
                     ...headers
                 };
 
