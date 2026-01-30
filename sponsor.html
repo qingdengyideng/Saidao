@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支持我们 - 抽象赛道网</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .sponsor-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #764ba2;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header h1 i {
+            color: #ff4757;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .sponsor-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .payment-method {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .payment-method:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .payment-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            width: 100%;
+        }
+
+        .payment-header i {
+            font-size: 2em;
+            color: white;
+            background: #764ba2;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .payment-header h3 {
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .qrcode-container {
+            position: relative;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 10px 15px 15px 15px;
+        }
+
+        .qrcode {
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .qrcode::before {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: white;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4em;
+            z-index: -1;
+        }
+
+        .wechat .qrcode::before {
+            content: '￥';
+            font-family: Arial, sans-serif;
+        }
+
+        .alipay .qrcode::before {
+            content: '¥';
+            font-family: Arial, sans-serif;
+        }
+
+        .instructions {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .donation-info {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+
+        .donation-info h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .donation-info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .donation-info li {
+            margin: 10px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .donation-info li i {
+            position: absolute;
+            left: 0;
+            top: 5px;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .back-button:hover {
+            background: #764ba2;
+            transform: translateX(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .sponsor-container {
+                padding: 20px;
+            }
+
+            .sponsor-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .qrcode {
+                width: 200px;
+                height: 200px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="sponsor-container">
+    <div class="header">
+        <h1>
+            <i class="fas fa-heart"></i>
+            支持抽象赛道网
+        </h1>
+        <p>
+            感谢您对抽象赛道网的支持！您的赞助将帮助我们持续维护服务器、优化用户体验，并为您带来更优质的服务。
+        </p>
+    </div>
+
+    <div class="sponsor-content">
+        <div class="payment-method wechat">
+            <div class="payment-header">
+                <i class="fab fa-weixin"></i>
+                <h3>微信赞助</h3>
+            </div>
+            <div class="qrcode-container">
+                <div class="qrcode">
+                    <img src="images/wechat-pay.png" alt="微信收款码"
+                         style="width: 100%; height: 100%; border-radius: 8px; object-fit: cover;">
+                </div>
+            </div>
+            <p class="instructions">
+                请使用微信扫描上方二维码<br>
+                或长按识别进行赞助
+            </p>
+        </div>
+
+        <div class="payment-method alipay">
+            <div class="payment-header">
+                <i class="fab fa-alipay"></i>
+                <h3>支付宝赞助</h3>
+            </div>
+            <div class="qrcode-container">
+                <div class="qrcode">
+                    <img src="images/alipay.jpg" alt="微信收款码"
+                     style="width: 100%; height: 150%; border-radius: 8px; object-fit: cover; padding: 0 0 65px 0; background-color: #1678ff">
+                </div>
+            </div>
+            <p class="instructions">
+                请使用支付宝扫描上方二维码<br>
+                或长按识别进行赞助
+            </p>
+        </div>
+    </div>
+
+    <div class="donation-info">
+        <h3>
+            <i class="fas fa-hand-holding-heart"></i>
+            您的支持将用于：
+        </h3>
+        <ul>
+            <li><i class="fas fa-server"></i> 服务器租用和维护费用</li>
+            <li><i class="fas fa-bolt"></i> 网站功能开发和优化</li>
+            <li><i class="fas fa-shield-alt"></i> 网络安全保障</li>
+            <li><i class="fas fa-rocket"></i> 新功能研发和技术创新</li>
+            <li><i class="fas fa-users"></i> 更好的用户体验和服务</li>
+        </ul>
+    </div>
+
+    <div style="text-align: center;">
+        <a href="/" class="back-button">
+            <i class="fas fa-arrow-left"></i>
+            返回首页
+        </a>
+    </div>
+
+    <div class="footer">
+        <p>
+            <i class="fas fa-info-circle"></i>
+            注意：赞助时请备注您的用户名，以便进行记录和感谢！
+        </p>
+    </div>
+</div>
+
+<script>
+    // 添加悬停效果
+    document.querySelectorAll('.payment-method').forEach(method => {
+        method.addEventListener('mouseenter', function() {
+            const icon = this.querySelector('.payment-header i');
+            icon.style.transform = 'scale(1.1) rotate(5deg)';
+            icon.style.transition = 'transform 0.3s ease';
+        });
+
+        method.addEventListener('mouseleave', function() {
+            const icon = this.querySelector('.payment-header i');
+            icon.style.transform = 'scale(1) rotate(0deg)';
+        });
+    });
+
+    // 点击二维码放大效果
+    document.querySelectorAll('.qrcode').forEach(qr => {
+        qr.addEventListener('click', function() {
+            this.style.transform = 'scale(1.05)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+            }, 300);
+        });
+    });
+
+    // 添加页面加载动画
+    document.addEventListener('DOMContentLoaded', () => {
+        const container = document.querySelector('.sponsor-container');
+        container.style.animation = 'fadeIn 0.5s ease-out';
+    });
+</script>
+</body>
+</html>

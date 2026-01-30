@@ -1391,6 +1391,7 @@
             position: relative;
             width: 24px;
             height: 24px;
+            left: -5%;
         }
 
         .faction-select-row input[type="radio"] {
@@ -1492,6 +1493,68 @@
             cursor: pointer;
         }
 
+        /* 新消息提示样式 */
+        .new-message-alert {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            top: 85%;
+            transform: translateX(-50%);
+            z-index: 100;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .new-message-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--text-primary) 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            animation: breathing 2s ease-in-out infinite; /* 添加呼吸动画 */
+        }
+
+        /* 呼吸动画 - 透明度变化 */
+        @keyframes breathing {
+            0% {
+                opacity: 0.9;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+            100% {
+                opacity: 0.9;
+                transform: scale(1);
+            }
+        }
+
+        .new-message-btn:hover {
+            transform: translateY(-2px) scale(1.05); /* 结合呼吸效果的缩放 */
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            animation: none; /* 悬停时停止呼吸动画 */
+        }
+
+        .new-message-btn:active {
+            transform: translateY(0);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+
     </style>
 </head>
 <body>
@@ -1516,9 +1579,12 @@
         <!--        <canvas id="canvas" width="300" height="300"></canvas>-->
 
         <div class="header-controls">
-            <button class="btn btn-secondary btn-icon" id="chatToggle">
-                <i class="fas fa-comments"></i>
+            <button class="btn btn-secondary btn-icon" id="sponsorBtn" >
+                <i class="fas fa-heart"></i>
             </button>
+<!--            <button class="btn btn-secondary btn-icon" id="chatToggle">-->
+<!--                <i class="fas fa-comments"></i>-->
+<!--            </button>-->
             <!-- PWA安装按钮（默认隐藏） -->
             <button class="btn btn-primary btn-icon" id="installButton" style="display: none;">
                 <i class="fas fa-download"></i>
@@ -1906,10 +1972,9 @@
             // 初始化聊天室宽度
             document.getElementById('chatSidebar').style.width = state.chatWidth + 'px';
 
-            // 如果是移动设备，默认收起聊天室
-            if (state.isMobile) {
-                document.getElementById('chatSidebar').classList.add('collapsed');
-                state.chatExpanded = false;
+            if (!state.isMobile) {
+                document.getElementById('chatSidebar').classList.remove('collapsed');
+                state.chatExpanded = true;
             }
 
             // 监听窗口大小变化
@@ -2013,7 +2078,13 @@
             document.getElementById('userAvatar').addEventListener('click', openProfileModal);
 
             // 聊天室按钮
-            document.getElementById('chatToggle').addEventListener('click', toggleChat);
+            // document.getElementById('chatToggle').addEventListener('click', toggleChat);
+            document.getElementById('sponsorBtn')?.addEventListener('click', function() {
+                // 跳转到赞助页面
+                window.location.href = 'sponsor.html';
+                // 或者使用新标签页打开
+                // window.open('sponsor.html', '_blank');
+            });
             document.getElementById('collapseChat').addEventListener('click', toggleChat);
             document.getElementById('closeChat').addEventListener('click', toggleChat);
 
@@ -2086,6 +2157,7 @@
                     document.getElementById('selectedWebhook').value = state.webhookType;
                     document.getElementById('webhookUrlContainer').style.display = 'block';
                     document.getElementById('testWebhookBtn').style.display = 'flex';
+                    document.getElementById('webhookUrl').value = '';
                     document.getElementById('webhookUrl').placeholder = `请输入${this.dataset.type === 'dingtalk' ? '钉钉' : this.dataset.type === 'wechat' ? '企微' : '飞书'} Webhook地址`;
                 });
             });
@@ -2125,7 +2197,6 @@
             uploadEmojis: (data) => request(`/emoji/upload`, {method: 'POST', body: data, withAuth: true}),
             testWebhook: (data) => request(`/webhook/testWebhook`, {method: 'POST', body: data, withAuth: true, fromN8N: true}),
         };
-
 
         // 渲染主播卡片
         function renderStreamerCards() {
@@ -2729,8 +2800,9 @@
             const webhookUrl = document.getElementById('webhookUrl').value;
             const avatar = document.getElementById('profileAvatar').src;
             const faction = document.getElementById('selectedFaction').value;
+            const url = webhookUrl.trim();
 
-            const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, webhookUrl, avatar, faction })
+            const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, url, avatar, faction })
             if (result.code === '0') {
                 // Toast.show('个人资料更新成功', 'success');
                 // setTimeout(() => {
@@ -2749,7 +2821,7 @@
                 Toast.show('请填写完整的 Webhook 地址', 'warning');
                 return;
             }
-            const result = await ApiEndpoints.testWebhook({ type: type, url: url });
+            const result = await ApiEndpoints.testWebhook({ type: type, url: url.trim() });
             if (result.code !== '0') {
                 Toast.show('消息发送失败：' + result.message, 'error');
             } else {
@@ -2941,7 +3013,6 @@
                 </div>
             `;
 
-
             // 添加头像点击事件
             const avatar = messageElement.querySelector('.message-avatar');
             avatar.addEventListener('click', function () {
@@ -2951,8 +3022,12 @@
 
             container.appendChild(messageElement);
 
-            // 滚动到底部
-            container.scrollTop = container.scrollHeight;
+            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 200;
+            if (isAtBottom) {
+                container.scrollTop = container.scrollHeight;
+            } else {
+                showNewMessageAlert();
+            }
         }
 
         function addSystemMessageToChat(data) {
@@ -2968,9 +3043,61 @@
 
             container.appendChild(messageElement);
 
-            // 滚动到底部
-            container.scrollTop = container.scrollHeight;
+            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 500;
+            if (isAtBottom) {
+                container.scrollTop = container.scrollHeight;
+            } else {
+                showNewMessageAlert();
+            }
         }
+
+        // 新消息提示相关变量
+        let newMessageCount = 0;
+        let newMessageAlert = null;
+
+        // 显示新消息提示按钮
+        function showNewMessageAlert() {
+            newMessageCount++;
+
+            if (!newMessageAlert) {
+                newMessageAlert = document.createElement('div');
+                newMessageAlert.className = 'new-message-alert';
+                newMessageAlert.innerHTML = `
+                    <button class="new-message-btn">
+                        有新消息 (${newMessageCount})
+                    </button>
+                `;
+
+                // 添加点击事件
+                newMessageAlert.querySelector('.new-message-btn').addEventListener('click', function() {
+                    container.scrollTop = container.scrollHeight;
+                    hideNewMessageAlert();
+                });
+
+                // 添加到容器
+                container.appendChild(newMessageAlert)
+            } else {
+                // 更新已有提示的计数
+                newMessageAlert.querySelector('.new-message-btn').textContent = `有新消息 (${newMessageCount})`;
+            }
+        }
+
+        // 隐藏新消息提示按钮
+        function hideNewMessageAlert() {
+            if (newMessageAlert) {
+                newMessageAlert.remove();
+                newMessageAlert = null;
+                newMessageCount = 0;
+            }
+        }
+
+        // 监听容器滚动，当用户滚动到底部时隐藏提示
+        container.addEventListener('scroll', function() {
+            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 10;
+            if (isAtBottom && newMessageAlert) {
+                hideNewMessageAlert();
+            }
+        });
 
         async function setupWebSocket() {
 
@@ -3007,6 +3134,8 @@
                 } else if (data.type === 'status') {
                     addSystemMessageToChat(data);
                     fetchStreamers()
+                } else if (data.type === 'clear') {
+                    container.innerHTML = '';
                 }
             });
 
@@ -3109,7 +3238,7 @@
         // 注册 Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-work.js')
+                navigator.serviceWorker.register('/service-workv2.js')
                     .then(registration => {
                         console.log('Service Worker 注册成功:', registration);
                     })
