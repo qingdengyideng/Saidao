@@ -2802,16 +2802,18 @@
             const faction = document.getElementById('selectedFaction').value;
             const url = webhookUrl.trim();
 
-            const validPrefixes = [
-                "https://qyapi.weixin.qq.com/cgi-bin/webhook/send",
-                "https://oapi.dingtalk.com/robot/send",
-                "https://open.feishu.cn/open-apis/bot"
-            ];
+            if (url !== '') {
+                const validPrefixes = [
+                    "https://qyapi.weixin.qq.com/cgi-bin/webhook/send",
+                    "https://oapi.dingtalk.com/robot/send",
+                    "https://open.feishu.cn/open-apis/bot"
+                ];
 
-            const isValidUrl = validPrefixes.some(prefix => url.startsWith(prefix));
-            if (!isValidUrl) {
-                Toast.show('请填写正确的 Webhook 地址，可见上方链接教程', 'error');
-                return;
+                const isValidUrl = validPrefixes.some(prefix => url.startsWith(prefix));
+                if (!isValidUrl) {
+                    Toast.show('请填写正确的 Webhook 地址，可见上方链接教程', 'error');
+                    return;
+                }
             }
 
             const result = await ApiEndpoints.profileUpdate({ name, bio, webhookType, webhookUrl: url, avatar, faction })
@@ -2833,6 +2835,19 @@
                 Toast.show('请填写完整的 Webhook 地址', 'warning');
                 return;
             }
+
+            const validPrefixes = [
+                "https://qyapi.weixin.qq.com/cgi-bin/webhook/send",
+                "https://oapi.dingtalk.com/robot/send",
+                "https://open.feishu.cn/open-apis/bot"
+            ];
+
+            const isValidUrl = validPrefixes.some(prefix => url.startsWith(prefix));
+            if (!isValidUrl) {
+                Toast.show('请填写正确的 Webhook 地址，可见上方链接教程', 'error');
+                return;
+            }
+
             const result = await ApiEndpoints.testWebhook({ type: type, url: url.trim() });
             if (result.code !== '0') {
                 Toast.show('消息发送失败：' + result.message, 'error');
@@ -3136,6 +3151,7 @@
                             addMessageToChat(msg);
                         }
                     });
+                    container.scrollTop = container.scrollHeight;
                 } else if (data.type === 'error') {
                     Toast.show(data.content, 'error');
                 } else if (data.type === 'system') {
