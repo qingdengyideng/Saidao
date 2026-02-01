@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Saidao</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/live2d-widget@3.x/lib/L2Dwidget.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
 
@@ -1699,6 +1698,19 @@
     </div>
 </div>
 
+<!-- 图形验证码模态框 -->
+<div id="captchaModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px;">
+        <div style="text-align: center;">
+            <img id="captchaImage" src="" style="height: 80px; cursor: pointer;">
+            <div style="margin: 15px 0;">
+                <input type="text" id="captchaCode" placeholder="输入验证码" style="padding: 8px; width: 200px;">
+            </div>
+            <button id="confirmCaptchaBtn" class="btn btn-primary" style="padding: 8px 20px;">确认</button>
+        </div>
+    </div>
+</div>
+
 <!-- 注册模态框 -->
 <div class="modal" id="registerModal">
     <div class="modal-content">
@@ -1932,7 +1944,7 @@
             </div>
         </div>
     </div>
-
+</div>
 
 
 
@@ -2123,8 +2135,8 @@
             document.getElementById('avatarFileInput').addEventListener('change', handleChangeAvatar);
 
             // 验证码发送
-            document.getElementById('sendCodeBtn').addEventListener('click', sendVerificationCode);
-            document.getElementById('sendForgotCodeBtn').addEventListener('click', sendForgotCode);
+            // document.getElementById('sendCodeBtn').addEventListener('click', sendVerificationCode);
+            // document.getElementById('sendForgotCodeBtn').addEventListener('click', sendForgotCode);
 
             // 聊天室相关
             document.getElementById('emojiToggle').addEventListener('click', toggleEmojiSection);
@@ -2196,6 +2208,7 @@
             queryEmojis: (currentEmojiGroup) => request(`/emoji/${currentEmojiGroup}`, {withAuth: true}),
             uploadEmojis: (data) => request(`/emoji/upload`, {method: 'POST', body: data, withAuth: true}),
             testWebhook: (data) => request(`/webhook/testWebhook`, {method: 'POST', body: data, withAuth: true, fromN8N: true}),
+            getCaptcha: (data) => request(`/user/captcha`, {}),
         };
 
         // 渲染主播卡片
@@ -2936,6 +2949,25 @@
             console.log('发送验证码到:', email);
         }
 
+        // 倒计时函数
+        async function startCountdown(elementId) {
+            const btn = document.getElementById(elementId);
+            btn.disabled = true;
+            btn.textContent = '60秒后重试';
+
+            let count = 60;
+            const timer = setInterval(() => {
+                count--;
+                btn.textContent = count + '秒后重试';
+
+                if (count <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.textContent = '发送验证码';
+                }
+            }, 1000);
+        }
+
         async function sendForgotCode() {
             const email = document.getElementById('forgotEmail').value;
             if (!email) {
@@ -3329,26 +3361,6 @@
             deferredPrompt = null;
         });
 
-        L2Dwidget.init({
-            model: {
-                jsonPath: "https://unpkg.com/live2d-widget-model-shizuku/assets/shizuku.model.json"
-            },
-            display: {
-                position: "left",
-                width: 150,
-                height: 300,
-                hOffset: 0,
-                vOffset: -20
-            },
-            mobile: {
-                show: false
-            },
-            react: {
-                opacityDefault: 0.9,
-                opacityOnHover: 1
-            }
-        });
-
         lottie.loadAnimation({
             container: document.getElementById('logo-container'),
             renderer: 'canvas',
@@ -3453,6 +3465,99 @@
                 return v.toString(16);
             });
         }
+
+        let captchaId = '';
+        let currentScene = ''; // 'register' 或 'forgot'
+        let currentEmail = '';
+        const sceneBtnMap = {
+            forgot_password: 'sendForgotCodeBtn',
+            register: 'sendCodeBtn'
+        };
+
+        // 显示图形验证码模态框
+        async function showCaptchaModal(scene, email) {
+            currentScene = scene;
+            currentEmail = email;
+
+            // 获取验证码
+            const result = await ApiEndpoints.getCaptcha({ type: 'digit' });
+            if (result.code === '0') {
+                document.getElementById('captchaCode').value = '';
+                captchaId = result.data.captchaId;
+                document.getElementById('captchaImage').src = result.data.base64Image;
+                document.getElementById('captchaModal').style.display = 'block';
+            } else {
+                Toast.show('获取验证码失败', 'error');
+            }
+        }
+
+        // 隐藏验证码模态框
+        function hideCaptchaModal() {
+            document.getElementById('captchaModal').style.display = 'none';
+        }
+
+        // 确认验证码
+        async function confirmCaptcha() {
+            const captchaValue = document.getElementById('captchaCode').value.trim();
+            if (!captchaValue) {
+                Toast.show('请输入验证码', 'error');
+                return;
+            }
+
+            hideCaptchaModal();
+
+            // 发送验证码
+            const result = await ApiEndpoints.sendVerificationCode({
+                email: currentEmail,
+                scene: currentScene,
+                captchaId: captchaId,
+                captchaValue: captchaValue
+            });
+
+            if (result.code === '0') {
+                await startCountdown(sceneBtnMap[currentScene])
+                Toast.show('验证码发送成功', 'success');
+            } else {
+                Toast.show(result.message || '发送失败', 'error');
+            }
+
+        }
+
+        // 注册发送验证码按钮点击
+        document.getElementById('sendCodeBtn').onclick = async function() {
+            const email = document.getElementById('registerEmail').value.trim();
+            if (!email) {
+                Toast.show('请输入邮箱地址', 'error');
+                return;
+            }
+            await showCaptchaModal('register', email);
+        };
+
+        // 忘记密码发送验证码按钮点击
+        document.getElementById('sendForgotCodeBtn').onclick = async function() {
+            const email = document.getElementById('forgotEmail').value.trim();
+            if (!email) {
+                Toast.show('请输入邮箱地址', 'error');
+                return;
+            }
+            await showCaptchaModal('forgot_password', email);
+        };
+
+        // 验证码图片点击刷新
+        document.getElementById('captchaImage').onclick = async function() {
+            const result = await ApiEndpoints.getCaptcha({ type: 'digit' });
+            if (result.code === '0') {
+                captchaId = result.data.captchaId;
+                document.getElementById('captchaImage').src = result.data.base64Image;
+                document.getElementById('captchaCode').value = '';
+            }
+        };
+
+        // 确认按钮点击
+        document.getElementById('confirmCaptchaBtn').onclick = confirmCaptcha;
+
+        // 关闭按钮点击
+        document.getElementById('closeCaptchaModal').onclick = hideCaptchaModal;
 
 
     </script>
