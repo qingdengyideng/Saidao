@@ -2393,11 +2393,11 @@
 
             const cover = card.querySelector('.cover-container');
             if (cover) {
-                const list = ['Background', 'Animated', 'florallanding', 'UnderwaterTurtle', 'luckymoney', 'Chinesenewyear', 'train'];
+                const list = ['Background', 'Animated', 'florallanding', 'UnderwaterTurtle', 'Chinesenewyear', 'train'];
                 const name = cover.dataset.bgAnim
                     || (cover.dataset.bgAnim = list[Math.floor(Math.random() * list.length)]);
 
-                if (name === 'Chinesenewyear' || name === 'luckymoney' ) {
+                if (name === 'Chinesenewyear'  ) {
                     cover.style.backgroundColor = '#aa1414';
                 }
 
