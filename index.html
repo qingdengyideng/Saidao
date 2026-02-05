@@ -532,7 +532,7 @@
             padding: 18px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 5px;
             background-color: var(--bg-color);
         }
 
@@ -602,14 +602,53 @@
         }
 
         .message-text {
-            background-color: #ffffff;
+            position: relative;
+            display: inline-block;
+            max-width: 520px;
             padding: 8px 12px;
-            border-radius: 16px;
+            border-radius: 17px;
             font-size: 14px;
-            color: var(--text-primary);
             line-height: 1.5;
-            max-width: 85%;
+
+            background-color: #ffffff;
+            border: 1px solid var(--primary-color);
+            white-space: pre-wrap;
             word-break: break-word;
+        }
+
+
+        .chat-message:not(.own) .message-text::before {
+            content: "";
+            position: absolute;
+            left: -5px;
+            top: 15px;
+
+            width: 10px;
+            height: 10px;
+
+            background: #ffffff;
+            border-left: 1px solid var(--primary-color);
+            border-bottom: 1px solid var(--primary-color);
+
+            transform: rotate(38deg);
+        }
+
+        .message-text.image-only {
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .message-text.image-only img {
+            max-width: 220px;
+            border-radius: 12px;
+            display: block;
+            cursor: pointer;
+        }
+
+        .message-text.image-only::before,
+        .message-text.image-only::after {
+            display: none;
         }
 
         .system-message {
@@ -1639,7 +1678,7 @@
                 <div class="emoji-tabs">
                     <button class="emoji-tab active" data-group="common">常用表情</button>
                     <button class="emoji-tab" data-group="animation">动画表情</button>
-                    <button class="emoji-tab" data-group="vip">休息</button>
+                    <button class="emoji-tab" data-group="vip">vip</button>
                 </div>
                 <div class="emoji-container" id="emojiContainer">
                     <!-- 表情将通过JavaScript动态生成 -->
@@ -2483,8 +2522,10 @@
                     node = document.createElement('img');
                     node.src = emoji.url;
                     node.className = `emoji-item ${group}`;
-                    node.alt = emoji.name;
-                    node.title = emoji.name;
+                    if (group !== 'vip') {
+                        node.alt = emoji.name;
+                        node.title = emoji.name;
+                    }
                     node.addEventListener('click', () => insertEmoji(emoji));
                 }
 
@@ -3080,6 +3121,19 @@
             });
 
             container.appendChild(messageElement);
+
+            // 判断是否是图片消息（chat-emoji vip）
+            const messageText = messageElement.querySelector('.message-text');
+            const imageEmoji = messageText.querySelector('img.chat-emoji.vip');
+
+            if (imageEmoji) {
+                // 标记为图片消息
+                messageElement.classList.add('image-message');
+
+                // 去掉气泡，只保留图片
+                messageText.classList.add('image-only');
+            }
+
 
             const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 300;
             if (isAtBottom) {
