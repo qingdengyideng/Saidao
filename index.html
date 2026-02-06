@@ -8,8 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
 
-
-
     <!-- 链接 Manifest -->
     <link rel="manifest" href="/manifest.json">
 
@@ -25,6 +23,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
+        /* 默认模式 */
         :root {
             --primary-color: #7A6F69;
             --primary-dark: #635A55;
@@ -40,6 +39,7 @@
             --offline-color: #8C8C8C;
             --chat-bg: #FFFFFF;
             --chat-border: #D6D2CE;
+            --msg-bg-color: #ffffff;
             --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.04);
             --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.06);
             --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -48,6 +48,33 @@
             --radius-lg: 14px;
             --transition: all 0.25s ease;
         }
+
+        /* 深色模式 */
+        [data-theme="dark"] {
+            --primary-color: #7A6F69;
+            --primary-dark: #635A55;
+            --primary-light: #8C827C;
+            --bg-color: #3c3c3c;
+            --card-color: #2D2D2D;
+            --text-primary: #ffffff;
+            --text-secondary: #A0A0A0;
+            --text-light: #B0B0B0;
+            --border-color: #3A3A3A;
+            --success-color: #4CAF50;
+            --live-color: #E53935;
+            --offline-color: #8C8C8C;
+            --chat-bg: #2D2D2D;
+            --chat-border: #3A3A3A;
+            --msg-bg-color: #555555;
+            --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.15);
+            --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.2);
+            --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.25);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --transition: all 0.25s ease;
+        }
+
 
         * {
             margin: 0;
@@ -97,7 +124,7 @@
         .header-controls {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 7px;
         }
 
         .btn {
@@ -130,8 +157,8 @@
         }
 
         .btn-secondary {
-            background-color: white;
-            color: var(--primary-color);
+            background-color: var(--primary-color);
+            color: #FFFFFF;
             border: 1px solid var(--primary-light);
         }
 
@@ -179,7 +206,7 @@
         .filter-tab {
             padding: 9px 18px;
             border-radius: 50px;
-            background-color: white;
+            background-color: var(--bg-color);
             color: var(--text-secondary);
             border: 1px solid var(--border-color);
             font-weight: 500;
@@ -375,7 +402,7 @@
             position: absolute;
             bottom: 100%;
             right: 0;
-            background-color: white;
+            background-color: var(--card-color);
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-heavy);
             padding: 12px;
@@ -606,11 +633,11 @@
             display: inline-block;
             max-width: 520px;
             padding: 8px 12px;
-            border-radius: 17px;
-            font-size: 14px;
+            border-radius: 16px;
+            font-size: 15px;
             line-height: 1.5;
-
-            background-color: #ffffff;
+            color: var(--text-primary);
+            background-color: var(--msg-bg-color);
             border: 1px solid var(--primary-color);
             white-space: pre-wrap;
             word-break: break-word;
@@ -620,17 +647,15 @@
         .chat-message:not(.own) .message-text::before {
             content: "";
             position: absolute;
-            left: -7px;
-            top: 9px;
-
-            width: 15px;
+            left: -3px;
+            top: 8px;
+            width: 6px;
             height: 8px;
-
-            background: #ffffff;
+            background: var(--msg-bg-color);
             border-left: 1px solid var(--primary-color);
             border-bottom: 1px solid var(--primary-color);
 
-            transform: rotate(76deg);
+            transform: rotate(49deg);
         }
 
         .message-text.image-only {
@@ -782,6 +807,8 @@
             font-family: 'Inter', sans-serif;
             font-size: 13px;
             transition: var(--transition);
+            background-color: var(--chat-border);
+            color: var(--text-primary);
         }
 
         .chat-emoji {
@@ -868,7 +895,7 @@
         }
 
         .modal-content {
-            background-color: white;
+            background-color: var(--bg-color);
             border-radius: var(--radius-lg);
             width: 90%;
             max-width: 480px;
@@ -936,6 +963,8 @@
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             transition: var(--transition);
+            background-color: var(--chat-bg);
+            color: var(--text-primary) ;
         }
 
         .form-input:focus {
@@ -971,7 +1000,7 @@
             align-items: center;
             gap: 8px;
             padding: 10px;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--card-color);
             border-radius: var(--radius-sm);
             transition: var(--transition);
             cursor: pointer;
@@ -1355,12 +1384,12 @@
             flex: 1;
             display: flex;
             align-items: center;
-            border: 2px solid #e0e0e0;
+            border: 2px solid var(--primary-color);
             border-radius: 12px;
             padding: 0px;
             transition: all 0.3s ease;
             cursor: pointer;
-            background-color: #f9f9f9;
+            background-color: var(--bg-color);
             position: relative;
             overflow: hidden;
             min-height: 90px;
@@ -1592,6 +1621,19 @@
             }
         }
 
+        #darkModeToggleBtn {
+            background-color: #7A6F69;
+            border: none;
+        }
+
+        [data-theme="dark"] #darkModeToggleBtn {
+            background-color: #7A6F69;
+        }
+
+        #darkModeToggleBtn:hover {
+            background-color: #5c5046;
+        }
+
 
     </style>
 </head>
@@ -1599,11 +1641,6 @@
 <div class="container">
     <!-- 头部 -->
     <header>
-<!--        <div class="logo">-->
-<!--            <i class="fas fa-broadcast-tower logo-icon"></i>-->
-<!--            <span class="logo-text">直播聚合</span>-->
-<!--        </div>-->
-
         <div class="logo">
             <div id="logo-container" style="width:60px;height:60px;"></div>
             <span class="logo-text">抽象赛道网</span>
@@ -1612,21 +1649,21 @@
         <div id="global-loading" style="display:flex">
             <div id="lottie-container" style="width:120px;height:120px;"></div>
         </div>
-<!--        <div id="lottie-container" ></div>-->
-
-        <!--        <canvas id="canvas" width="300" height="300"></canvas>-->
 
         <div class="header-controls">
             <button class="btn btn-secondary btn-icon" id="sponsorBtn" >
                 <i class="fas fa-heart"></i>
             </button>
-<!--            <button class="btn btn-secondary btn-icon" id="chatToggle">-->
-<!--                <i class="fas fa-comments"></i>-->
-<!--            </button>-->
             <!-- PWA安装按钮（默认隐藏） -->
             <button class="btn btn-primary btn-icon" id="installButton" style="display: none;">
                 <i class="fas fa-download"></i>
             </button>
+            <!-- 深色模式按钮 -->
+            <button class="btn btn-secondary btn-icon" id="darkModeToggleBtn">
+                <i class="fas fa-moon"></i>
+            </button>
+            <!-- 隐藏复选框 -->
+            <input type="checkbox" id="darkModeToggle" style="display: none;">
             <button class="btn btn-primary" id="loginBtn">
                 <i class="fas fa-user"></i>
                 <span class="btn-text">登录/注册</span>
@@ -1678,7 +1715,7 @@
                 <div class="emoji-tabs">
                     <button class="emoji-tab active" data-group="common">常用表情</button>
                     <button class="emoji-tab" data-group="animation">动画表情</button>
-                    <button class="emoji-tab" data-group="vip">vip</button>
+                    <button class="emoji-tab" data-group="vip">test</button>
                 </div>
                 <div class="emoji-container" id="emojiContainer">
                     <!-- 表情将通过JavaScript动态生成 -->
@@ -2013,6 +2050,7 @@
 
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
+            applyDarkMode();
             detectDeviceType();
             initEventListeners();
             fetchStreamers();
@@ -3611,8 +3649,60 @@
         document.getElementById('confirmCaptchaBtn').onclick = confirmCaptcha;
 
         // 关闭按钮点击
-        document.getElementById('closeCaptchaModal').onclick = hideCaptchaModal;
+        // document.getElementById('closeCaptchaModal').onclick = hideCaptchaModal;
 
+        // 应用深色模式
+        function applyDarkMode() {
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+
+            // 在 HTML 元素上设置 data-theme 属性，应用深色模式
+            if (darkMode) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+
+            // 设置深色模式按钮的初始状态
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            darkModeToggle.checked = darkMode;
+
+            // 更新深色模式按钮图标
+            updateDarkModeButton(darkMode);
+        }
+
+        // 切换深色模式
+        document.getElementById('darkModeToggleBtn').addEventListener('click', function() {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const darkMode = darkModeToggle.checked;
+            const newDarkMode = !darkMode;
+
+            // 保存深色模式状态到本地存储
+            localStorage.setItem('darkMode', newDarkMode);
+
+            // 切换主题色
+            if (newDarkMode) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+
+            // 更新按钮样式
+            updateDarkModeButton(newDarkMode);
+
+            // 更新复选框状态
+            darkModeToggle.checked = newDarkMode;
+        });
+
+        // 更新深色模式按钮样式
+        function updateDarkModeButton(isDarkMode) {
+            const darkModeToggleBtn = document.getElementById('darkModeToggleBtn');
+            const moonIcon = darkModeToggleBtn.querySelector('i');
+            if (isDarkMode) {
+                moonIcon.classList.remove('fa-moon');
+                moonIcon.classList.add('fa-sun');  // 切换为太阳图标
+            } else {
+                moonIcon.classList.remove('fa-sun');
+                moonIcon.classList.add('fa-moon');  // 切换为月亮图标
+            }
+        }
 
     </script>
 </body>
