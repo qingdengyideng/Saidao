@@ -1136,7 +1136,7 @@
 
         .logo-text {
             position: relative;
-            font-size: 25px;
+            font-size: 23px;
             font-weight: bold;
             color: var(--primary-color);
             background: linear-gradient(45deg,
@@ -1341,15 +1341,14 @@
             font-size: 14px;
         }
 
-        /* PWA安装按钮样式 - 复用现有按钮样式 */
         #installButton {
-            margin-right: 10px; /* 与登录按钮保持间距 */
+            margin-right: 5px;
         }
 
         /* 移动端适配 */
         @media (max-width: 768px) {
             #installButton .btn-text {
-                display: none; /* 移动端只显示图标 */
+                display: none;
             }
 
             #installButton {
@@ -1642,7 +1641,7 @@
     <!-- 头部 -->
     <header>
         <div class="logo">
-            <div id="logo-container" style="width:60px;height:60px;"></div>
+            <div id="logo-container" style="width:40px;height:40px;"></div>
             <span class="logo-text">抽象赛道网</span>
         </div>
 
@@ -2330,8 +2329,8 @@
                     <div class="card-content">
                         <h3 class="streamer-name">${streamer.name}</h3>
                         <div class="streamer-info">
-                            <div><i class="fas fa-satellite-dish"></i> 渠道: ${streamer.channel}</div>
-                            <div><i class="far fa-clock"></i> 开播时间: ${streamer.startTime}</div>
+                            <div><i class="fas fa-satellite-dish"></i>渠道: ${streamer.channel}</div>
+                            <div><i class="far fa-clock"></i>开播时间: ${streamer.startTime}</div>
                         </div>
                         <div class="card-actions">
                             <button class="btn btn-primary enter-btn" style="padding: 7px 14px; font-size: 13px;">进入直播间</button>
