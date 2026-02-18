@@ -813,7 +813,7 @@
             border-radius: 20px;
             border: 1px solid var(--chat-border);
             font-family: 'Inter', sans-serif;
-            font-size: 13px;
+            font-size: 16px;
             transition: var(--transition);
             background-color: var(--chat-border);
             color: var(--text-primary);
@@ -3137,7 +3137,10 @@
             }
 
             // 如果服务端返回了 ipGeo
-            const ipGeo = data.ipGeo || '';
+            let ipGeo = '';
+            if (data.uid !== 0 && data.ipGeo) {
+                ipGeo = 'IP属地：' + data.ipGeo
+            }
 
             messageElement.innerHTML = `
                 <div class="avatar-container">
@@ -3149,10 +3152,11 @@
                         <span class="message-user">${data.uname}</span>
                         <span class="message-time">${data.timestamp}</span>
                     </div>
-                    <div class="message-text">${data.content}</div>
                     <div class="message-footer">
                         ${ipGeo}
                     </div>
+                    <div class="message-text">${data.content}</div>
+
                 </div>
             `;
 
