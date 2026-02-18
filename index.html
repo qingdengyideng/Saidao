@@ -617,10 +617,18 @@
             margin-bottom: 3px;
         }
 
+        .message-footer {
+            display: flex;
+            justify-content: left;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
         .message-user {
             font-weight: 600;
             font-size: 13px;
-            color: var(--text-primary);
+            color: var(--text-secondary);
         }
 
         .message-time {
@@ -812,8 +820,8 @@
         }
 
         .chat-emoji {
-            height: 13%;
-            width: 13%;
+            height: 31%;
+            width: 31%;
         }
 
         .chat-emoji-animation {
@@ -2259,7 +2267,7 @@
 
         const API_BASE_URL = 'https://api.saidao.cc';
         const N8N_BASE_URL = 'https://n8n.saidao.cc';
-        const WS_BASE_URL = 'wss://api.saidao.cc';
+        const WS_BASE_URL = 'ws://localhost:5080';
         const TOKEN_KEY = 'ACCESS_TOKEN';
 
         const ApiEndpoints = {
@@ -3128,6 +3136,9 @@
                 factionHTML = '<span class="faction-tag volume">卷</span>';
             }
 
+            // 如果服务端返回了 ipGeo
+            const ipGeo = data.ipGeo || '';
+
             messageElement.innerHTML = `
                 <div class="avatar-container">
                     <img src="${data.avatar}" alt="${data.uname}" class="message-avatar" data-user-id="${data.uid}">
@@ -3139,6 +3150,9 @@
                         <span class="message-time">${data.timestamp}</span>
                     </div>
                     <div class="message-text">${data.content}</div>
+                    <div class="message-footer">
+                        ${ipGeo}
+                    </div>
                 </div>
             `;
 
@@ -3164,7 +3178,7 @@
             }
 
 
-            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 600;
+            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 300;
             if (isAtBottom) {
                 container.scrollTop = container.scrollHeight;
             } else {
