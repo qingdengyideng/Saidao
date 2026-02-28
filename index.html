@@ -607,6 +607,11 @@
             color: white;
         }
 
+        .faction-tag.ai {
+            background-color: #a433dc;
+            color: white;
+        }
+
         .message-content {
             flex-grow: 1;
         }
@@ -1633,6 +1638,52 @@
             background-color: #5c5046;
         }
 
+        /* 在现有 <style> 标签内添加样式，复用现有设计变量 */
+        .quote-preview {
+            display: none;
+            background-color: var(--chat-bg);
+            border-left: 3px solid var(--primary-color);
+            border-top: 1px solid var(--chat-border);
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        }
+        .quote-preview-content {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .quote-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .quote-cancel-btn {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 2px;
+            font-size: 12px;
+        }
+        .quote-cancel-btn:hover {
+            color: var(--text-primary);
+        }
+        .quote-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .message-highlight {
+            animation: highlightFlash 2s ease;
+        }
+
+        @keyframes highlightFlash {
+            0%   { background-color: rgba(255, 230, 0, 0.6); }
+            100% { background-color: transparent; }
+        }
+
 
     </style>
 </head>
@@ -1709,6 +1760,7 @@
             <!-- 聊天消息将通过JavaScript动态生成 -->
         </div>
 
+        <div class="quote-preview" id="quotePreview"></div>
         <div class="chat-footer">
             <div class="emoji-section" id="emojiSection">
                 <div class="emoji-tabs">
@@ -3128,12 +3180,53 @@
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message';
 
+            // 如果有引用回复，在消息上方添加引用块
+            let quoteHTML = '';
+            if (data.replyTo) {
+                quoteHTML = `
+                    <div class="message-quote" data-message-id="${data.replyTo.messageId}" style="
+                        background-color: var(--bg-color);
+                        border-left: 3px solid var(--primary-light);
+                        border-radius: var(--radius-sm);
+                        padding: 6px 10px 6px 8px;
+                        margin-bottom: 6px;
+                        font-size: 12px;
+                        color: var(--text-secondary);
+                        cursor: pointer;
+                    ">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="color: var(--primary-color); font-weight:500;">
+                                ${data.replyTo.uname}:
+                            </span>
+                            <span style="color: var(--text-light);">
+                                ${data.replyTo.content.substring(0, 150)}
+                                ${data.replyTo.content.length > 150 ? '...' : ''}
+                            </span>
+                        </div>
+                    </div>
+                    `;
+                // 点击引用块可以跳转（如果后端支持并下发了 messageId）
+                // 跳转逻辑需要额外实现，例如滚动到该消息并高亮，这里先占位
+            }
+
+            // 处理消息内容中的@高亮 (假设 content 中 @用户名 已被后端处理或保持原样)
+            let processedContent = data.content;
+            // 简易前端高亮：将 @用户名 替换为带样式的span
+            // 更佳实践应由后端在 content 中标记，或下发 mentions 数组由前端渲染时处理
+            if (data.mentions && data.mentions.length > 0) {
+                // 这里示例一个简单的文本替换，实际应根据 mentions 和用户列表进行更精确的匹配和替换
+                processedContent = processedContent.replace(/@(\S+)/g, '<span class="mention" style="color: #020df4; font-weight: 500;">@$1</span>');
+            }
+
+
             // 根据 faction 值生成标签HTML
             let factionHTML = '';
             if (data.faction === 'ya') {
                 factionHTML = '<span class="faction-tag tooth">牙</span>';
             } else if (data.faction === 'juan') {
                 factionHTML = '<span class="faction-tag volume">卷</span>';
+            } else if (data.faction === 'AI') {
+                factionHTML = '<span class="faction-tag ai">AI</span>';
             }
 
             // 如果服务端返回了 ipGeo
@@ -3155,8 +3248,8 @@
                     <div class="message-footer">
                         ${ipGeo}
                     </div>
-                    <div class="message-text">${data.content}</div>
-
+                    <div class="message-text">${processedContent}</div>
+                    ${quoteHTML}
                 </div>
             `;
 
@@ -3181,6 +3274,24 @@
                 messageText.classList.add('image-only');
             }
 
+            if (data.messageId) {
+                messageElement.dataset.messageId = data.messageId;
+                messageElement.dataset.uid = data.uid;
+                messageElement.dataset.uname = data.uname;
+            }
+
+            if (data.mentionedMe === true && data.messageId) {
+                showMentionAlert(data.messageId);
+            }
+
+            // 2. 绑定右键点击事件
+            messageElement.addEventListener('contextmenu', function(e) {
+                e.preventDefault(); // 阻止浏览器默认右键菜单
+                showMessageContextMenu(e, data); // 显示自定义右键菜单
+            });
+
+            // 点击页面其他地方关闭右键菜单
+            document.addEventListener('click', closeMessageContextMenu);
 
             const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 300;
             if (isAtBottom) {
@@ -3188,6 +3299,226 @@
             } else {
                 showNewMessageAlert();
             }
+        }
+
+        let mentionAlert = null;
+        let latestMentionMessageId = null;
+
+        function showMentionAlert(messageId) {
+            latestMentionMessageId = messageId;
+
+            if (mentionAlert === null) {
+                mentionAlert = document.createElement('div');
+                mentionAlert.className = 'new-message-alert mention-alert';
+                mentionAlert.style.zIndex = '9999'; // 高于普通新消息提示
+
+                mentionAlert.innerHTML = `
+                    <button class="new-message-btn">
+                        有人@我
+                    </button>
+                `;
+
+                mentionAlert.querySelector('.new-message-btn')
+                    .addEventListener('click', function () {
+
+                        jumpToMessage(latestMentionMessageId);
+                        hideMentionAlert();
+                    });
+
+                container.appendChild(mentionAlert);
+            }
+        }
+
+        function jumpToMessage(messageId) {
+
+            const target = document.querySelector(
+                `.chat-message[data-message-id="${messageId}"]`
+            );
+
+            if (!target) {
+                console.warn('未找到被@的消息:', messageId);
+                return;
+            }
+
+            const offsetTop = target.offsetTop - container.offsetTop;
+
+            container.scrollTo({
+                top: offsetTop - container.clientHeight / 2,
+                behavior: 'smooth'
+            });
+
+            // 高亮
+            target.classList.add('message-highlight');
+            setTimeout(() => {
+                target.classList.remove('message-highlight');
+            }, 2000);
+        }
+
+        function hideMentionAlert() {
+            if (mentionAlert) {
+                mentionAlert.remove();
+                mentionAlert = null;
+                latestMentionMessageId = null;
+            }
+        }
+
+        document.addEventListener('click', function (e) {
+            const quoteEl = e.target.closest('.message-quote');
+            if (!quoteEl) return;
+
+            const messageId = quoteEl.getAttribute('data-message-id');
+            if (!messageId) return;
+
+            const target = document.querySelector(
+                `.chat-message[data-message-id="${messageId}"]`
+            );
+            if (!target) {
+                console.warn('未找到目标消息:', messageId);
+                return;
+            }
+
+            // 平滑滚动到目标
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+            // 高亮动画
+            target.classList.add('message-highlight');
+            setTimeout(() => {
+                target.classList.remove('message-highlight');
+            }, 2000);
+        });
+
+        // 右键菜单显示函数
+        let currentContextMenu = null;
+        function showMessageContextMenu(event, messageData) {
+            closeMessageContextMenu(); // 关闭已存在的菜单
+
+            const menu = document.createElement('div');
+            menu.className = 'message-context-menu';
+            menu.style.position = 'fixed';
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+            menu.style.backgroundColor = 'var(--card-color)';
+            menu.style.border = '1px solid var(--border-color)';
+            menu.style.borderRadius = 'var(--radius-sm)';
+            menu.style.boxShadow = 'var(--shadow-medium)';
+            menu.style.zIndex = '1000';
+            menu.style.padding = '4px 0';
+            menu.style.minWidth = '100px';
+
+            // “引用”菜单项
+            const quoteItem = document.createElement('div');
+            quoteItem.className = 'context-menu-item';
+            quoteItem.textContent = '引用';
+            quoteItem.style.padding = '8px 12px';
+            quoteItem.style.cursor = 'pointer';
+            quoteItem.style.color = 'var(--text-primary)';
+            quoteItem.style.fontSize = '14px';
+            quoteItem.addEventListener('click', () => {
+                setQuoteMessage(messageData);
+                closeMessageContextMenu();
+            });
+            menu.appendChild(quoteItem);
+
+            // “@”菜单项
+            const mentionItem = document.createElement('div');
+            mentionItem.className = 'context-menu-item';
+            mentionItem.textContent = `@${messageData.uname}`;
+            mentionItem.style.padding = '8px 12px';
+            mentionItem.style.cursor = 'pointer';
+            mentionItem.style.color = 'var(--text-primary)';
+            mentionItem.style.fontSize = '14px';
+            mentionItem.addEventListener('click', () => {
+                mentionUser(messageData.uname, messageData.uid);
+                closeMessageContextMenu();
+            });
+            menu.appendChild(mentionItem);
+
+            // 悬停效果
+            [quoteItem, mentionItem].forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    item.style.backgroundColor = 'var(--bg-color)';
+                });
+                item.addEventListener('mouseleave', () => {
+                    item.style.backgroundColor = '';
+                });
+            });
+
+            document.body.appendChild(menu);
+            currentContextMenu = menu;
+        }
+
+        function closeMessageContextMenu() {
+            if (currentContextMenu) {
+                currentContextMenu.remove();
+                currentContextMenu = null;
+            }
+        }
+
+        // 全局状态，记录当前引用的消息
+        let currentQuote = null;
+
+        // 设置引用消息
+        function setQuoteMessage(messageData) {
+            currentQuote = {
+                messageId: messageData.messageId,
+                uid: messageData.uid,
+                uname: messageData.uname,
+                content: messageData.content
+            };
+
+            // 显示预览
+            const preview = document.getElementById('quotePreview');
+            preview.innerHTML = `
+                <div class="quote-preview-content">
+                    <div class="quote-header">
+                        <span style="font-weight:500; color: var(--primary-color);">引用 ${messageData.uname}:</span>
+                        <button class="quote-cancel-btn"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="quote-text">${escapeHtml(messageData.content.substring(0, 50))}${messageData.content.length > 50 ? '...' : ''}</div>
+                </div>
+            `;
+            preview.style.display = 'block';
+
+            // 点击关闭按钮取消引用
+            preview.querySelector('.quote-cancel-btn').addEventListener('click', clearQuote);
+
+            // 输入框自动聚焦并填入 @username
+            const chatInput = document.getElementById('chatInput');
+            chatInput.value = `@${messageData.uname} `;
+            chatInput.focus();
+            document.getElementById('sendBtn').disabled = false;
+        }
+
+        // 清除引用
+        function clearQuote() {
+            currentQuote = null;
+            const preview = document.getElementById('quotePreview');
+            preview.style.display = 'none';
+            preview.innerHTML = '';
+        }
+
+        // 简单的HTML转义，防止预览内容破坏结构
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 处理@用户
+        function mentionUser(uname, uid) {
+            const chatInput = document.getElementById('chatInput');
+            // 检查输入框末尾是否已经是空格或为空，避免拼接错误
+            const currentValue = chatInput.value.trim();
+            const separator = currentValue && !currentValue.endsWith(' ') ? ' ' : '';
+            chatInput.value = `${currentValue}${separator}@${uname} `;
+            chatInput.focus();
+            document.getElementById('sendBtn').disabled = false;
+            // 注意：这里仅在前端输入框添加了文本，实际被@的UID列表需要在发送时从 currentQuote 或解析输入框内容获得。
+            // 更优解：在发送时，解析输入框内容中的 @用户名，并将其转换为UID（需要后端或本地映射支持）。
+            // 简易方案：仅当通过右键菜单触发@时，将UID存入一个全局 Set，发送时附带。
         }
 
         function addSystemMessageToChat(data) {
@@ -3324,10 +3655,15 @@
                 content: message,
             };
 
+            if (currentQuote) {
+                newMessage.reply = currentQuote;
+            }
+
             socket.send(JSON.stringify(newMessage));
 
             chatInput.value = '';
             document.getElementById('sendBtn').disabled = true;
+            clearQuote();
             closeEmojiSection();
         }
 
