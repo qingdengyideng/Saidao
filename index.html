@@ -1684,6 +1684,35 @@
             100% { background-color: transparent; }
         }
 
+        .refresh-btn {
+            margin-left: auto; /* 自动占满左侧空间，将按钮推到最右 */
+            background: var(--primary-color);
+            border: 1px solid #dde0e7;
+            border-radius: 40px;
+            padding: 8px 18px 8px 16px;
+            font-weight: 500;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, transform 0.15s;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+        }
+
+
+        .refresh-btn:active {
+            transform: scale(0.96); /* 轻微按下效果 */
+        }
+
+        .refresh-icon {
+            display: inline-block;
+            font-size: 1.2rem;
+            line-height: 1;
+            transition: transform 0.3s ease;
+        }
+
+
 
     </style>
 </head>
@@ -1727,6 +1756,10 @@
         <div class="filter-tabs">
             <button class="filter-tab active" data-status="live">直播中</button>
             <button class="filter-tab" data-status="all">全部</button>
+            <button class="btn refresh-btn" id="refreshBtn" aria-label="刷新当前列表">
+                <span class="refresh-icon">↻</span>
+                <span>刷新</span>
+            </button>
         </div>
     </div>
 
@@ -2237,6 +2270,11 @@
                     renderStreamerCards();
                 });
             });
+
+            document.getElementById('refreshBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                fetchStreamers();
+            })
 
             // 模态框关闭按钮
             document.getElementById('closeLoginModal').addEventListener('click', closeLoginModal);
@@ -3199,8 +3237,8 @@
                                 ${data.replyTo.uname}:
                             </span>
                             <span style="color: var(--text-light);">
-                                ${data.replyTo.content.substring(0, 150)}
-                                ${data.replyTo.content.length > 150 ? '...' : ''}
+                                ${data.replyTo.content.substring(0, 50)}
+                                ${data.replyTo.content.length > 50 ? '...' : ''}
                             </span>
                         </div>
                     </div>
@@ -3293,7 +3331,7 @@
             // 点击页面其他地方关闭右键菜单
             document.addEventListener('click', closeMessageContextMenu);
 
-            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 300;
+            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 600;
             if (isAtBottom) {
                 container.scrollTop = container.scrollHeight;
             } else {
@@ -3390,10 +3428,39 @@
             }, 2000);
         });
 
-        // 右键菜单显示函数
         let currentContextMenu = null;
+        let touchTimer = null;
+
+        // 主入口：绑定元素
+        function bindMessageContextMenu(messageElement, messageData) {
+            // PC 右键
+            messageElement.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                showMessageContextMenu(e, messageData);
+            });
+
+            // 移动端长按
+            messageElement.addEventListener('touchstart', function(e) {
+                if (touchTimer) clearTimeout(touchTimer);
+                touchTimer = setTimeout(() => {
+                    showMessageContextMenu(e.touches[0], messageData); // 使用第一个触点
+                }, 500); // 500ms 长按
+            });
+
+            messageElement.addEventListener('touchend', clearTouchTimer);
+            messageElement.addEventListener('touchmove', clearTouchTimer);
+
+            function clearTouchTimer() {
+                if (touchTimer) {
+                    clearTimeout(touchTimer);
+                    touchTimer = null;
+                }
+            }
+        }
+
+        // 显示菜单
         function showMessageContextMenu(event, messageData) {
-            closeMessageContextMenu(); // 关闭已存在的菜单
+            closeMessageContextMenu(); // 先关闭已有菜单
 
             const menu = document.createElement('div');
             menu.className = 'message-context-menu';
@@ -3412,24 +3479,18 @@
             const quoteItem = document.createElement('div');
             quoteItem.className = 'context-menu-item';
             quoteItem.textContent = '引用';
-            quoteItem.style.padding = '8px 12px';
-            quoteItem.style.cursor = 'pointer';
-            quoteItem.style.color = 'var(--text-primary)';
-            quoteItem.style.fontSize = '14px';
+            styleMenuItem(quoteItem);
             quoteItem.addEventListener('click', () => {
                 setQuoteMessage(messageData);
                 closeMessageContextMenu();
             });
             menu.appendChild(quoteItem);
 
-            // “@”菜单项
+            // “@用户”菜单项
             const mentionItem = document.createElement('div');
             mentionItem.className = 'context-menu-item';
             mentionItem.textContent = `@${messageData.uname}`;
-            mentionItem.style.padding = '8px 12px';
-            mentionItem.style.cursor = 'pointer';
-            mentionItem.style.color = 'var(--text-primary)';
-            mentionItem.style.fontSize = '14px';
+            styleMenuItem(mentionItem);
             mentionItem.addEventListener('click', () => {
                 mentionUser(messageData.uname, messageData.uid);
                 closeMessageContextMenu();
@@ -3438,24 +3499,62 @@
 
             // 悬停效果
             [quoteItem, mentionItem].forEach(item => {
-                item.addEventListener('mouseenter', () => {
-                    item.style.backgroundColor = 'var(--bg-color)';
-                });
-                item.addEventListener('mouseleave', () => {
-                    item.style.backgroundColor = '';
-                });
+                item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--bg-color)');
+                item.addEventListener('mouseleave', () => item.style.backgroundColor = '');
             });
 
             document.body.appendChild(menu);
             currentContextMenu = menu;
+
+            // 点击空白区域关闭菜单
+            setTimeout(() => { // 延迟绑定，避免立即触发自身点击
+                document.addEventListener('click', clickOutsideMenu);
+            }, 0);
+
+            function clickOutsideMenu(e) {
+                if (!menu.contains(e.target)) {
+                    closeMessageContextMenu();
+                    document.removeEventListener('click', clickOutsideMenu);
+                }
+            }
         }
 
+        // 公共样式函数
+        function styleMenuItem(item) {
+            item.style.padding = '8px 12px';
+            item.style.cursor = 'pointer';
+            item.style.color = 'var(--text-primary)';
+            item.style.fontSize = '14px';
+        }
+
+        // 关闭菜单
         function closeMessageContextMenu() {
             if (currentContextMenu) {
                 currentContextMenu.remove();
                 currentContextMenu = null;
             }
         }
+
+        // 禁用 iOS 默认菜单 & 文本选择
+        const style = document.createElement('style');
+        style.textContent = `
+.message-element {
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+`;
+        document.head.appendChild(style);
+
+
+
+        const messageElements = document.querySelectorAll('.message-element');
+        messageElements.forEach(el => {
+            bindMessageContextMenu(el, {
+                uname: el.dataset.uname,
+                uid: el.dataset.uid,
+                content: el.dataset.content
+            });
+        });
 
         // 全局状态，记录当前引用的消息
         let currentQuote = null;
@@ -4047,6 +4146,17 @@
                 moonIcon.classList.remove('fa-sun');
                 moonIcon.classList.add('fa-moon');  // 切换为月亮图标
             }
+        }
+
+        function refreshCurrentTab() {
+            const status = getCurrentStatus();
+            loadData(status);
+
+            // 给刷新按钮一个瞬间的动效：图标旋转 + 额外类 (快速移除)
+            refreshBtn.classList.add('clicked');
+            setTimeout(() => {
+                refreshBtn.classList.remove('clicked');
+            }, 300);
         }
 
     </script>
