@@ -58,6 +58,19 @@
             点击播放
           </button>
           <div class="sound-hint" id="soundHint">按 P 开启声音</div>
+          <div class="player-controls">
+            <button class="control-btn" id="refreshBtn" title="刷新">
+              ⟳
+            </button>
+            <div class="volume-pop">
+              <button class="control-btn" id="volumeBtn" title="音量">
+                🔈
+              </button>
+              <div class="volume-popover" id="volumePopover">
+                <input id="volumeSlider" class="volume-slider" type="range" min="0" max="1" step="0.01" value="1" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="player-footer">

@@ -52,6 +52,7 @@ body {
 .top-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .ghost-btn {
@@ -63,6 +64,13 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+}
+
+.volume-slider {
+  width: 130px;
+  height: 6px;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -145,6 +153,52 @@ body {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   background: rgba(0,0,0,0.2);
+}
+
+.player-controls {
+  position: absolute;
+  left: 14px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 6;
+}
+
+.control-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.volume-pop {
+  position: relative;
+}
+
+.volume-popover {
+  position: absolute;
+  left: 44px;
+  bottom: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(20, 20, 26, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.volume-popover.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .video {
@@ -271,6 +325,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
 }
 
 .stream-title {

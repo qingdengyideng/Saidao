@@ -16,6 +16,10 @@
   const fullscreenLabel = document.getElementById("fullscreenLabel");
   const originBtn = document.getElementById("originBtn");
   const tapPlayBtn = document.getElementById("tapPlayBtn");
+  const refreshBtn = document.getElementById("refreshBtn");
+  const volumeSlider = document.getElementById("volumeSlider");
+  const volumeBtn = document.getElementById("volumeBtn");
+  const volumePopover = document.getElementById("volumePopover");
   const commentList = document.getElementById("commentList");
   const commentSub = document.getElementById("commentSub");
   const playerLayout = document.getElementById("playerLayout");
@@ -27,6 +31,7 @@
   let originUrl = "";
   const COMMENT_DELAY_MS = 5000;
   const pendingComments = [];
+  let wsClient = null;
 
   const params = new URLSearchParams(window.location.search);
   const uid = params.get("uid") || DEFAULT_UID;
@@ -66,6 +71,7 @@
     video.muted = muted;
     muteLabel.textContent = muted ? "静音" : "有声";
     toggleMuteBtn.querySelector(".icon").textContent = muted ? "🔇" : "🔊";
+    volumeBtn.textContent = muted || video.volume === 0 ? "🔇" : "🔈";
   };
 
   const tryAutoplay = async () => {
@@ -74,6 +80,7 @@
       await video.play();
       hideStatus();
       hideTapPlay();
+      setMuted(video.muted || video.volume === 0);
     } catch (err) {
       showStatus("需要手动播放", "点击屏幕或按 P 开启声音");
       showTapPlay();
@@ -86,6 +93,7 @@
         audioUnlocked = true;
         hideSoundHint();
         hideTapPlay();
+        setMuted(false);
       } catch (err) {
         setMuted(true);
         showSoundHint();
@@ -196,13 +204,16 @@
 
   const connectWs = () => {
     const wsUrl = `${wsBase}?uid=${encodeURIComponent(uid)}`;
-    let ws = new WebSocket(wsUrl);
+    if (wsClient) {
+      wsClient.close();
+    }
+    wsClient = new WebSocket(wsUrl);
 
-    ws.onopen = () => {
+    wsClient.onopen = () => {
       commentSub.textContent = "已连接";
     };
 
-    ws.onmessage = (event) => {
+    wsClient.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
         const comments = Array.isArray(payload.comments) ? payload.comments : [];
@@ -217,13 +228,13 @@
       }
     };
 
-    ws.onclose = () => {
+    wsClient.onclose = () => {
       commentSub.textContent = "断开，重连中...";
       setTimeout(connectWs, 2000);
     };
 
-    ws.onerror = () => {
-      ws.close();
+    wsClient.onerror = () => {
+      wsClient.close();
     };
   };
 
@@ -324,6 +335,71 @@
       showStatus("源站不可用", "未返回 orig 链接");
     }
   });
+
+  refreshBtn.addEventListener("click", () => {
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    if (wsClient) {
+      wsClient.close();
+      wsClient = null;
+    }
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    init();
+    setMuted(true);
+  });
+
+  volumeSlider.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    video.volume = value;
+    if (value === 0) {
+      setMuted(true);
+    } else if (video.muted) {
+      setMuted(false);
+    }
+  });
+
+  volumeBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (video.muted || video.volume === 0) {
+      if (video.volume === 0) {
+        video.volume = 0.6;
+        volumeSlider.value = String(video.volume);
+      }
+      setMuted(false);
+    } else {
+      setMuted(true);
+    }
+  });
+
+  const volumePop = document.querySelector(".volume-pop");
+  let volumeHideTimer = null;
+
+  const showVolumePopover = () => {
+    if (volumeHideTimer) {
+      clearTimeout(volumeHideTimer);
+      volumeHideTimer = null;
+    }
+    volumePopover.classList.add("show");
+  };
+
+  const scheduleHideVolumePopover = () => {
+    if (volumeHideTimer) {
+      clearTimeout(volumeHideTimer);
+    }
+    volumeHideTimer = setTimeout(() => {
+      volumePopover.classList.remove("show");
+      volumeHideTimer = null;
+    }, 250);
+  };
+
+  volumePop.addEventListener("mouseenter", showVolumePopover);
+  volumePop.addEventListener("mouseleave", scheduleHideVolumePopover);
+  volumePopover.addEventListener("mouseenter", showVolumePopover);
+  volumePopover.addEventListener("mouseleave", scheduleHideVolumePopover);
 
   tapPlayBtn.addEventListener("click", () => {
     video.muted = true;
