@@ -445,11 +445,16 @@
         }
 
         /* 聊天室侧边栏 */
+        :root {
+            --vh: 1vh;
+        }
+
         .chat-sidebar {
             position: fixed;
             top: 0;
             right: 0;
-            height: 100vh;
+            height: 100dvh;
+            height: calc(var(--vh, 1vh) * 100);
             width: 540px;
             background-color: var(--chat-bg);
             border-left: 1px solid var(--chat-border);
@@ -697,6 +702,7 @@
 
         .chat-footer {
             padding: 18px;
+            padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
             border-top: 1px solid var(--chat-border);
             display: flex;
             flex-direction: column;

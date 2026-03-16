@@ -22,6 +22,7 @@ const emojiData = {};
 function initializeApp() {
     applyDarkMode();
     detectDeviceType();
+    setViewportHeightVar();
     initEventListeners();
     initializeFactionSelection();
     initializeEmojiPreviewDelegation();
@@ -39,6 +40,7 @@ function initializeApp() {
     }
 
     on(window, 'resize', handleResize);
+    on(window, 'orientationchange', setViewportHeightVar);
 }
 
 function handleResize() {
@@ -46,11 +48,17 @@ function handleResize() {
     handleResize._raf = requestAnimationFrame(() => {
         handleResize._raf = null;
         detectDeviceType();
+        setViewportHeightVar();
         const chatSidebar = byId('chatSidebar');
         if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
             chatSidebar.style.width = '100%';
         }
     });
+}
+
+function setViewportHeightVar() {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
 }
 
 function initializeFactionSelection() {
