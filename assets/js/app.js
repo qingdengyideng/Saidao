@@ -42,11 +42,15 @@ function initializeApp() {
 }
 
 function handleResize() {
-    detectDeviceType();
-    const chatSidebar = byId('chatSidebar');
-    if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
-        chatSidebar.style.width = '100%';
-    }
+    if (handleResize._raf) return;
+    handleResize._raf = requestAnimationFrame(() => {
+        handleResize._raf = null;
+        detectDeviceType();
+        const chatSidebar = byId('chatSidebar');
+        if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
+            chatSidebar.style.width = '100%';
+        }
+    });
 }
 
 function initializeFactionSelection() {
@@ -55,7 +59,8 @@ function initializeFactionSelection() {
     const yaAnimationContainer = byId('yaAnimation');
     const juanAnimationContainer = byId('juanAnimation');
 
-    const yaAnimation = yaAnimationContainer
+    const allowFactionAnimation = !window.__LIMITED_MOTION__;
+    const yaAnimation = allowFactionAnimation && yaAnimationContainer
         ? lottie.loadAnimation({
             container: yaAnimationContainer,
             renderer: 'svg',
@@ -65,7 +70,7 @@ function initializeFactionSelection() {
         })
         : null;
 
-    const juanAnimation = juanAnimationContainer
+    const juanAnimation = allowFactionAnimation && juanAnimationContainer
         ? lottie.loadAnimation({
             container: juanAnimationContainer,
             renderer: 'svg',
@@ -96,7 +101,9 @@ function initializeFactionSelection() {
             setActiveItem(factionOptions, option, 'selected');
             radioInput.checked = true;
             selectedFactionInput.value = faction;
-            playFactionAnimation(faction);
+            if (allowFactionAnimation) {
+                playFactionAnimation(faction);
+            }
         });
     });
 }
@@ -120,6 +127,7 @@ function initEventListeners() {
     const filterTabs = $$('.filter-tab');
     const emojiTabs = $$('.emoji-tab');
     const webhookOptions = $$('.webhook-option');
+    const cardsGrid = byId('cardsGrid');
 
     on(byId('loginBtn'), 'click', openLoginModal);
     on(byId('userAvatar'), 'click', openProfileModal);
@@ -195,6 +203,59 @@ function initEventListeners() {
         });
     });
 
+    if (cardsGrid) {
+        on(cardsGrid, 'click', (event) => {
+            const enterBtn = event.target.closest('.enter-btn');
+            if (enterBtn) {
+                event.stopPropagation();
+                const card = enterBtn.closest('.streamer-card');
+                const url = card?.dataset?.url;
+                if (url) {
+                    window.open(url, '_blank');
+                }
+                return;
+            }
+
+            const settingsBtn = event.target.closest('.settings-btn');
+            if (settingsBtn) {
+                event.stopPropagation();
+                const card = settingsBtn.closest('.streamer-card');
+                const settingsDropdown = card?.querySelector('.settings-dropdown');
+                if (!settingsDropdown) return;
+                document.querySelectorAll('.settings-dropdown.active').forEach(dropdown => {
+                    if (dropdown !== settingsDropdown) dropdown.classList.remove('active');
+                });
+                settingsDropdown.classList.toggle('active');
+                return;
+            }
+
+            const avatarSection = event.target.closest('.avatar-section');
+            if (avatarSection) {
+                const card = avatarSection.closest('.streamer-card');
+                const url = card?.dataset?.url;
+                if (url) {
+                    window.open(url, '_blank');
+                }
+            }
+        });
+
+        on(cardsGrid, 'change', async (event) => {
+            const toggle = event.target.closest('.toggle-switch input');
+            if (!toggle) return;
+            const streamerId = parseInt(toggle.dataset.id);
+            const streamer = streamersData.find(s => s.id === streamerId);
+            if (streamer) {
+                streamer.notificationEnabled = toggle.checked;
+                console.log(`更新主播 ${streamerId} 通知设置: ${toggle.checked}`);
+                const result = await ApiEndpoints.updateOptions({'saidaoId': streamerId, 'notShow': streamer.notificationEnabled});
+                if (result.code === '0' && streamer.notificationEnabled) {
+                    Toast.show('已置底并屏蔽开播消息', 'success');
+                }
+                await fetchStreamers();
+            }
+        });
+    }
+
     if (!state.isMobile) {
         initChatResize();
     }
@@ -205,6 +266,13 @@ function initEventListeners() {
                 modal.classList.remove('active');
             }
         });
+    });
+
+    on(document, 'click', (event) => {
+        const hasOpen = document.querySelectorAll('.settings-dropdown.active');
+        if (!hasOpen.length) return;
+        if (event.target.closest('.settings-btn') || event.target.closest('.settings-dropdown')) return;
+        hasOpen.forEach(dropdown => dropdown.classList.remove('active'));
     });
 }
 
@@ -244,6 +312,7 @@ function getWebhookPlaceholder(type) {
             filteredStreamers.forEach(streamer => {
                 const card = document.createElement('div');
                 card.className = 'streamer-card';
+                card.dataset.url = streamer.url || '';
                 card.innerHTML = `
                     <div class="${streamer.status === 'live' ? 'live-badge' : 'offline-badge'}">
                         ${streamer.status === 'live' ? '' : '未开播'}
@@ -283,63 +352,8 @@ function getWebhookPlaceholder(type) {
                     </div>
                 `;
 
-                // 点击进入直播间按钮跳转
-                const enterBtn = card.querySelector('.enter-btn');
-                enterBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // 防止触发卡片的点击事件两次
-                    if (streamer.url) {
-                        window.open(streamer.url, '_blank');
-                    }
-                });
-
-                // 点击整个卡片跳转
-                const avatarSection = card.querySelector('.avatar-section');
-                avatarSection.addEventListener('click', () => {
-                    if (streamer.url) {
-                        window.open(streamer.url, '_blank');
-                    }
-                });
-
-                // 添加设置按钮点击事件
-                const settingsBtn = card.querySelector('.settings-btn');
-                const settingsDropdown = card.querySelector('.settings-dropdown');
-
-                settingsBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    // 关闭其他打开的设置面板
-                    document.querySelectorAll('.settings-dropdown.active').forEach(dropdown => {
-                        if (dropdown !== settingsDropdown) dropdown.classList.remove('active');
-                    });
-                    settingsDropdown.classList.toggle('active');
-                });
-
-                // 开关切换事件
-                const toggle = card.querySelector('.toggle-switch input');
-                toggle.addEventListener('change', async function() {
-                    const streamerId = parseInt(this.dataset.id);
-                    const streamer = streamersData.find(s => s.id === streamerId);
-                    if (streamer) {
-                        streamer.notificationEnabled = this.checked;
-                        // 这里可以调用API更新通知设置
-                        console.log(`更新主播 ${streamerId} 通知设置: ${this.checked}`);
-                        const result = await ApiEndpoints.updateOptions({'saidaoId': streamerId, 'notShow': streamer.notificationEnabled});
-                        if (result.code === '0' && streamer.notificationEnabled) {
-                            Toast.show('已置底并屏蔽开播消息', 'success');
-                            // window.location.reload();
-                        }
-                        await fetchStreamers();
-                    }
-                });
-
                 container.appendChild(card);
                 initLiveAnimations(card, streamer)
-            });
-
-            // 点击页面其他区域关闭设置面板
-            document.addEventListener('click', function() {
-                document.querySelectorAll('.settings-dropdown.active').forEach(dropdown => {
-                    dropdown.classList.remove('active');
-                });
             });
         }
 
@@ -1678,17 +1692,20 @@ function getWebhookPlaceholder(type) {
             deferredPrompt = null;
         });
 
-        lottie.loadAnimation({
-            container: document.getElementById('logo-container'),
-            renderer: 'canvas',
-            loop: true,
-            autoplay: true,
-            path: '/animation/SpringFestival.json'
-        });
+        if (!window.__LIMITED_MOTION__) {
+            lottie.loadAnimation({
+                container: document.getElementById('logo-container'),
+                renderer: 'canvas',
+                loop: true,
+                autoplay: true,
+                path: '/animation/SpringFestival.json'
+            });
+        }
 
         let loadingAnimation = null;
 
         function initLoading() {
+            if (window.__LIMITED_MOTION__) return;
             if (loadingAnimation) return;
 
             loadingAnimation = lottie.loadAnimation({
@@ -1702,12 +1719,14 @@ function getWebhookPlaceholder(type) {
 
         function showLoading() {
             initLoading();
+            if (!loadingAnimation) return;
             document.getElementById('global-loading').style.display = 'flex';
             loadingAnimation.play();
         }
 
         function hideLoading() {
             document.getElementById('global-loading').style.display = 'none';
+            if (!loadingAnimation) return;
             loadingAnimation.stop();
         }
 
