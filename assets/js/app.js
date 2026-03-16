@@ -1078,7 +1078,7 @@ function getWebhookPlaceholder(type) {
 
         function addMessageToChat(data) {
             const messageElement = document.createElement('div');
-            messageElement.className = 'chat-message';
+            messageElement.className = 'chat-message message-element';
 
             // 如果有引用回复，在消息上方添加引用块
             let quoteHTML = '';
@@ -1179,19 +1179,14 @@ function getWebhookPlaceholder(type) {
                 messageElement.dataset.uid = data.uid;
                 messageElement.dataset.uname = data.uname;
             }
+            messageElement.dataset.content = data.content || '';
 
             if (data.mentionedMe === true && data.messageId) {
                 showMentionAlert(data.messageId);
             }
 
-            // 2. 绑定右键点击事件
-            messageElement.addEventListener('contextmenu', function(e) {
-                e.preventDefault(); // 阻止浏览器默认右键菜单
-                showMessageContextMenu(e, data); // 显示自定义右键菜单
-            });
-
-            // 点击页面其他地方关闭右键菜单
-            document.addEventListener('click', closeMessageContextMenu);
+            // 绑定右键/长按菜单
+            bindMessageContextMenu(messageElement, data);
 
             const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 600;
             if (isAtBottom) {
@@ -1303,20 +1298,36 @@ function getWebhookPlaceholder(type) {
 
             // 移动端长按
             messageElement.addEventListener('touchstart', function(e) {
+                const touch = e.touches && e.touches[0];
+                if (!touch) return;
+                const startX = touch.clientX;
+                const startY = touch.clientY;
                 if (touchTimer) clearTimeout(touchTimer);
                 touchTimer = setTimeout(() => {
-                    showMessageContextMenu(e.touches[0], messageData); // 使用第一个触点
+                    showMessageContextMenu(touch, messageData); // 使用第一个触点
                 }, 500); // 500ms 长按
-            });
+                messageElement._touchStart = { x: startX, y: startY };
+            }, { passive: true });
+
+            messageElement.addEventListener('touchmove', function(e) {
+                const touch = e.touches && e.touches[0];
+                if (!touch || !messageElement._touchStart) return;
+                const dx = Math.abs(touch.clientX - messageElement._touchStart.x);
+                const dy = Math.abs(touch.clientY - messageElement._touchStart.y);
+                if (dx > 10 || dy > 10) {
+                    clearTouchTimer();
+                }
+            }, { passive: true });
 
             messageElement.addEventListener('touchend', clearTouchTimer);
-            messageElement.addEventListener('touchmove', clearTouchTimer);
+            messageElement.addEventListener('touchcancel', clearTouchTimer);
 
             function clearTouchTimer() {
                 if (touchTimer) {
                     clearTimeout(touchTimer);
                     touchTimer = null;
                 }
+                messageElement._touchStart = null;
             }
         }
 
@@ -1327,8 +1338,10 @@ function getWebhookPlaceholder(type) {
             const menu = document.createElement('div');
             menu.className = 'message-context-menu';
             menu.style.position = 'fixed';
-            menu.style.left = event.pageX + 'px';
-            menu.style.top = event.pageY + 'px';
+            const pageX = typeof event.pageX === 'number' ? event.pageX : event.clientX + window.scrollX;
+            const pageY = typeof event.pageY === 'number' ? event.pageY : event.clientY + window.scrollY;
+            menu.style.left = pageX + 'px';
+            menu.style.top = pageY + 'px';
             menu.style.backgroundColor = 'var(--card-color)';
             menu.style.border = '1px solid var(--border-color)';
             menu.style.borderRadius = 'var(--radius-sm)';
