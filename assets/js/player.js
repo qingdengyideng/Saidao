@@ -30,8 +30,11 @@
   let audioUnlocked = false;
   let originUrl = "";
   const COMMENT_DELAY_MS = 5000;
+  const MAX_PENDING_COMMENTS = 500;
   const pendingComments = [];
   let wsClient = null;
+  let reconnectTimer = null;
+  let isPageClosing = false;
 
   const params = new URLSearchParams(window.location.search);
   const uid = params.get("uid") || DEFAULT_UID;
@@ -72,6 +75,48 @@
     muteLabel.textContent = muted ? "静音" : "有声";
     toggleMuteBtn.querySelector(".icon").textContent = muted ? "🔇" : "🔊";
     volumeBtn.textContent = muted || video.volume === 0 ? "🔇" : "🔈";
+  };
+
+  const clearReconnectTimer = () => {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  };
+
+  const closeWs = ({ preventReconnect = false } = {}) => {
+    if (!wsClient) {
+      return;
+    }
+
+    const client = wsClient;
+    wsClient = null;
+
+    if (preventReconnect) {
+      client.__skipReconnect = true;
+    }
+
+    try {
+      client.close();
+    } catch (err) {
+      // ignore close failure
+    }
+  };
+
+  const enqueueComments = (comments) => {
+    const dueAt = Date.now() + COMMENT_DELAY_MS;
+
+    comments.forEach((comment) => {
+      pendingComments.push({
+        at: dueAt,
+        item: comment,
+      });
+    });
+
+    const overflow = pendingComments.length - MAX_PENDING_COMMENTS;
+    if (overflow > 0) {
+      pendingComments.splice(0, overflow);
+    }
   };
 
   const tryAutoplay = async () => {
@@ -203,38 +248,65 @@
   };
 
   const connectWs = () => {
-    const wsUrl = `${wsBase}?uid=${encodeURIComponent(uid)}`;
-    if (wsClient) {
-      wsClient.close();
+    if (isPageClosing) {
+      return;
     }
-    wsClient = new WebSocket(wsUrl);
 
-    wsClient.onopen = () => {
+    clearReconnectTimer();
+
+    if (wsClient && (wsClient.readyState === WebSocket.OPEN || wsClient.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    const wsUrl = `${wsBase}?uid=${encodeURIComponent(uid)}`;
+    const client = new WebSocket(wsUrl);
+    wsClient = client;
+
+    client.onopen = () => {
+      if (wsClient !== client) {
+        return;
+      }
       commentSub.textContent = "已连接";
     };
 
-    wsClient.onmessage = (event) => {
+    client.onmessage = (event) => {
+      if (wsClient !== client) {
+        return;
+      }
+
       try {
         const payload = JSON.parse(event.data);
         const comments = Array.isArray(payload.comments) ? payload.comments : [];
-        comments.forEach((comment) => {
-          pendingComments.push({
-            at: Date.now() + COMMENT_DELAY_MS,
-            item: comment,
-          });
-        });
+        enqueueComments(comments);
       } catch (err) {
         // ignore invalid payload
       }
     };
 
-    wsClient.onclose = () => {
+    client.onclose = () => {
+      if (wsClient === client) {
+        wsClient = null;
+      }
+
+      if (client.__skipReconnect || isPageClosing) {
+        return;
+      }
+
       commentSub.textContent = "断开，重连中...";
-      setTimeout(connectWs, 2000);
+      clearReconnectTimer();
+      reconnectTimer = setTimeout(() => {
+        if (!wsClient && !isPageClosing) {
+          connectWs();
+        }
+      }, 2000);
     };
 
-    wsClient.onerror = () => {
-      wsClient.close();
+    client.onerror = () => {
+      try {
+        client.close();
+      } catch (err) {
+        // ignore close failure
+      }
     };
   };
 
@@ -294,7 +366,6 @@
     if (pendingComments.length === 0) {
       return;
     }
-    pendingComments.sort((a, b) => a.at - b.at);
     while (pendingComments.length > 0 && pendingComments[0].at <= now) {
       const next = pendingComments.shift();
       if (!next) {
@@ -341,10 +412,10 @@
       hls.destroy();
       hls = null;
     }
-    if (wsClient) {
-      wsClient.close();
-      wsClient = null;
-    }
+    clearReconnectTimer();
+    closeWs({ preventReconnect: true });
+    pendingComments.length = 0;
+    danmakuLayer.innerHTML = "";
     video.pause();
     video.removeAttribute("src");
     video.load();
@@ -446,6 +517,32 @@
     }
   });
 
-  setInterval(flushPendingComments, 200);
+  const flushIntervalId = setInterval(flushPendingComments, 200);
+
+  window.addEventListener("pagehide", (event) => {
+    if (event.persisted) {
+      return;
+    }
+
+    isPageClosing = true;
+    clearReconnectTimer();
+    closeWs({ preventReconnect: true });
+    pendingComments.length = 0;
+
+    if (volumeHideTimer) {
+      clearTimeout(volumeHideTimer);
+      volumeHideTimer = null;
+    }
+
+    clearInterval(flushIntervalId);
+
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+
+    video.pause();
+  });
+
   init();
 })();

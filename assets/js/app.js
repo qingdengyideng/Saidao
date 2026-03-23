@@ -1083,14 +1083,188 @@ function getWebhookPlaceholder(type) {
         container.innerHTML = '';
 
         let socket = null;
+        let chatReconnectTimer = null;
+        const MAX_CHAT_MESSAGES = 3000;
+        const CHAT_STICKY_BOTTOM_THRESHOLD = 300;
+        const CHAT_BOTTOM_SCROLL_EPSILON = 24;
+        const renderedMessageIds = new Set();
+        const observedChatNodes = new Set();
+        let chatFollowMode = true;
+        let chatScrollRaf = null;
+        let chatResizeObserver = null;
 
-        function addMessageToChat(data) {
+        function isChatNearBottom(threshold = CHAT_STICKY_BOTTOM_THRESHOLD) {
+            return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+        }
+
+        function syncChatFollowMode() {
+            chatFollowMode = isChatNearBottom(CHAT_BOTTOM_SCROLL_EPSILON);
+            if (chatFollowMode) {
+                hideNewMessageAlert();
+            }
+        }
+
+        function clearChatReconnectTimer() {
+            if (chatReconnectTimer) {
+                clearTimeout(chatReconnectTimer);
+                chatReconnectTimer = null;
+            }
+        }
+
+        function closeChatSocket({ preventReconnect = false } = {}) {
+            if (!socket) {
+                return;
+            }
+
+            if (preventReconnect) {
+                socket.__skipReconnect = true;
+            }
+
+            try {
+                socket.close();
+            } catch (error) {
+                console.warn('关闭聊天室连接失败:', error);
+            }
+
+            socket = null;
+        }
+
+        function trackRenderedMessage(messageId) {
+            if (!messageId) {
+                return true;
+            }
+
+            const normalizedId = String(messageId);
+            if (renderedMessageIds.has(normalizedId)) {
+                return false;
+            }
+
+            renderedMessageIds.add(normalizedId);
+            return true;
+        }
+
+        function scrollChatToBottom() {
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function scheduleChatScrollToBottom() {
+            if (!chatFollowMode || chatScrollRaf) {
+                return;
+            }
+
+            chatScrollRaf = requestAnimationFrame(() => {
+                chatScrollRaf = null;
+                if (chatFollowMode) {
+                    scrollChatToBottom();
+                }
+            });
+        }
+
+        function observeChatNode(node) {
+            if (!chatResizeObserver || !node) {
+                return;
+            }
+
+            chatResizeObserver.observe(node);
+            observedChatNodes.add(node);
+        }
+
+        function unobserveChatNode(node) {
+            if (!chatResizeObserver || !node) {
+                return;
+            }
+
+            if (observedChatNodes.has(node)) {
+                chatResizeObserver.unobserve(node);
+                observedChatNodes.delete(node);
+            }
+        }
+
+        function clearChatObservers() {
+            if (!chatResizeObserver) {
+                return;
+            }
+
+            observedChatNodes.forEach((node) => {
+                chatResizeObserver.unobserve(node);
+            });
+            observedChatNodes.clear();
+        }
+
+        if (window.ResizeObserver) {
+            chatResizeObserver = new ResizeObserver(() => {
+                if (chatFollowMode) {
+                    scheduleChatScrollToBottom();
+                }
+            });
+        }
+
+        function trimChatMessages() {
+            const messageElements = Array.from(container.querySelectorAll('.chat-message'));
+            const overflow = messageElements.length - MAX_CHAT_MESSAGES;
+
+            if (overflow <= 0) {
+                return;
+            }
+
+            const wasAtBottom = chatFollowMode;
+            let removedHeight = 0;
+
+            messageElements.slice(0, overflow).forEach((messageElement) => {
+                removedHeight += messageElement.offsetHeight || 0;
+
+                if (messageElement.dataset.messageId) {
+                    renderedMessageIds.delete(String(messageElement.dataset.messageId));
+                }
+
+                unobserveChatNode(messageElement);
+                messageElement.remove();
+            });
+
+            if (!wasAtBottom) {
+                container.scrollTop = Math.max(0, container.scrollTop - removedHeight);
+            } else {
+                scheduleChatScrollToBottom();
+            }
+        }
+
+        function resetChatMessages() {
+            container.querySelectorAll('.chat-message').forEach((messageElement) => {
+                unobserveChatNode(messageElement);
+                messageElement.remove();
+            });
+            renderedMessageIds.clear();
+            hideNewMessageAlert();
+            hideMentionAlert();
+            closeMessageContextMenu();
+            if (chatScrollRaf) {
+                cancelAnimationFrame(chatScrollRaf);
+                chatScrollRaf = null;
+            }
+        }
+
+        function addMessageToChat(data, options = {}) {
+            if (!trackRenderedMessage(data.messageId)) {
+                return;
+            }
+
+            const shouldStickToBottom = options.stickToBottom ?? chatFollowMode;
+            const suppressAlert = options.suppressAlert ?? false;
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message message-element';
 
             // 如果有引用回复，在消息上方添加引用块
             let quoteHTML = '';
             if (data.replyTo) {
+                const replyContent = data.replyTo.content || '';
+                const isImageQuote = /<img\b/i.test(replyContent);
+                const quoteText = isImageQuote
+                    ? replyContent.replace(
+                        /<img\b([^>]*)>/i,
+                        '<img$1 style="width:30%; height:30%; object-fit:contain; display:block;">'
+                    )
+                    : `${replyContent.substring(0, 50)}${replyContent.length > 50 ? '...' : ''}`;
+
                 quoteHTML = `
                     <div class="message-quote" data-message-id="${data.replyTo.messageId}" style="
                         background-color: var(--bg-color);
@@ -1107,8 +1281,7 @@ function getWebhookPlaceholder(type) {
                                 ${data.replyTo.uname}:
                             </span>
                             <span style="color: var(--text-light);">
-                                ${data.replyTo.content.substring(0, 50)}
-                                ${data.replyTo.content.length > 50 ? '...' : ''}
+                                ${quoteText}
                             </span>
                         </div>
                     </div>
@@ -1169,6 +1342,8 @@ function getWebhookPlaceholder(type) {
             });
 
             container.appendChild(messageElement);
+            observeChatNode(messageElement);
+            trimChatMessages();
 
             // 判断是否是图片消息（chat-emoji vip）
             const messageText = messageElement.querySelector('.message-text');
@@ -1196,10 +1371,9 @@ function getWebhookPlaceholder(type) {
             // 绑定右键/长按菜单
             bindMessageContextMenu(messageElement, data);
 
-            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 600;
-            if (isAtBottom) {
-                container.scrollTop = container.scrollHeight;
-            } else {
+            if (shouldStickToBottom) {
+                scheduleChatScrollToBottom();
+            } else if (!suppressAlert) {
                 showNewMessageAlert();
             }
         }
@@ -1295,6 +1469,7 @@ function getWebhookPlaceholder(type) {
 
         let currentContextMenu = null;
         let touchTimer = null;
+        let currentContextMenuCloseHandler = null;
 
         // 主入口：绑定元素
         function bindMessageContextMenu(messageElement, messageData) {
@@ -1388,16 +1563,18 @@ function getWebhookPlaceholder(type) {
 
             document.body.appendChild(menu);
             currentContextMenu = menu;
+            currentContextMenuCloseHandler = clickOutsideMenu;
 
             // 点击空白区域关闭菜单
             setTimeout(() => { // 延迟绑定，避免立即触发自身点击
-                document.addEventListener('click', clickOutsideMenu);
+                if (currentContextMenu === menu && currentContextMenuCloseHandler === clickOutsideMenu) {
+                    document.addEventListener('click', clickOutsideMenu);
+                }
             }, 0);
 
             function clickOutsideMenu(e) {
                 if (!menu.contains(e.target)) {
                     closeMessageContextMenu();
-                    document.removeEventListener('click', clickOutsideMenu);
                 }
             }
         }
@@ -1412,6 +1589,11 @@ function getWebhookPlaceholder(type) {
 
         // 关闭菜单
         function closeMessageContextMenu() {
+            if (currentContextMenuCloseHandler) {
+                document.removeEventListener('click', currentContextMenuCloseHandler);
+                currentContextMenuCloseHandler = null;
+            }
+
             if (currentContextMenu) {
                 currentContextMenu.remove();
                 currentContextMenu = null;
@@ -1501,9 +1683,11 @@ function getWebhookPlaceholder(type) {
             // 简易方案：仅当通过右键菜单触发@时，将UID存入一个全局 Set，发送时附带。
         }
 
-        function addSystemMessageToChat(data) {
+        function addSystemMessageToChat(data, options = {}) {
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message system-message';
+            const shouldStickToBottom = options.stickToBottom ?? chatFollowMode;
+            const suppressAlert = options.suppressAlert ?? false;
 
             messageElement.innerHTML = `
             <div class="system-content">
@@ -1513,11 +1697,12 @@ function getWebhookPlaceholder(type) {
         `;
 
             container.appendChild(messageElement);
+            observeChatNode(messageElement);
+            trimChatMessages();
 
-            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 600;
-            if (isAtBottom) {
-                container.scrollTop = container.scrollHeight;
-            } else {
+            if (shouldStickToBottom) {
+                scheduleChatScrollToBottom();
+            } else if (!suppressAlert) {
                 showNewMessageAlert();
             }
         }
@@ -1541,7 +1726,8 @@ function getWebhookPlaceholder(type) {
 
                 // 添加点击事件
                 newMessageAlert.querySelector('.new-message-btn').addEventListener('click', function() {
-                    container.scrollTop = container.scrollHeight;
+                    chatFollowMode = true;
+                    scheduleChatScrollToBottom();
                     hideNewMessageAlert();
                 });
 
@@ -1564,38 +1750,49 @@ function getWebhookPlaceholder(type) {
 
         // 监听容器滚动，当用户滚动到底部时隐藏提示
         container.addEventListener('scroll', function() {
-            const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 10;
-            if (isAtBottom && newMessageAlert) {
-                hideNewMessageAlert();
-            }
+            syncChatFollowMode();
         });
 
         async function setupWebSocket() {
+            clearChatReconnectTimer();
+            closeChatSocket({ preventReconnect: true });
 
             const token = localStorage.getItem(TOKEN_KEY);
             const fp = await getFingerprint();
 
-            socket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${fp}`);
-            socket.addEventListener('open', (event) => {
+            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${fp}`);
+            socket = currentSocket;
+
+            currentSocket.addEventListener('open', () => {
+                if (socket !== currentSocket) return;
                 console.log('WebSocket连接已建立');
             });
 
-            socket.addEventListener('message', (event) => {
+            currentSocket.addEventListener('message', (event) => {
+                if (socket !== currentSocket) return;
                 const data = JSON.parse(event.data);
 
                 if (data.type === 'user') {
                     // 添加消息到聊天室
                     addMessageToChat(data);
                 } else if (data.type === 'history') {
+                    resetChatMessages();
                     // 添加消息到聊天室
                     data.messages.forEach(msg => {
                         if (msg.type === 'status') {
-                            addSystemMessageToChat(msg);
+                            addSystemMessageToChat(msg, {
+                                stickToBottom: false,
+                                suppressAlert: true
+                            });
                         } else {
-                            addMessageToChat(msg);
+                            addMessageToChat(msg, {
+                                stickToBottom: false,
+                                suppressAlert: true
+                            });
                         }
                     });
-                    container.scrollTop = container.scrollHeight;
+                    chatFollowMode = true;
+                    scheduleChatScrollToBottom();
                 } else if (data.type === 'error') {
                     Toast.show(data.content, 'error');
                 } else if (data.type === 'system') {
@@ -1607,21 +1804,40 @@ function getWebhookPlaceholder(type) {
                     addSystemMessageToChat(data);
                     fetchStreamers()
                 } else if (data.type === 'clear') {
-                    container.innerHTML = '';
+                    resetChatMessages();
                 }
             });
 
-            socket.addEventListener('close', (event) => {
+            currentSocket.addEventListener('close', () => {
+                if (socket === currentSocket) {
+                    socket = null;
+                }
+
+                if (currentSocket.__skipReconnect) {
+                    return;
+                }
+
                 console.log('WebSocket连接已关闭');
-                // addSystemMessage('连接已断开，正在尝试重新连接...');
-                setTimeout(setupWebSocket, 3000);
+                clearChatReconnectTimer();
+                chatReconnectTimer = setTimeout(() => {
+                    if (!socket) {
+                        setupWebSocket();
+                    }
+                }, 3000);
             });
 
-            socket.addEventListener('error', (event) => {
+            currentSocket.addEventListener('error', (event) => {
+                if (socket !== currentSocket) return;
                 console.error('WebSocket错误:', event);
                 // addSystemMessage('连接发生错误');
             });
         }
+
+        window.addEventListener('beforeunload', () => {
+            clearChatReconnectTimer();
+            closeChatSocket({ preventReconnect: true });
+            clearChatObservers();
+        });
 
         // 发送消息
         function sendMessage() {
@@ -1629,6 +1845,10 @@ function getWebhookPlaceholder(type) {
             const message = chatInput.value.trim();
 
             if (!message) return;
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                Toast.show('聊天室连接中，请稍后再试', 'error');
+                return;
+            }
 
             const newMessage = {
                 type: 'chat',
@@ -1651,7 +1871,7 @@ function getWebhookPlaceholder(type) {
         // 注册 Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-workv2.js')
+                navigator.serviceWorker.register('/service-workV3.js')
                     .then(registration => {
                         console.log('Service Worker 注册成功:', registration);
                     })
