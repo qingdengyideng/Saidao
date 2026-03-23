@@ -1533,6 +1533,16 @@ function getWebhookPlaceholder(type) {
             menu.style.padding = '4px 0';
             menu.style.minWidth = '100px';
 
+            const copyItem = document.createElement('div');
+            copyItem.className = 'context-menu-item';
+            copyItem.textContent = '复制';
+            styleMenuItem(copyItem);
+            copyItem.addEventListener('click', async () => {
+                await copyMessageToClipboard(messageData);
+                closeMessageContextMenu();
+            });
+            menu.appendChild(copyItem);
+
             // “引用”菜单项
             const quoteItem = document.createElement('div');
             quoteItem.className = 'context-menu-item';
@@ -1556,7 +1566,7 @@ function getWebhookPlaceholder(type) {
             menu.appendChild(mentionItem);
 
             // 悬停效果
-            [quoteItem, mentionItem].forEach(item => {
+            [copyItem, quoteItem, mentionItem].forEach(item => {
                 item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--bg-color)');
                 item.addEventListener('mouseleave', () => item.style.backgroundColor = '');
             });
@@ -1600,11 +1610,54 @@ function getWebhookPlaceholder(type) {
             }
         }
 
+        function getCopyableMessageText(messageData) {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = messageData?.content || '';
+
+            wrapper.querySelectorAll('img').forEach((img) => {
+                const alt = (img.getAttribute('alt') || '图片').trim();
+                img.replaceWith(document.createTextNode(`[${alt}]`));
+            });
+
+            return (wrapper.innerText || wrapper.textContent || '').trim();
+        }
+
+        async function copyMessageToClipboard(messageData) {
+            const text = getCopyableMessageText(messageData);
+
+            if (!text) {
+                Toast.show('没有可复制的内容', 'error');
+                return;
+            }
+
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.readOnly = true;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    textarea.remove();
+                }
+
+                Toast.show('已复制', 'success');
+            } catch (error) {
+                console.error('复制失败:', error);
+                Toast.show('复制失败', 'error');
+            }
+        }
+
         const style = document.createElement('style');
         style.textContent = `
             .message-element {
-                -webkit-user-select: none;
-                -webkit-touch-callout: none;
+                -webkit-user-select: text;
+                user-select: text;
+                -webkit-touch-callout: auto;
             }
             `;
         document.head.appendChild(style);
