@@ -80,6 +80,7 @@ window.ApiEndpoints = {
     register: (data) => request('/user/register', { method: 'POST', body: data }),
     forgotPassword: (data) => request('/user/forgotPassword', { method: 'POST', body: data }),
     profileUpdate: (data) => request('/user/update', { method: 'POST', body: data, withAuth: true }),
+    chatBan: (data) => request('/user/chatBan', { method: 'POST', body: data, withAuth: true }),
     sendVerificationCode: (data) => request('/user/sendVerificationCode', { method: 'POST', body: data }),
     updateOptions: (data) => request('/saidao/options', { method: 'POST', body: data, withAuth: true }),
     uploadImages: (data) => request('/api/image/upload', { method: 'POST', body: data, withAuth: true }),

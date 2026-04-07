@@ -773,7 +773,8 @@ function getWebhookPlaceholder(type) {
                     bio: data.user.bio || '这个人很懒，什么都没写',
                     webhookType: data.user.webhookType,
                     webhookUrl: data.user.webhookUrl,
-                    faction: data.user.faction
+                    faction: data.user.faction,
+                    canChatBan: data.user.canChatBan === true
                 };
 
                 updateUIState();
@@ -1084,7 +1085,6 @@ function getWebhookPlaceholder(type) {
 
         let socket = null;
         let chatReconnectTimer = null;
-        const MAX_CHAT_MESSAGES = 3000;
         const CHAT_STICKY_BOTTOM_THRESHOLD = 300;
         const CHAT_BOTTOM_SCROLL_EPSILON = 24;
         const renderedMessageIds = new Set();
@@ -1200,32 +1200,7 @@ function getWebhookPlaceholder(type) {
         }
 
         function trimChatMessages() {
-            const messageElements = Array.from(container.querySelectorAll('.chat-message'));
-            const overflow = messageElements.length - MAX_CHAT_MESSAGES;
-
-            if (overflow <= 0) {
-                return;
-            }
-
-            const wasAtBottom = chatFollowMode;
-            let removedHeight = 0;
-
-            messageElements.slice(0, overflow).forEach((messageElement) => {
-                removedHeight += messageElement.offsetHeight || 0;
-
-                if (messageElement.dataset.messageId) {
-                    renderedMessageIds.delete(String(messageElement.dataset.messageId));
-                }
-
-                unobserveChatNode(messageElement);
-                messageElement.remove();
-            });
-
-            if (!wasAtBottom) {
-                container.scrollTop = Math.max(0, container.scrollTop - removedHeight);
-            } else {
-                scheduleChatScrollToBottom();
-            }
+            // Unlimited chat history: keep all rendered messages.
         }
 
         function resetChatMessages() {
@@ -1565,8 +1540,43 @@ function getWebhookPlaceholder(type) {
             });
             menu.appendChild(mentionItem);
 
+            const extraMenuItems = [];
+            const canBan = state.currentUser?.canChatBan === true
+                && Number(messageData.uid) !== Number(state.currentUser?.id);
+            if (canBan) {
+                const ban1hItem = document.createElement('div');
+                ban1hItem.className = 'context-menu-item';
+                ban1hItem.textContent = '封禁1小时';
+                styleMenuItem(ban1hItem);
+                ban1hItem.style.color = '#d4380d';
+                ban1hItem.addEventListener('click', async () => {
+                    try {
+                        await banChatUser(messageData, 3600);
+                    } finally {
+                        closeMessageContextMenu();
+                    }
+                });
+                menu.appendChild(ban1hItem);
+                extraMenuItems.push(ban1hItem);
+
+                const ban7dItem = document.createElement('div');
+                ban7dItem.className = 'context-menu-item';
+                ban7dItem.textContent = '封禁7天';
+                styleMenuItem(ban7dItem);
+                ban7dItem.style.color = '#d4380d';
+                ban7dItem.addEventListener('click', async () => {
+                    try {
+                        await banChatUser(messageData, 604800);
+                    } finally {
+                        closeMessageContextMenu();
+                    }
+                });
+                menu.appendChild(ban7dItem);
+                extraMenuItems.push(ban7dItem);
+            }
+
             // 悬停效果
-            [copyItem, quoteItem, mentionItem].forEach(item => {
+            [copyItem, quoteItem, mentionItem, ...extraMenuItems].forEach(item => {
                 item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--bg-color)');
                 item.addEventListener('mouseleave', () => item.style.backgroundColor = '');
             });
@@ -1734,6 +1744,35 @@ function getWebhookPlaceholder(type) {
             // 注意：这里仅在前端输入框添加了文本，实际被@的UID列表需要在发送时从 currentQuote 或解析输入框内容获得。
             // 更优解：在发送时，解析输入框内容中的 @用户名，并将其转换为UID（需要后端或本地映射支持）。
             // 简易方案：仅当通过右键菜单触发@时，将UID存入一个全局 Set，发送时附带。
+        }
+
+        async function banChatUser(messageData, banSeconds) {
+            if (!state.currentUser?.canChatBan) {
+                return;
+            }
+
+            const targetUserId = Number(messageData?.uid ?? 0);
+            const targetUserName = messageData?.uname || '';
+            if (targetUserId === Number(state.currentUser?.id)) {
+                Toast.show('不能封禁自己', 'warning');
+                return;
+            }
+
+            if (targetUserId === 0 && !targetUserName) {
+                Toast.show('无法定位游客用户', 'error');
+                return;
+            }
+
+            const result = await ApiEndpoints.chatBan({
+                userId: targetUserId,
+                uname: targetUserName,
+                banSeconds
+            });
+
+            if (result.code === '0') {
+                const label = banSeconds === 3600 ? '1小时' : '7天';
+                Toast.show(`已封禁${label}`, 'success');
+            }
         }
 
         function addSystemMessageToChat(data, options = {}) {
