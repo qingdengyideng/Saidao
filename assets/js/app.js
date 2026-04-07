@@ -18,6 +18,17 @@ function detectDeviceType() {
 
 let streamersData = [];
 const emojiData = {};
+let tagEditorTarget = null;
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+}
 
 function initializeApp() {
     applyDarkMode();
@@ -149,27 +160,30 @@ function initEventListeners() {
         fetchStreamers();
     });
 
-    [
-        ['closeLoginModal', closeLoginModal],
-        ['closeRegisterModal', closeRegisterModal],
-        ['closeForgotModal', closeForgotPasswordModal],
-        ['closeProfileModal', closeProfileModal],
-        ['closeUserDetailModal', closeUserDetailModal],
-        ['switchToRegister', switchToRegister],
-        ['switchToLogin', switchToLogin],
-        ['forgotPassword', openForgotPasswordModal],
-        ['testWebhookBtn', handleTestWebhook],
-        ['emojiToggle', toggleEmojiSection],
-        ['sendBtn', sendMessage],
-    ].forEach(([id, handler]) => on(byId(id), 'click', handler));
+        [
+            ['closeLoginModal', closeLoginModal],
+            ['closeRegisterModal', closeRegisterModal],
+            ['closeForgotModal', closeForgotPasswordModal],
+            ['closeProfileModal', closeProfileModal],
+            ['closeUserDetailModal', closeUserDetailModal],
+            ['closeTagEditorModal', closeTagEditor],
+            ['tagEditorCancelBtn', closeTagEditor],
+            ['switchToRegister', switchToRegister],
+            ['switchToLogin', switchToLogin],
+            ['forgotPassword', openForgotPasswordModal],
+            ['testWebhookBtn', handleTestWebhook],
+            ['emojiToggle', toggleEmojiSection],
+            ['sendBtn', sendMessage],
+        ].forEach(([id, handler]) => on(byId(id), 'click', handler));
 
-    [
-        ['loginForm', handleLogin],
-        ['registerForm', handleRegister],
-        ['forgotPasswordForm', handleForgotPassword],
-        ['profileForm', handleProfileUpdate],
-        ['avatarFileInput', handleChangeAvatar, 'change'],
-    ].forEach(([id, handler, event = 'submit']) => on(byId(id), event, handler));
+        [
+            ['loginForm', handleLogin],
+            ['registerForm', handleRegister],
+            ['forgotPasswordForm', handleForgotPassword],
+            ['profileForm', handleProfileUpdate],
+            ['tagEditorForm', handleTagEditorSubmit],
+            ['avatarFileInput', handleChangeAvatar, 'change'],
+        ].forEach(([id, handler, event = 'submit']) => on(byId(id), event, handler));
 
     on(byId('changeAvatarBtn'), 'click', (event) => {
         event.preventDefault();
@@ -177,6 +191,7 @@ function initEventListeners() {
     });
 
     on(input, 'input', handleChatInput);
+    on(byId('tagEditorInput'), 'input', syncTagPreview);
     on(input, 'keydown', (event) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
@@ -213,6 +228,18 @@ function initEventListeners() {
 
     if (cardsGrid) {
         on(cardsGrid, 'click', (event) => {
+            const tagTrigger = event.target.closest('.streamer-tag.is-editable');
+            if (tagTrigger) {
+                event.stopPropagation();
+                const card = tagTrigger.closest('.streamer-card');
+                const streamerId = Number(card?.dataset?.id);
+                const streamer = streamersData.find(s => s.id === streamerId);
+                if (streamer && state.currentUser?.canEditSaidaoTag === true) {
+                    openTagEditor(streamer);
+                }
+                return;
+            }
+
             const enterBtn = event.target.closest('.enter-btn');
             if (enterBtn) {
                 event.stopPropagation();
@@ -271,7 +298,11 @@ function initEventListeners() {
     $$('.modal').forEach((modal) => {
         on(modal, 'click', (event) => {
             if (event.target === modal) {
-                modal.classList.remove('active');
+                if (modal.id === 'tagEditorModal') {
+                    closeTagEditor();
+                } else {
+                    modal.classList.remove('active');
+                }
             }
         });
     });
@@ -294,12 +325,43 @@ function getWebhookPlaceholder(type) {
     return `请输入${channelLabelMap[type] || 'Webhook'} Webhook地址`;
 }
 
+        function renderStreamerTag(streamer, canEditTag) {
+            const tag = String(streamer.tag || '').trim();
+            if (!tag && !canEditTag) {
+                return '';
+            }
+
+            const tagLabel = tag || '添加标签+';
+            const tagTag = tag ? '点击编辑标签' : '点击添加标签';
+
+            if (canEditTag) {
+                return tag
+                    ? `
+                        <button type="button" class="streamer-tag streamer-tag-filled is-editable" title="${tagTag}">
+                            <span class="streamer-tag-pill">${escapeHtml(tagLabel)}</span>
+                        </button>
+                    `
+                    : `
+                        <button type="button" class="streamer-tag streamer-tag-empty is-editable" title="${tagTag}">
+                            <span class="streamer-tag-pill">${escapeHtml(tagLabel)}</span>
+                        </button>
+                    `;
+            }
+
+            return `
+                <span class="streamer-tag streamer-tag-filled" aria-label="主播标签">
+                    <span class="streamer-tag-pill">${escapeHtml(tagLabel)}</span>
+                </span>
+            `;
+        }
+
         // 渲染主播卡片
         function renderStreamerCards() {
             destroyAllLotties();
             const container = document.getElementById('cardsGrid');
             container.innerHTML = '';
 
+            const canEditTag = state.currentUser?.canEditSaidaoTag === true;
             const filteredStreamers = state.currentStatus === 'live'
                 ? streamersData.filter(s => s.status === 'live' && !s.notificationEnabled)
                 : streamersData;
@@ -320,7 +382,9 @@ function getWebhookPlaceholder(type) {
             filteredStreamers.forEach(streamer => {
                 const card = document.createElement('div');
                 card.className = 'streamer-card';
+                card.dataset.id = streamer.id;
                 card.dataset.url = streamer.url || '';
+                card.dataset.tagEditable = canEditTag ? 'true' : 'false';
                 card.innerHTML = `
                     <div class="${streamer.status === 'live' ? 'live-badge' : 'offline-badge'}">
                         ${streamer.status === 'live' ? '' : '未开播'}
@@ -330,15 +394,20 @@ function getWebhookPlaceholder(type) {
                                     ? `<div class="cover-container"></div>`
                                     : ''
                                 }
-                        <div class="avatar-frame">
-                            <img src="${streamer.avatar}" alt="${streamer.name}" class="streamer-avatar">
+                        <div class="avatar-stack">
+                            <div class="avatar-frame">
+                                <img src="${escapeHtml(streamer.avatar)}" alt="${escapeHtml(streamer.name)}" class="streamer-avatar">
+                            </div>
                         </div>
                     </div>
                     <div class="card-content">
-                        <h3 class="streamer-name">${streamer.name}</h3>
+                        <div class="streamer-title-row">
+                            <h3 class="streamer-name">${escapeHtml(streamer.name)}</h3>
+                            ${renderStreamerTag(streamer, canEditTag)}
+                        </div>
                         <div class="streamer-info">
-                            <div><i class="fas fa-satellite-dish"></i>渠道: ${streamer.channel}</div>
-                            <div><i class="far fa-clock"></i>开播时间: ${streamer.startTime}</div>
+                            <div><i class="fas fa-satellite-dish"></i>渠道: ${escapeHtml(streamer.channel)}</div>
+                            <div><i class="far fa-clock"></i>开播时间: ${escapeHtml(streamer.startTime)}</div>
                         </div>
                         <div class="card-actions">
                             <button class="btn btn-primary enter-btn" style="padding: 7px 14px; font-size: 13px;">进入直播间</button>
@@ -361,7 +430,7 @@ function getWebhookPlaceholder(type) {
                 `;
 
                 container.appendChild(card);
-                initLiveAnimations(card, streamer)
+                initLiveAnimations(card, streamer);
             });
         }
 
@@ -744,7 +813,71 @@ function getWebhookPlaceholder(type) {
             closeModal('userDetailModal');
         }
 
+        function openTagEditor(streamer) {
+            if (!streamer || state.currentUser?.canEditSaidaoTag !== true) {
+                return;
+            }
+
+            tagEditorTarget = streamer;
+            byId('tagEditorTitle').textContent = streamer.name;
+            byId('tagEditorInput').value = streamer.tag || '';
+            byId('tagEditorHint').textContent = streamer.tag ? '点击保存会更新为新的唯一标签。留空可清空标签。' : '当前主播还没有标签，输入后即可保存。';
+            byId('tagEditorPreview').innerHTML = `
+                <i class="fas fa-tag"></i>
+                <span>${escapeHtml(streamer.tag || '添加一个标签')}</span>
+            `;
+            setModalOpen('tagEditorModal', true);
+            byId('tagEditorInput').focus();
+        }
+
+        function closeTagEditor() {
+            tagEditorTarget = null;
+            closeModal('tagEditorModal');
+        }
+
+        function syncTagPreview() {
+            const input = byId('tagEditorInput');
+            const preview = byId('tagEditorPreview');
+            if (!input || !preview) return;
+            const value = input.value.trim();
+            preview.innerHTML = `
+                <i class="fas fa-tag"></i>
+                <span>${escapeHtml(value || '添加一个标签')}</span>
+            `;
+        }
+
+        async function handleTagEditorSubmit(event) {
+            event.preventDefault();
+
+            if (!tagEditorTarget) {
+                return;
+            }
+
+            const input = byId('tagEditorInput');
+            const saveBtn = byId('tagEditorSaveBtn');
+            const tag = input.value.trim();
+
+            saveBtn.disabled = true;
+            try {
+                const result = await ApiEndpoints.updateSaidaoTag({
+                    saidaoId: tagEditorTarget.id,
+                    tag
+                });
+
+                if (result.code === '0') {
+                    Toast.show(tag ? '标签已更新' : '标签已清空', 'success');
+                    closeTagEditor();
+                    await fetchStreamers();
+                } else {
+                    Toast.show(result.message || '标签更新失败', 'error');
+                }
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
         function closeAllModals() {
+            tagEditorTarget = null;
             $$('.modal').forEach(modal => {
                 modal.classList.remove('active');
             });
@@ -774,10 +907,12 @@ function getWebhookPlaceholder(type) {
                     webhookType: data.user.webhookType,
                     webhookUrl: data.user.webhookUrl,
                     faction: data.user.faction,
-                    canChatBan: data.user.canChatBan === true
+                    canChatBan: data.user.canChatBan === true,
+                    canEditSaidaoTag: data.user.canEditSaidaoTag === true
                 };
 
                 updateUIState();
+                renderStreamerCards();
                 closeLoginModal();
             }
         }
@@ -1049,7 +1184,8 @@ function getWebhookPlaceholder(type) {
                 avatar: item.avatar,
                 url: item.url,
                 cover: item.cover,
-                notificationEnabled: item.notShow
+                notificationEnabled: item.notShow,
+                tag: item.tag || ''
             }));
 
             renderStreamerCards();

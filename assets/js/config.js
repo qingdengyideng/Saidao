@@ -15,5 +15,6 @@ window.SaidaoState = {
     chatWidth: 540,
     webhookType: '',
     isMobile: window.innerWidth <= 768,
-    faction: ''
+    faction: '',
+    canEditSaidaoTag: false
 };

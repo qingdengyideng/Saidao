@@ -440,6 +440,41 @@
     </div>
 </div>
 
+<!-- 主播标签编辑模态框 -->
+<div class="modal tag-editor-modal" id="tagEditorModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑标签</h3>
+            <button class="modal-close" id="closeTagEditorModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="tagEditorForm">
+                <div class="tag-editor-layout">
+                    <div class="tag-editor-preview-card">
+                        <label class="tag-editor-label" for="tagEditorInput">主播</label>
+                        <div class="tag-editor-title" id="tagEditorTitle"></div>
+                        <div class="tag-editor-preview" id="tagEditorPreview">
+                            <i class="fas fa-tag"></i>
+                            <span>添加一个标签</span>
+                        </div>
+                        <div class="tag-editor-hint" id="tagEditorHint">当前主播还没有标签，输入后即可保存。</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="tagEditorInput">标签内容</label>
+                        <input type="text" class="form-input" id="tagEditorInput" maxlength="16" placeholder="例如：人气担当 / 深夜档 / 常驻">
+                    </div>
+                    <div class="tag-editor-actions">
+                        <button type="button" class="btn btn-secondary" id="tagEditorCancelBtn">取消</button>
+                        <button type="submit" class="btn btn-primary" id="tagEditorSaveBtn">保存标签</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 
 </body>

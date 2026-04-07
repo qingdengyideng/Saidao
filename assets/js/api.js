@@ -83,6 +83,7 @@ window.ApiEndpoints = {
     chatBan: (data) => request('/user/chatBan', { method: 'POST', body: data, withAuth: true }),
     sendVerificationCode: (data) => request('/user/sendVerificationCode', { method: 'POST', body: data }),
     updateOptions: (data) => request('/saidao/options', { method: 'POST', body: data, withAuth: true }),
+    updateSaidaoTag: (data) => request('/saidao/tag', { method: 'POST', body: data, withAuth: true }),
     uploadImages: (data) => request('/api/image/upload', { method: 'POST', body: data, withAuth: true }),
     queryEmojis: (group) => request(`/emoji/${group}`, { withAuth: true }),
     uploadEmojis: (data) => request('/emoji/upload', { method: 'POST', body: data, withAuth: true }),
