@@ -1470,10 +1470,10 @@
         @media (max-width: 768px) {
 
             .avatar-section {
-                --avatar-size: 70px;
-                aspect-ratio: 16/12;
-                min-height: 150px;
-                padding-bottom: 12px;
+                --avatar-size: 85px;
+                aspect-ratio: 16/9;
+                min-height: 100px;
+                padding-bottom: 0;
             }
 
             .cards-grid {
@@ -1510,26 +1510,25 @@
             }
 
             .card-content {
-                padding: 12px;
+                padding: 16px;
             }
 
             .streamer-name {
-                font-size: 15px;
+                font-size: 16px;
             }
 
             .streamer-title-row {
-                gap: 6px;
-                margin-bottom: 8px;
+                gap: 8px;
+                margin-bottom: 10px;
             }
 
             .streamer-tag {
-                padding: 3px 8px;
-                font-size: 10px;
-                border-radius: 999px;
+                padding: 4px 10px;
+                font-size: 11px;
             }
 
             .streamer-tag-pill {
-                max-width: 96px;
+                max-width: 140px;
             }
 
             .streamer-info {
