@@ -846,6 +846,51 @@ function getWebhookPlaceholder(type) {
             `;
         }
 
+        function applySaidaoTagUpdate(payload) {
+            const saidaoId = Number(payload?.saidaoId);
+            if (!saidaoId) return;
+
+            const tag = String(payload?.tag || '').trim();
+            const streamer = streamersData.find(item => Number(item.id) === saidaoId);
+            if (streamer) {
+                streamer.tag = tag;
+            }
+
+            const card = document.querySelector(`.streamer-card[data-id="${saidaoId}"]`);
+            if (card) {
+                const cardStreamer = streamer || {
+                    id: saidaoId,
+                    name: card.querySelector('.streamer-name')?.textContent || '',
+                    tag
+                };
+                const titleRow = card.querySelector('.streamer-title-row');
+                if (titleRow) {
+                    const canEditTag = state.currentUser?.canEditSaidaoTag === true;
+                    titleRow.innerHTML = `
+                        <h3 class="streamer-name">${escapeHtml(cardStreamer.name)}</h3>
+                        ${renderStreamerTag(cardStreamer, canEditTag)}
+                    `;
+                }
+            }
+
+            if (tagEditorTarget && Number(tagEditorTarget.id) === saidaoId) {
+                tagEditorTarget.tag = tag;
+                const input = byId('tagEditorInput');
+                const hint = byId('tagEditorHint');
+                const preview = byId('tagEditorPreview');
+                if (input) input.value = tag;
+                if (hint) {
+                    hint.textContent = tag ? '点击保存会更新为新的唯一标签。留空可清空标签。' : '当前主播还没有标签，输入后即可保存。';
+                }
+                if (preview) {
+                    preview.innerHTML = `
+                        <i class="fas fa-tag"></i>
+                        <span>${escapeHtml(tag || '添加一个标签')}</span>
+                    `;
+                }
+            }
+        }
+
         async function handleTagEditorSubmit(event) {
             event.preventDefault();
 
@@ -867,7 +912,6 @@ function getWebhookPlaceholder(type) {
                 if (result.code === '0') {
                     Toast.show(tag ? '标签已更新' : '标签已清空', 'success');
                     closeTagEditor();
-                    await fetchStreamers();
                 } else {
                     Toast.show(result.message || '标签更新失败', 'error');
                 }
@@ -2031,6 +2075,8 @@ function getWebhookPlaceholder(type) {
                 } else if (data.type === 'status') {
                     addSystemMessageToChat(data);
                     fetchStreamers()
+                } else if (data.type === 'saidaoTagUpdated') {
+                    applySaidaoTagUpdate(data);
                 } else if (data.type === 'clear') {
                     resetChatMessages();
                 }
