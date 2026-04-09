@@ -64,6 +64,7 @@ function handleResize() {
         if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
             chatSidebar.style.width = '100%';
         }
+        syncCardAnimationsWithChatState();
     });
 }
 
@@ -432,6 +433,8 @@ function getWebhookPlaceholder(type) {
                 container.appendChild(card);
                 initLiveAnimations(card, streamer);
             });
+
+            syncCardAnimationsWithChatState();
         }
 
         const LOTTIE_POOL = [];
@@ -445,7 +448,7 @@ function getWebhookPlaceholder(type) {
                     container: liveBadge,
                     renderer: 'canvas',
                     loop: true,
-                    autoplay: true,
+                    autoplay: false,
                     path: '/animation/Live.json'
                 });
             }
@@ -464,7 +467,7 @@ function getWebhookPlaceholder(type) {
                     container: cover,
                     renderer: 'canvas',
                     loop: true,
-                    autoplay: true,
+                    autoplay: false,
                     path: `/animation/${name}.json`,
                     rendererSettings: {
                         clearCanvas: true,
@@ -479,6 +482,24 @@ function getWebhookPlaceholder(type) {
             const anim = lottie.loadAnimation(options);
             LOTTIE_POOL.push(anim);
             return anim;
+        }
+
+        function shouldPauseCardAnimations() {
+            return state.isMobile && state.chatExpanded;
+        }
+
+        function syncCardAnimationsWithChatState() {
+            const shouldPause = shouldPauseCardAnimations();
+
+            LOTTIE_POOL.forEach((anim) => {
+                if (!anim) return;
+
+                if (shouldPause) {
+                    anim.pause?.();
+                } else {
+                    anim.play?.();
+                }
+            });
         }
 
         function destroyAllLotties() {
@@ -638,6 +659,8 @@ function getWebhookPlaceholder(type) {
                 chatSidebar.classList.add('collapsed');
                 chatToggleIcon.className = 'fas fa-comment-dots';
             }
+
+            syncCardAnimationsWithChatState();
         }
 
         // 切换表情面板
