@@ -248,7 +248,8 @@ function initEventListeners() {
                 const card = enterBtn.closest('.streamer-card');
                 const url = card?.dataset?.url;
                 const streamerId = Number(card?.dataset?.id);
-                if (streamerId) {
+                const streamer = streamersData.find(s => s.id === streamerId);
+                if (streamerId && streamer?.status === 'live') {
                     ApiEndpoints.clickSaidao(streamerId).catch(() => {});
                 }
                 if (url) {
@@ -275,7 +276,8 @@ function initEventListeners() {
                 const card = avatarSection.closest('.streamer-card');
                 const url = card?.dataset?.url;
                 const streamerId = Number(card?.dataset?.id);
-                if (streamerId) {
+                const streamer = streamersData.find(s => s.id === streamerId);
+                if (streamerId && streamer?.status === 'live') {
                     ApiEndpoints.clickSaidao(streamerId).catch(() => {});
                 }
                 if (url) {
@@ -2067,6 +2069,17 @@ function getWebhookPlaceholder(type) {
                 ${data.timestamp ? `<span class="message-time">${data.timestamp}</span>` : ''}
             </div>
         `;
+
+            // 给开播通知中的链接绑定点击上报
+            messageElement.querySelectorAll('a[href]').forEach(link => {
+                link.addEventListener('click', () => {
+                    const href = link.getAttribute('href');
+                    const streamer = streamersData.find(s => s.url && href.includes(s.url));
+                    if (streamer) {
+                        ApiEndpoints.clickSaidao(streamer.id).catch(() => {});
+                    }
+                });
+            });
 
             container.appendChild(messageElement);
             observeChatNode(messageElement);
