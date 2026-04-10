@@ -175,6 +175,7 @@ function initEventListeners() {
             ['testWebhookBtn', handleTestWebhook],
             ['emojiToggle', toggleEmojiSection],
             ['sendBtn', sendMessage],
+            ['logoutBtn', handleLogout],
         ].forEach(([id, handler]) => on(byId(id), 'click', handler));
 
         [
@@ -843,6 +844,11 @@ function getWebhookPlaceholder(type) {
 
         function closeProfileModal() {
             closeModal('profileModal');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem(window.SaidaoConfig.TOKEN_KEY);
+            window.location.reload();
         }
 
         function closeUserDetailModal() {
