@@ -246,6 +246,10 @@ function initEventListeners() {
                 event.stopPropagation();
                 const card = enterBtn.closest('.streamer-card');
                 const url = card?.dataset?.url;
+                const streamerId = Number(card?.dataset?.id);
+                if (streamerId) {
+                    ApiEndpoints.clickSaidao(streamerId).catch(() => {});
+                }
                 if (url) {
                     window.open(url, '_blank');
                 }
@@ -269,6 +273,10 @@ function initEventListeners() {
             if (avatarSection) {
                 const card = avatarSection.closest('.streamer-card');
                 const url = card?.dataset?.url;
+                const streamerId = Number(card?.dataset?.id);
+                if (streamerId) {
+                    ApiEndpoints.clickSaidao(streamerId).catch(() => {});
+                }
                 if (url) {
                     window.open(url, '_blank');
                 }
@@ -403,7 +411,12 @@ function getWebhookPlaceholder(type) {
                     </div>
                     <div class="card-content">
                         <div class="streamer-title-row">
-                            <h3 class="streamer-name">${escapeHtml(streamer.name)}</h3>
+                            <div class="streamer-name-heat-row">
+                                <h3 class="streamer-name">${escapeHtml(streamer.name)}</h3>
+                                ${streamer.status === 'live' && streamer.hotScore > 0
+                                        ? `<span class="hot-indicator"><span class="hot-score-value">🔥${Math.ceil(streamer.hotScore)}</span></span>`
+                                        : ''}
+                            </div>
                             ${renderStreamerTag(streamer, canEditTag)}
                         </div>
                         <div class="streamer-info">
@@ -889,8 +902,13 @@ function getWebhookPlaceholder(type) {
                 const titleRow = card.querySelector('.streamer-title-row');
                 if (titleRow) {
                     const canEditTag = state.currentUser?.canEditSaidaoTag === true;
+                    const existingIndicator = titleRow.querySelector('.hot-indicator');
+                    const hotHtml = existingIndicator ? `<span class="hot-indicator">${existingIndicator.innerHTML}</span>` : '';
                     titleRow.innerHTML = `
-                        <h3 class="streamer-name">${escapeHtml(cardStreamer.name)}</h3>
+                        <div class="streamer-name-heat-row">
+                            <h3 class="streamer-name">${escapeHtml(cardStreamer.name)}</h3>
+                            ${hotHtml}
+                        </div>
                         ${renderStreamerTag(cardStreamer, canEditTag)}
                     `;
                 }
@@ -912,6 +930,58 @@ function getWebhookPlaceholder(type) {
                     `;
                 }
             }
+        }
+
+        function applyHotScoreUpdate(scores) {
+            if (!scores || !scores.length) return;
+
+            scores.forEach(({ saidaoId, hotScore, level }) => {
+                const streamer = streamersData.find(s => s.id === saidaoId);
+                if (streamer) {
+                    streamer.hotScore = hotScore;
+                }
+
+                const card = document.querySelector(`.streamer-card[data-id="${saidaoId}"]`);
+                if (!card) return;
+
+                let indicator = card.querySelector('.hot-indicator');
+                if (hotScore > 0) {
+                    if (indicator) {
+                        indicator.innerHTML = `🔥<span class="hot-score-value">${Math.ceil(streamer.hotScore)}</span>`;
+                    } else {
+                        indicator = document.createElement('span');
+                        indicator.className = 'hot-indicator';
+                        indicator.innerHTML = `🔥<span class="hot-score-value">${Math.ceil(streamer.hotScore)}</span>`;
+                        const nameRow = card.querySelector('.streamer-name-heat-row');
+                        if (nameRow) nameRow.appendChild(indicator);
+                    }
+                } else if (indicator) {
+                    indicator.remove();
+                }
+            });
+
+            // 根据热度值重排序卡片
+            reorderCardsByHotScore();
+        }
+
+        function reorderCardsByHotScore() {
+            const container = document.getElementById('cardsGrid');
+            if (!container) return;
+
+            const cards = Array.from(container.querySelectorAll('.streamer-card'));
+            if (cards.length <= 1) return;
+
+            cards.sort((a, b) => {
+                const idA = Number(a.dataset.id);
+                const idB = Number(b.dataset.id);
+                const streamerA = streamersData.find(s => s.id === idA);
+                const streamerB = streamersData.find(s => s.id === idB);
+                const scoreA = streamerA?.hotScore || 0;
+                const scoreB = streamerB?.hotScore || 0;
+                return scoreB - scoreA;
+            });
+
+            cards.forEach(card => container.appendChild(card));
         }
 
         async function handleTagEditorSubmit(event) {
@@ -1252,7 +1322,8 @@ function getWebhookPlaceholder(type) {
                 url: item.url,
                 cover: item.cover,
                 notificationEnabled: item.notShow,
-                tag: item.tag || ''
+                tag: item.tag || '',
+                hotScore: item.hotScore || 0
             }));
 
             renderStreamerCards();
@@ -2100,6 +2171,8 @@ function getWebhookPlaceholder(type) {
                     fetchStreamers()
                 } else if (data.type === 'saidaoTagUpdated') {
                     applySaidaoTagUpdate(data);
+                } else if (data.type === 'hotScoreUpdate') {
+                    applyHotScoreUpdate(data.scores);
                 } else if (data.type === 'clear') {
                     resetChatMessages();
                 }
