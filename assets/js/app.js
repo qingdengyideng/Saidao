@@ -1367,8 +1367,8 @@ function getWebhookPlaceholder(type) {
 
         let socket = null;
         let chatReconnectTimer = null;
-        const CHAT_STICKY_BOTTOM_THRESHOLD = 300;
-        const CHAT_BOTTOM_SCROLL_EPSILON = 24;
+        const CHAT_STICKY_BOTTOM_THRESHOLD = 700;
+        const CHAT_BOTTOM_SCROLL_EPSILON = 100;
         const renderedMessageIds = new Set();
         const observedChatNodes = new Set();
         let chatFollowMode = true;
