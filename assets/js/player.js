@@ -26,6 +26,7 @@
   const danmakuLayer = document.getElementById("danmakuLayer");
 
   let hls = null;
+  let flvPlayer = null;
   let totalComments = 0;
   let audioUnlocked = false;
   let originUrl = "";
@@ -38,6 +39,22 @@
 
   const params = new URLSearchParams(window.location.search);
   const uid = params.get("uid") || DEFAULT_UID;
+  const directStreamUrl = params.get("src") || params.get("url") || params.get("stream") || "";
+
+  const getStreamType = (url) => {
+    const cleanUrl = String(url || "").split("#")[0];
+    const path = cleanUrl.split("?")[0].toLowerCase();
+
+    if (path.endsWith(".flv")) {
+      return "flv";
+    }
+
+    if (path.endsWith(".m3u8")) {
+      return "hls";
+    }
+
+    return "";
+  };
 
   const isMobile = () => {
     const ua = navigator.userAgent || "";
@@ -151,14 +168,50 @@
       hls.destroy();
       hls = null;
     }
+    if (flvPlayer) {
+      flvPlayer.destroy();
+      flvPlayer = null;
+    }
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+    const streamType = getStreamType(url);
+
+    if (streamType === "flv") {
+      if (window.flvjs && window.flvjs.isSupported()) {
+        flvPlayer = window.flvjs.createPlayer(
+          {
+            type: "flv",
+            url,
+            isLive: true,
+          },
+          {
+            enableStashBuffer: false,
+            stashInitialSize: 128,
+            lazyLoad: false,
+            autoCleanupSourceBuffer: true,
+            autoCleanupMaxBackwardDuration: 60,
+            autoCleanupMinBackwardDuration: 30,
+          }
+        );
+        flvPlayer.attachMediaElement(video);
+        flvPlayer.load();
+        flvPlayer.on(window.flvjs.Events.ERROR, (_, data) => {
+          console.error("FLV 播放错误", data);
+          showStatus("播放失败", "FLV 流解析失败");
+        });
+        flvPlayer.on(window.flvjs.Events.MEDIA_ATTACHING, () => {
+          tryAutoplay();
+        });
+      } else {
+        showStatus("无法播放", "当前浏览器不支持 FLV");
+        return;
+      }
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
       video.load();
       video.play().catch(() => {
         // handled by tryAutoplay
       });
-    } else if (window.Hls) {
+    } else if (window.Hls && streamType !== "flv") {
       hls = new Hls({
         lowLatencyMode: true,
         backBufferLength: 90,
@@ -172,7 +225,7 @@
         tryAutoplay();
       });
     } else {
-      showStatus("无法播放", "当前浏览器不支持 HLS");
+      showStatus("无法播放", "当前浏览器不支持该流格式");
       return;
     }
 
@@ -320,6 +373,21 @@
     showStatus("正在获取直播信息", "请稍候");
 
     try {
+      if (directStreamUrl) {
+        originUrl = directStreamUrl;
+        streamSub.textContent = directStreamUrl;
+        hideStatus();
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        attachStream(directStreamUrl);
+        setTimeout(() => {
+          tryAutoplay();
+        }, 0);
+        connectWs();
+        return;
+      }
+
       const res = await fetch(`${infoBase}${encodeURIComponent(uid)}`);
       if (!res.ok) {
         throw new Error("接口请求失败");
@@ -411,6 +479,10 @@
     if (hls) {
       hls.destroy();
       hls = null;
+    }
+    if (flvPlayer) {
+      flvPlayer.destroy();
+      flvPlayer = null;
     }
     clearReconnectTimer();
     closeWs({ preventReconnect: true });
@@ -539,6 +611,10 @@
     if (hls) {
       hls.destroy();
       hls = null;
+    }
+    if (flvPlayer) {
+      flvPlayer.destroy();
+      flvPlayer = null;
     }
 
     video.pause();
