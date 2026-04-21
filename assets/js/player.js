@@ -176,14 +176,21 @@
     const streamType = getStreamType(url);
 
     if (streamType === "flv") {
-      if (window.flvjs && window.flvjs.isSupported()) {
-        flvPlayer = window.flvjs.createPlayer(
+      // 优先使用 mpegts.js（支持 HEVC/H.265），回退到 flv.js（仅支持 H.264）
+      const flvLib =
+        (window.mpegts && window.mpegts.isSupported && window.mpegts.isSupported() && window.mpegts) ||
+        (window.flvjs && window.flvjs.isSupported && window.flvjs.isSupported() && window.flvjs) ||
+        null;
+
+      if (flvLib) {
+        flvPlayer = flvLib.createPlayer(
           {
             type: "flv",
             url,
             isLive: true,
           },
           {
+            enableWorker: true,
             enableStashBuffer: false,
             stashInitialSize: 128,
             lazyLoad: false,
@@ -194,11 +201,17 @@
         );
         flvPlayer.attachMediaElement(video);
         flvPlayer.load();
-        flvPlayer.on(window.flvjs.Events.ERROR, (_, data) => {
-          console.error("FLV 播放错误", data);
-          showStatus("播放失败", "FLV 流解析失败");
+        flvPlayer.on(flvLib.Events.ERROR, (errType, errDetail, data) => {
+          console.error("FLV 播放错误", errType, errDetail, data);
+          const info = (data && (data.info || data.msg)) || "";
+          // codec id 12 = HEVC，codec id 13 = AV1
+          if (/Unsupported codec/i.test(info) || /codec/i.test(String(errDetail || ""))) {
+            showStatus("编码不支持", "浏览器不支持该视频编码（可能是 H.265/HEVC），请使用 Edge/Safari 或安装 HEVC 扩展");
+          } else {
+            showStatus("播放失败", "FLV 流解析失败");
+          }
         });
-        flvPlayer.on(window.flvjs.Events.MEDIA_ATTACHING, () => {
+        flvPlayer.on(flvLib.Events.MEDIA_ATTACHING, () => {
           tryAutoplay();
         });
       } else {
