@@ -1,5 +1,5 @@
 ﻿(() => {
-  const DEFAULT_UID = "5861538369";
+  const DEFAULT_UID = "1159606535";
   const infoBase = "https://api.saidao.cc/player/info/";
   const wsBase = "wss://api.saidao.cc/player/ws";
 
@@ -388,7 +388,7 @@
     try {
       if (directStreamUrl) {
         originUrl = directStreamUrl;
-        streamSub.textContent = directStreamUrl;
+        if (streamSub) streamSub.textContent = directStreamUrl;
         hideStatus();
         video.muted = true;
         video.autoplay = true;
@@ -422,7 +422,7 @@
         return;
       }
 
-      streamSub.textContent = "直播已连接";
+      streamSub && (streamSub.textContent = "直播已连接");
       hideStatus();
       video.muted = true;
       video.autoplay = true;
@@ -455,8 +455,8 @@
       appendComment(next.item);
       addDanmaku(next.item);
       totalComments += 1;
-      commentCount.textContent = String(totalComments);
-      streamSub.textContent = `${next.item.platform || ""} · ${next.item.user || ""}`.trim();
+      if (commentCount) commentCount.textContent = String(totalComments);
+      if (streamSub) streamSub.textContent = `${next.item.platform || ""} · ${next.item.user || ""}`.trim();
     }
   };
 
