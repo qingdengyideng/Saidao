@@ -78,14 +78,17 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
+  gap: 0;
   align-items: stretch;
 }
 
 .player-area {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
+  min-height: 360px;
+  height: calc(100vh - 140px);
+  min-width: 0;
 }
 
 .player-header {
@@ -122,7 +125,10 @@ body {
 .player-shell {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  aspect-ratio: auto;
   border-radius: 18px;
   overflow: hidden;
   background: #0e0f14;
@@ -134,7 +140,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80");
+  background-image: url("https://rustfs.saidao.cc/images/1d19c5bd-3a3e-4ddc-8d38-872774421f76.png");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: cover;
@@ -322,6 +328,7 @@ body {
 }
 
 .comment-panel {
+  position: relative;
   background: #3c3c3c;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -357,45 +364,100 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-right: 4px;
+  gap: 5px;
+  padding-right: 8px;
+  padding-bottom: 48px;
+  padding-top: 2px;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
 
 .comment-item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.35);
+  display: block;
+  padding: 2px 0;
+  border-radius: 0;
+  background: transparent;
   min-width: 0;
+  line-height: 1.5;
+  white-space: normal;
+  font-size: 14px;
 }
 
 .comment-user {
-  font-size: 13px;
-  color: var(--accent-2);
-  font-weight: 600;
-  flex: 0 0 auto;
-  max-width: 40%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline;
+  font-size: inherit;
+  line-height: inherit;
+  color: #9bc7ff;
+  font-weight: 700;
+  vertical-align: baseline;
 }
 
 .comment-user::after {
   content: ":";
   margin-left: 2px;
-  color: var(--text-dim);
+  color: rgba(255, 255, 255, 0.5);
   font-weight: 400;
 }
 
 .comment-text {
-  font-size: 14px;
-  line-height: 1.4;
-  flex: 1 1 auto;
+  display: inline;
+  font-size: inherit;
+  color: rgba(255, 255, 255, 0.94);
+  line-height: inherit;
   min-width: 0;
   word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.scroll-bottom-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(22, 22, 24, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+
+.scroll-bottom-btn:hover {
+  background: rgba(36, 36, 40, 0.98);
+  transform: translateY(-1px);
+}
+
+.scroll-bottom-btn.is-visible {
+  display: inline-flex;
+}
+
+.comment-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.comment-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.comment-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 90, 122, 0.42), rgba(255, 255, 255, 0.12));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.comment-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(255, 90, 122, 0.58), rgba(255, 255, 255, 0.2));
+  background-clip: content-box;
 }
 
 .layout.fullscreen {
@@ -418,13 +480,24 @@ body {
   height: 100vh;
 }
 
+.layout.fullscreen .player-area {
+  height: 100vh;
+}
+
 @media (max-width: 1100px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
   }
 
   .comment-panel {
     order: 2;
+    height: auto;
+    min-height: 360px;
+  }
+
+  .player-area {
+    height: auto;
   }
 }
 

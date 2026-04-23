@@ -1,5 +1,5 @@
 ﻿(() => {
-  const DEFAULT_UID = "1159606535";
+  const DEFAULT_UID = "1159606549";
   const infoBase = "https://api.saidao.cc/player/info/";
   const wsBase = "wss://api.saidao.cc/player/ws";
 
@@ -22,6 +22,7 @@
   const volumePopover = document.getElementById("volumePopover");
   const commentList = document.getElementById("commentList");
   const commentSub = document.getElementById("commentSub");
+  const scrollBottomBtn = document.getElementById("scrollBottomBtn");
   const playerLayout = document.getElementById("playerLayout");
   const danmakuLayer = document.getElementById("danmakuLayer");
 
@@ -36,6 +37,7 @@
   let wsClient = null;
   let reconnectTimer = null;
   let isPageClosing = false;
+  let isCommentListAtBottom = true;
 
   const params = new URLSearchParams(window.location.search);
   const uid = params.get("uid") || DEFAULT_UID;
@@ -117,6 +119,33 @@
       client.close();
     } catch (err) {
       // ignore close failure
+    }
+  };
+
+  const getCommentListBottomThreshold = () => Math.max(12, commentList.clientHeight * 0.08);
+
+  const isCommentListScrolledToBottom = () => {
+    const distance = commentList.scrollHeight - commentList.scrollTop - commentList.clientHeight;
+    return distance <= getCommentListBottomThreshold();
+  };
+
+  const syncCommentListState = () => {
+    isCommentListAtBottom = isCommentListScrolledToBottom();
+    if (scrollBottomBtn) {
+      scrollBottomBtn.classList.toggle("is-visible", !isCommentListAtBottom);
+      scrollBottomBtn.setAttribute("aria-hidden", isCommentListAtBottom ? "true" : "false");
+    }
+  };
+
+  const scrollCommentListToBottom = (behavior = "auto") => {
+    commentList.scrollTo({
+      top: commentList.scrollHeight,
+      behavior,
+    });
+    isCommentListAtBottom = true;
+    if (scrollBottomBtn) {
+      scrollBottomBtn.classList.remove("is-visible");
+      scrollBottomBtn.setAttribute("aria-hidden", "true");
     }
   };
 
@@ -290,26 +319,33 @@
   };
 
   const appendComment = (item) => {
+    const shouldStickToBottom = isCommentListAtBottom;
     const node = document.createElement("div");
     node.className = "comment-item";
 
-    const user = document.createElement("div");
+    const user = document.createElement("span");
     user.className = "comment-user";
     user.innerHTML = `${item.user || "匿名"}`.trim();
 
-    const text = document.createElement("div");
+    const text = document.createElement("span");
     text.className = "comment-text";
     text.innerHTML = item.text || "";
 
     node.appendChild(user);
+    node.appendChild(document.createTextNode(" "));
     node.appendChild(text);
 
     commentList.appendChild(node);
-    commentList.scrollTop = commentList.scrollHeight;
 
     const maxItems = 200;
     while (commentList.children.length > maxItems) {
       commentList.removeChild(commentList.firstChild);
+    }
+
+    if (shouldStickToBottom) {
+      scrollCommentListToBottom("auto");
+    } else {
+      syncCommentListState();
     }
   };
 
@@ -508,6 +544,16 @@
     setMuted(true);
   });
 
+  commentList.addEventListener("scroll", () => {
+    syncCommentListState();
+  });
+
+  if (scrollBottomBtn) {
+    scrollBottomBtn.addEventListener("click", () => {
+      scrollCommentListToBottom("smooth");
+    });
+  }
+
   volumeSlider.addEventListener("input", (event) => {
     const value = Number(event.target.value);
     video.volume = value;
@@ -591,6 +637,8 @@
       });
     }
   });
+
+  syncCommentListState();
 
   video.addEventListener("play", () => {
     hideTapPlay();
