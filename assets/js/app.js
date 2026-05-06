@@ -10,6 +10,7 @@ const setActiveItem = (items, current, activeClass = 'active') => {
     items.forEach((item) => item.classList.toggle(activeClass, item === current));
 };
 const setModalOpen = (id, isOpen) => byId(id)?.classList.toggle('active', isOpen);
+const BLOCK_IMAGE_MESSAGES_KEY = 'blockImageMessages';
 
 // 检测设备类型
 function detectDeviceType() {
@@ -34,6 +35,7 @@ function initializeApp() {
     applyDarkMode();
     detectDeviceType();
     setViewportHeightVar();
+    applyStoredChatImageFilter();
     initEventListeners();
     initializeFactionSelection();
     initializeEmojiPreviewDelegation();
@@ -139,6 +141,118 @@ function initializeEmojiPreviewDelegation() {
     });
 }
 
+function isImageMessagesBlocked() {
+    return localStorage.getItem(BLOCK_IMAGE_MESSAGES_KEY) === 'true';
+}
+
+function applyStoredChatImageFilter() {
+    const checkbox = byId('blockImageMessages');
+    if (checkbox) {
+        checkbox.checked = isImageMessagesBlocked();
+    }
+}
+
+function handleBlockImageMessagesChange(event) {
+    const blocked = event.target.checked;
+    localStorage.setItem(BLOCK_IMAGE_MESSAGES_KEY, String(blocked));
+
+    $$('.chat-message.image-message').forEach((messageElement) => {
+        const messageText = messageElement.querySelector('.message-text');
+        if (blocked) {
+            hideChatImageMessage(messageText);
+        } else {
+            showChatImageMessage(messageText);
+        }
+    });
+}
+
+function isPureImageMessageContent(content) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = content || '';
+
+    const meaningfulNodes = Array.from(wrapper.childNodes).filter((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent.trim() !== '';
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            return false;
+        }
+
+        return node.tagName !== 'BR' || node.textContent.trim() !== '';
+    });
+
+    if (meaningfulNodes.length !== 1) {
+        return false;
+    }
+
+    const onlyNode = meaningfulNodes[0];
+    return onlyNode.nodeType === Node.ELEMENT_NODE
+        && onlyNode.matches('img.chat-emoji.vip');
+}
+
+function markImageLoaded(image) {
+    if (!image) return;
+    const shell = image.closest('.chat-image-shell, .image-preview-content');
+
+    if (image.complete && image.naturalWidth > 0) {
+        image.classList.add('is-loaded');
+        shell?.classList.add('is-loaded');
+        return;
+    }
+
+    image.addEventListener('load', () => {
+        image.classList.add('is-loaded');
+        shell?.classList.add('is-loaded');
+    }, { once: true });
+}
+
+function addChatImageLoadingShell(image) {
+    if (!image || image.parentElement?.classList.contains('chat-image-shell')) {
+        return;
+    }
+
+    const shell = document.createElement('span');
+    shell.className = 'chat-image-shell';
+    image.parentNode.insertBefore(shell, image);
+    shell.appendChild(image);
+}
+
+function ensureChatImageHiddenTip(messageText) {
+    let tip = messageText.querySelector('.chat-image-hidden-tip');
+    if (tip) {
+        return tip;
+    }
+
+    tip = document.createElement('button');
+    tip.type = 'button';
+    tip.className = 'chat-image-hidden-tip';
+    tip.textContent = '图片消息已隐藏';
+    tip.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        showChatImageMessage(messageText);
+    });
+    messageText.appendChild(tip);
+    return tip;
+}
+
+function hideChatImageMessage(messageText) {
+    if (!messageText) return;
+
+    ensureChatImageHiddenTip(messageText);
+    messageText.classList.add('image-hidden');
+}
+
+function showChatImageMessage(messageText) {
+    if (!messageText) return;
+
+    messageText.classList.remove('image-hidden');
+    messageText.querySelector('.chat-image-hidden-tip')?.remove();
+    const image = messageText.querySelector('img.chat-emoji.vip');
+    markImageLoaded(image);
+}
+
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 // 初始化事件监听器
@@ -160,6 +274,7 @@ function initEventListeners() {
         event.preventDefault();
         fetchStreamers();
     });
+    on(byId('blockImageMessages'), 'change', handleBlockImageMessagesChange);
 
         [
             ['closeLoginModal', closeLoginModal],
@@ -1501,6 +1616,8 @@ function getWebhookPlaceholder(type) {
         }
 
         function addMessageToChat(data, options = {}) {
+            const isPureImageMessage = isPureImageMessageContent(data.content);
+
             if (!trackRenderedMessage(data.messageId)) {
                 return;
             }
@@ -1602,16 +1719,21 @@ function getWebhookPlaceholder(type) {
             observeChatNode(messageElement);
             trimChatMessages();
 
-            // 判断是否是图片消息（chat-emoji vip）
+            // 判断是否是纯图片消息（chat-emoji vip）
             const messageText = messageElement.querySelector('.message-text');
             const imageEmoji = messageText.querySelector('img.chat-emoji.vip');
 
-            if (imageEmoji) {
+            if (isPureImageMessage && imageEmoji) {
                 // 标记为图片消息
                 messageElement.classList.add('image-message');
 
                 // 去掉气泡，只保留图片
                 messageText.classList.add('image-only');
+                addChatImageLoadingShell(imageEmoji);
+                markImageLoaded(imageEmoji);
+                if (isImageMessagesBlocked()) {
+                    hideChatImageMessage(messageText);
+                }
             }
 
             if (data.messageId) {
@@ -2367,16 +2489,16 @@ function getWebhookPlaceholder(type) {
             isImagePreviewOpen = true;
 
             // 创建遮罩层
-            let preview = document.createElement("div");
+            const preview = document.createElement("div");
             preview.className = "image-preview-overlay";
-            preview.innerHTML = `
-                <div class="image-preview-content">
-                    <img src="${src}" alt="preview">
-                </div>
-            `;
+            const content = document.createElement("div");
+            content.className = "image-preview-content";
+            const img = document.createElement("img");
+            img.src = src;
+            img.alt = "preview";
+            content.appendChild(img);
+            preview.appendChild(content);
             document.body.appendChild(preview);
-
-            const img = preview.querySelector('img');
 
             // 设置图片的样式
             img.style.maxWidth = "80vw";
@@ -2384,6 +2506,7 @@ function getWebhookPlaceholder(type) {
             img.style.objectFit = "contain";
             img.style.display = "block";
             img.style.margin = "auto"; // 居中显示
+            markImageLoaded(img);
 
             // 点击遮罩层区域时，关闭预览
             preview.addEventListener("click", (e) => {
