@@ -1781,7 +1781,7 @@ function getWebhookPlaceholder(type) {
                         hideMentionAlert();
                     });
 
-                container.appendChild(mentionAlert);
+                (byId('chatSidebar') || container).appendChild(mentionAlert);
             }
         }
 
@@ -2266,8 +2266,8 @@ function getWebhookPlaceholder(type) {
                     hideNewMessageAlert();
                 });
 
-                // 添加到容器
-                container.appendChild(newMessageAlert)
+                // 添加到侧栏，避免跟随聊天内容滚动导致不可见
+                (byId('chatSidebar') || container).appendChild(newMessageAlert)
             } else {
                 // 更新已有提示的计数
                 newMessageAlert.querySelector('.new-message-btn').textContent = `有新消息 (${newMessageCount})`;
