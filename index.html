@@ -16,7 +16,6 @@
         /* Reduce animation load on low-power/mobile devices */
         html.reduced-motion #logo-container,
         html.reduced-motion #lottie-container,
-        html.reduced-motion .faction-animation-row,
         html.reduced-motion #logo-container,
         html.reduced-motion #lottie-container {
             display: none !important;
@@ -140,7 +139,7 @@
             </div>
             <label class="chat-image-filter">
                 <input type="checkbox" id="blockImageMessages">
-                <span>屏蔽图片消息</span>
+                <span>隐藏图片消息</span>
             </label>
             <div class="chat-input-container">
                 <button class="emoji-toggle" id="emojiToggle">
@@ -336,7 +335,9 @@
                     </div>
                     <div class="faction-options-row">
                         <div class="faction-option-row" data-faction="ya">
-                            <div class="faction-animation-row" id="yaAnimation"></div>
+                            <div class="faction-animation-row" id="yaAnimation">
+                                <img class="faction-static-image" src="https://dummyimage.com/100x100/ff6b6b/ffffff&text=YA" alt="牙阵营">
+                            </div>
                             <div class="faction-content-row">
                                 <div class="faction-title-row">
                                     <span class="faction-name">牙</span>
@@ -349,7 +350,9 @@
                         </div>
 
                         <div class="faction-option-row" data-faction="juan">
-                            <div class="faction-animation-row" id="juanAnimation"></div>
+                            <div class="faction-animation-row" id="juanAnimation">
+                                <img class="faction-static-image" src="https://dummyimage.com/100x100/4a6cf7/ffffff&text=JUAN" alt="卷阵营">
+                            </div>
                             <div class="faction-content-row">
                                 <div class="faction-title-row">
                                     <span class="faction-name">卷</span>

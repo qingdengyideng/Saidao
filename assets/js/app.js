@@ -78,42 +78,6 @@ function setViewportHeightVar() {
 function initializeFactionSelection() {
     const factionOptions = $$('.faction-option-row');
     const selectedFactionInput = byId('selectedFaction');
-    const yaAnimationContainer = byId('yaAnimation');
-    const juanAnimationContainer = byId('juanAnimation');
-
-    const allowFactionAnimation = !window.__LIMITED_MOTION__;
-    const yaAnimation = allowFactionAnimation && yaAnimationContainer
-        ? lottie.loadAnimation({
-            container: yaAnimationContainer,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            path: '/animation/Tooth.json'
-        })
-        : null;
-
-    const juanAnimation = allowFactionAnimation && juanAnimationContainer
-        ? lottie.loadAnimation({
-            container: juanAnimationContainer,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            path: '/animation/Piggy.json'
-        })
-        : null;
-
-    const playFactionAnimation = (faction) => {
-        if (faction === 'ya' && yaAnimation) {
-            yaAnimation.play();
-            juanAnimation?.stop();
-            return;
-        }
-
-        if (faction === 'juan' && juanAnimation) {
-            juanAnimation.play();
-            yaAnimation?.stop();
-        }
-    };
 
     factionOptions.forEach((option) => {
         on(option, 'click', () => {
@@ -123,9 +87,6 @@ function initializeFactionSelection() {
             setActiveItem(factionOptions, option, 'selected');
             radioInput.checked = true;
             selectedFactionInput.value = faction;
-            if (allowFactionAnimation) {
-                playFactionAnimation(faction);
-            }
         });
     });
 }
@@ -157,11 +118,10 @@ function handleBlockImageMessagesChange(event) {
     localStorage.setItem(BLOCK_IMAGE_MESSAGES_KEY, String(blocked));
 
     $$('.chat-message.image-message').forEach((messageElement) => {
-        const messageText = messageElement.querySelector('.message-text');
         if (blocked) {
-            hideChatImageMessage(messageText);
+            hideChatImageMessage(messageElement);
         } else {
-            showChatImageMessage(messageText);
+            showChatImageMessage(messageElement);
         }
     });
 }
@@ -188,7 +148,14 @@ function isPureImageMessageContent(content) {
 
     const onlyNode = meaningfulNodes[0];
     return onlyNode.nodeType === Node.ELEMENT_NODE
-        && onlyNode.matches('img.chat-emoji.vip');
+        && onlyNode.matches('img');
+}
+
+function getFirstImageSrc(content) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = content || '';
+    const image = wrapper.querySelector('img');
+    return image?.getAttribute('src') || image?.getAttribute('data-src') || '';
 }
 
 function markImageLoaded(image) {
@@ -218,8 +185,8 @@ function addChatImageLoadingShell(image) {
     shell.appendChild(image);
 }
 
-function ensureChatImageHiddenTip(messageText) {
-    let tip = messageText.querySelector('.chat-image-hidden-tip');
+function ensureChatImageHiddenTip(messageElement) {
+    let tip = messageElement.querySelector(':scope > .chat-image-hidden-tip');
     if (tip) {
         return tip;
     }
@@ -231,25 +198,25 @@ function ensureChatImageHiddenTip(messageText) {
     tip.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        showChatImageMessage(messageText);
+        showChatImageMessage(messageElement);
     });
-    messageText.appendChild(tip);
+    messageElement.appendChild(tip);
     return tip;
 }
 
-function hideChatImageMessage(messageText) {
-    if (!messageText) return;
+function hideChatImageMessage(messageElement) {
+    if (!messageElement) return;
 
-    ensureChatImageHiddenTip(messageText);
-    messageText.classList.add('image-hidden');
+    ensureChatImageHiddenTip(messageElement);
+    messageElement.classList.add('image-hidden');
 }
 
-function showChatImageMessage(messageText) {
-    if (!messageText) return;
+function showChatImageMessage(messageElement) {
+    if (!messageElement) return;
 
-    messageText.classList.remove('image-hidden');
-    messageText.querySelector('.chat-image-hidden-tip')?.remove();
-    const image = messageText.querySelector('img.chat-emoji.vip');
+    messageElement.classList.remove('image-hidden');
+    messageElement.querySelector(':scope > .chat-image-hidden-tip')?.remove();
+    const image = messageElement.querySelector('.message-text img');
     markImageLoaded(image);
 }
 
@@ -514,7 +481,7 @@ function getWebhookPlaceholder(type) {
                 card.dataset.tagEditable = canEditTag ? 'true' : 'false';
                 card.innerHTML = `
                     <div class="${streamer.status === 'live' ? 'live-badge' : 'offline-badge'}">
-                        ${streamer.status === 'live' ? '' : '未开播'}
+                        ${streamer.status === 'live' ? 'LIVE' : '未开播'}
                     </div>
                     <div class="avatar-section ${streamer.status === 'live' ? 'has-cover' : ''}">
                         ${streamer.status === 'live'
@@ -575,13 +542,7 @@ function getWebhookPlaceholder(type) {
 
             const liveBadge = card.querySelector('.live-badge');
             if (liveBadge) {
-                createLottie({
-                    container: liveBadge,
-                    renderer: 'canvas',
-                    loop: true,
-                    autoplay: false,
-                    path: '/animation/Live.json'
-                });
+                liveBadge.textContent = 'LIVE';
             }
 
             const cover = card.querySelector('.cover-container');
@@ -1484,11 +1445,16 @@ function getWebhookPlaceholder(type) {
         let chatReconnectTimer = null;
         const CHAT_STICKY_BOTTOM_THRESHOLD = 700;
         const CHAT_BOTTOM_SCROLL_EPSILON = 100;
+        const CHAT_HISTORY_TOP_THRESHOLD = 80;
+        const CHAT_MESSAGE_LIMIT = 1000;
         const renderedMessageIds = new Set();
         const observedChatNodes = new Set();
         let chatFollowMode = true;
         let chatScrollRaf = null;
         let chatResizeObserver = null;
+        let isLoadingHistory = false;
+        let hasMoreHistory = true;
+        let historyLoadingIndicator = null;
 
         function isChatNearBottom(threshold = CHAT_STICKY_BOTTOM_THRESHOLD) {
             return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
@@ -1596,8 +1562,35 @@ function getWebhookPlaceholder(type) {
             });
         }
 
-        function trimChatMessages() {
-            // Unlimited chat history: keep all rendered messages.
+        function getChatMessageNodes() {
+            return Array.from(container.querySelectorAll('.chat-message'));
+        }
+
+        function getFirstChatMessageNode() {
+            return container.querySelector('.chat-message');
+        }
+
+        function forgetRenderedMessage(messageElement) {
+            const messageId = messageElement?.dataset?.messageId;
+            if (messageId) {
+                renderedMessageIds.delete(String(messageId));
+            }
+        }
+
+        function removeChatMessage(messageElement) {
+            if (!messageElement) return;
+
+            unobserveChatNode(messageElement);
+            forgetRenderedMessage(messageElement);
+            messageElement.remove();
+        }
+
+        function trimChatMessages(preferRemoveFrom = 'top') {
+            let messages = getChatMessageNodes();
+            while (messages.length > CHAT_MESSAGE_LIMIT) {
+                const target = preferRemoveFrom === 'bottom' ? messages.pop() : messages.shift();
+                removeChatMessage(target);
+            }
         }
 
         function resetChatMessages() {
@@ -1606,6 +1599,7 @@ function getWebhookPlaceholder(type) {
                 messageElement.remove();
             });
             renderedMessageIds.clear();
+            hasMoreHistory = true;
             hideNewMessageAlert();
             hideMentionAlert();
             closeMessageContextMenu();
@@ -1619,11 +1613,12 @@ function getWebhookPlaceholder(type) {
             const isPureImageMessage = isPureImageMessageContent(data.content);
 
             if (!trackRenderedMessage(data.messageId)) {
-                return;
+                return null;
             }
 
             const shouldStickToBottom = options.stickToBottom ?? chatFollowMode;
             const suppressAlert = options.suppressAlert ?? false;
+            const position = options.position || 'append';
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message message-element';
 
@@ -1632,15 +1627,14 @@ function getWebhookPlaceholder(type) {
             if (data.replyTo) {
                 const replyContent = data.replyTo.content || '';
                 const isImageQuote = /<img\b/i.test(replyContent);
+                const imageQuoteSrc = isImageQuote ? getFirstImageSrc(replyContent) : '';
+                const imageQuoteAttr = imageQuoteSrc ? ` data-image-src="${escapeHtml(imageQuoteSrc)}"` : '';
                 const quoteText = isImageQuote
-                    ? replyContent.replace(
-                        /<img\b([^>]*)>/i,
-                        '<img$1 style="width:30%; height:30%; object-fit:contain; display:block;">'
-                    )
+                    ? '<span class="quote-image-hidden">图片消息已隐藏</span>'
                     : `${replyContent.substring(0, 50)}${replyContent.length > 50 ? '...' : ''}`;
 
                 quoteHTML = `
-                    <div class="message-quote" data-message-id="${data.replyTo.messageId}" style="
+                    <div class="message-quote${isImageQuote ? ' image-quote' : ''}" data-message-id="${data.replyTo.messageId}"${imageQuoteAttr} style="
                         background-color: var(--bg-color);
                         border-left: 3px solid var(--primary-light);
                         border-radius: var(--radius-sm);
@@ -1715,13 +1709,17 @@ function getWebhookPlaceholder(type) {
                 showUserDetail(parseInt(this.dataset.userId));
             });
 
-            container.appendChild(messageElement);
+            if (position === 'prepend') {
+                container.insertBefore(messageElement, options.beforeNode || getFirstChatMessageNode());
+            } else {
+                container.appendChild(messageElement);
+            }
             observeChatNode(messageElement);
-            trimChatMessages();
+            trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
 
             // 判断是否是纯图片消息（chat-emoji vip）
             const messageText = messageElement.querySelector('.message-text');
-            const imageEmoji = messageText.querySelector('img.chat-emoji.vip');
+            const imageEmoji = messageText.querySelector('img');
 
             if (isPureImageMessage && imageEmoji) {
                 // 标记为图片消息
@@ -1732,7 +1730,7 @@ function getWebhookPlaceholder(type) {
                 addChatImageLoadingShell(imageEmoji);
                 markImageLoaded(imageEmoji);
                 if (isImageMessagesBlocked()) {
-                    hideChatImageMessage(messageText);
+                    hideChatImageMessage(messageElement);
                 }
             }
 
@@ -1755,6 +1753,8 @@ function getWebhookPlaceholder(type) {
             } else if (!suppressAlert) {
                 showNewMessageAlert();
             }
+
+            return messageElement;
         }
 
         let mentionAlert = null;
@@ -1821,6 +1821,14 @@ function getWebhookPlaceholder(type) {
         document.addEventListener('click', function (e) {
             const quoteEl = e.target.closest('.message-quote');
             if (!quoteEl) return;
+
+            const imageSrc = quoteEl.getAttribute('data-image-src');
+            if (quoteEl.classList.contains('image-quote')) {
+                if (imageSrc) {
+                    showImagePreview(imageSrc);
+                }
+                return;
+            }
 
             const messageId = quoteEl.getAttribute('data-message-id');
             if (!messageId) return;
@@ -2091,11 +2099,16 @@ function getWebhookPlaceholder(type) {
 
         // 设置引用消息
         function setQuoteMessage(messageData) {
+            const quoteContent = messageData.content || '';
+            const quotePreviewText = /<img\b/i.test(quoteContent)
+                ? '图片消息已隐藏'
+                : `${quoteContent.substring(0, 50)}${quoteContent.length > 50 ? '...' : ''}`;
+
             currentQuote = {
                 messageId: messageData.messageId,
                 uid: messageData.uid,
                 uname: messageData.uname,
-                content: messageData.content
+                content: quoteContent
             };
 
             // 显示预览
@@ -2106,7 +2119,7 @@ function getWebhookPlaceholder(type) {
                         <span style="font-weight:500; color: var(--primary-color);">引用 ${messageData.uname}:</span>
                         <button class="quote-cancel-btn"><i class="fas fa-times"></i></button>
                     </div>
-                    <div class="quote-text">${escapeHtml(messageData.content.substring(0, 50))}${messageData.content.length > 50 ? '...' : ''}</div>
+                    <div class="quote-text">${escapeHtml(quotePreviewText)}</div>
                 </div>
             `;
             preview.style.display = 'block';
@@ -2180,10 +2193,15 @@ function getWebhookPlaceholder(type) {
         }
 
         function addSystemMessageToChat(data, options = {}) {
+            if (data.messageId && !trackRenderedMessage(data.messageId)) {
+                return null;
+            }
+
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message system-message';
             const shouldStickToBottom = options.stickToBottom ?? chatFollowMode;
             const suppressAlert = options.suppressAlert ?? false;
+            const position = options.position || 'append';
 
             messageElement.innerHTML = `
             <div class="system-content">
@@ -2191,6 +2209,10 @@ function getWebhookPlaceholder(type) {
                 ${data.timestamp ? `<span class="message-time">${data.timestamp}</span>` : ''}
             </div>
         `;
+
+            if (data.messageId) {
+                messageElement.dataset.messageId = data.messageId;
+            }
 
             // 给开播通知中的链接绑定点击上报
             messageElement.querySelectorAll('a[href]').forEach(link => {
@@ -2203,15 +2225,21 @@ function getWebhookPlaceholder(type) {
                 });
             });
 
-            container.appendChild(messageElement);
+            if (position === 'prepend') {
+                container.insertBefore(messageElement, options.beforeNode || getFirstChatMessageNode());
+            } else {
+                container.appendChild(messageElement);
+            }
             observeChatNode(messageElement);
-            trimChatMessages();
+            trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
 
             if (shouldStickToBottom) {
                 scheduleChatScrollToBottom();
             } else if (!suppressAlert) {
                 showNewMessageAlert();
             }
+
+            return messageElement;
         }
 
         // 新消息提示相关变量
@@ -2255,9 +2283,89 @@ function getWebhookPlaceholder(type) {
             }
         }
 
-        // 监听容器滚动，当用户滚动到底部时隐藏提示
+        function getTopMessageId() {
+            return container.querySelector('.chat-message[data-message-id]')?.dataset.messageId || '';
+        }
+
+        function normalizeHistoryMessages(result) {
+            const body = result?.data ?? result?.body ?? result;
+            if (Array.isArray(body)) return body;
+            if (Array.isArray(body?.messages)) return body.messages;
+            if (Array.isArray(body?.data)) return body.data;
+            return [];
+        }
+
+        function showHistoryLoadingIndicator() {
+            if (historyLoadingIndicator) return;
+
+            historyLoadingIndicator = document.createElement('div');
+            historyLoadingIndicator.className = 'chat-history-loading';
+            historyLoadingIndicator.innerHTML = `
+                <span class="chat-history-spinner"></span>
+                <span>正在加载历史消息</span>
+            `;
+            container.appendChild(historyLoadingIndicator);
+        }
+
+        function hideHistoryLoadingIndicator() {
+            historyLoadingIndicator?.remove();
+            historyLoadingIndicator = null;
+        }
+
+        async function loadOlderMessages() {
+            if (isLoadingHistory || !hasMoreHistory) return;
+
+            const topMessageId = getTopMessageId();
+            if (!topMessageId) return;
+
+            isLoadingHistory = true;
+            showHistoryLoadingIndicator();
+            const previousScrollHeight = container.scrollHeight;
+            const previousScrollTop = container.scrollTop;
+            const anchorNode = getFirstChatMessageNode();
+
+            try {
+                const result = await ApiEndpoints.messageHistory(topMessageId);
+                const messages = normalizeHistoryMessages(result);
+                if (!messages.length) {
+                    hasMoreHistory = false;
+                    return;
+                }
+
+                let addedCount = 0;
+                messages.forEach(msg => {
+                    const addOptions = {
+                        stickToBottom: false,
+                        suppressAlert: true,
+                        position: 'prepend',
+                        beforeNode: anchorNode
+                    };
+                    const added = msg.type === 'status'
+                        ? addSystemMessageToChat(msg, addOptions)
+                        : addMessageToChat(msg, addOptions);
+                    if (added) addedCount++;
+                });
+
+                if (addedCount === 0) {
+                    hasMoreHistory = false;
+                }
+
+                container.scrollTop = container.scrollHeight - previousScrollHeight + previousScrollTop;
+            } catch (error) {
+                console.error('加载历史消息失败:', error);
+                Toast.show('历史消息加载失败', 'error');
+            } finally {
+                isLoadingHistory = false;
+                hideHistoryLoadingIndicator();
+            }
+        }
+
+        // 监听容器滚动，当用户滚动到底部时隐藏提示，滚动到顶部时加载历史消息
         container.addEventListener('scroll', function() {
             syncChatFollowMode();
+            if (container.scrollTop <= CHAT_HISTORY_TOP_THRESHOLD) {
+                loadOlderMessages();
+            }
         });
 
         async function setupWebSocket() {
@@ -2487,34 +2595,166 @@ function getWebhookPlaceholder(type) {
 
             if (isImagePreviewOpen) return;
             isImagePreviewOpen = true;
+            let scale = 1;
+            let offsetX = 0;
+            let offsetY = 0;
+            let dragStartX = 0;
+            let dragStartY = 0;
+            let startOffsetX = 0;
+            let startOffsetY = 0;
+            let isDraggingImage = false;
+            let hasDraggedImage = false;
 
-            // 创建遮罩层
             const preview = document.createElement("div");
             preview.className = "image-preview-overlay";
+
             const content = document.createElement("div");
             content.className = "image-preview-content";
+
             const img = document.createElement("img");
             img.src = src;
             img.alt = "preview";
+
+            const toolbar = document.createElement("div");
+            toolbar.className = "image-preview-toolbar";
+            toolbar.innerHTML = `
+                <button type="button" class="image-preview-action" data-action="zoom-out" aria-label="缩小">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button type="button" class="image-preview-action" data-action="reset" aria-label="恢复原始大小">100%</button>
+                <button type="button" class="image-preview-action" data-action="zoom-in" aria-label="放大">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button type="button" class="image-preview-action image-preview-close" data-action="close" aria-label="关闭">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
             content.appendChild(img);
+            content.appendChild(toolbar);
             preview.appendChild(content);
             document.body.appendChild(preview);
 
-            // 设置图片的样式
-            img.style.maxWidth = "80vw";
-            img.style.maxHeight = "80vh";
-            img.style.objectFit = "contain";
-            img.style.display = "block";
-            img.style.margin = "auto"; // 居中显示
-            markImageLoaded(img);
+            const applyTransform = () => {
+                if (scale <= 1) {
+                    offsetX = 0;
+                    offsetY = 0;
+                }
 
-            // 点击遮罩层区域时，关闭预览
+                img.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${scale})`;
+                img.classList.toggle('can-drag', scale > 1);
+                toolbar.querySelector('[data-action="reset"]').textContent = `${Math.round(scale * 100)}%`;
+            };
+
+            const closePreview = () => {
+                preview.remove();
+                document.removeEventListener('keydown', handleKeydown);
+                isImagePreviewOpen = false;
+            };
+
+            const zoomBy = (delta) => {
+                scale = Math.min(4, Math.max(0.25, Number((scale + delta).toFixed(2))));
+                applyTransform();
+            };
+
+            const resetZoom = () => {
+                scale = 1;
+                offsetX = 0;
+                offsetY = 0;
+                applyTransform();
+            };
+
+            function handleKeydown(event) {
+                if (event.key === 'Escape') {
+                    closePreview();
+                } else if (event.key === '+' || event.key === '=') {
+                    zoomBy(0.25);
+                } else if (event.key === '-') {
+                    zoomBy(-0.25);
+                } else if (event.key === '0') {
+                    resetZoom();
+                }
+            }
+
+            img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+            if (img.complete && img.naturalWidth > 0) {
+                img.classList.add('is-loaded');
+            }
+
+            applyTransform();
+
             preview.addEventListener("click", (e) => {
-                if (e.target === preview) {
-                    document.body.removeChild(preview);
-                    isImagePreviewOpen = false;
+                if (e.target.closest('.image-preview-toolbar')) return;
+                if (hasDraggedImage) {
+                    hasDraggedImage = false;
+                    return;
+                }
+
+                closePreview();
+            });
+
+            img.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                isDraggingImage = scale > 1;
+                hasDraggedImage = false;
+                dragStartX = event.clientX;
+                dragStartY = event.clientY;
+                startOffsetX = offsetX;
+                startOffsetY = offsetY;
+                img.classList.toggle('is-dragging', isDraggingImage);
+                img.setPointerCapture?.(event.pointerId);
+            });
+
+            img.addEventListener('pointermove', (event) => {
+                if (!isDraggingImage) return;
+
+                const deltaX = event.clientX - dragStartX;
+                const deltaY = event.clientY - dragStartY;
+                if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+                    hasDraggedImage = true;
+                }
+
+                offsetX = startOffsetX + deltaX;
+                offsetY = startOffsetY + deltaY;
+                applyTransform();
+            });
+
+            img.addEventListener('pointerup', (event) => {
+                img.releasePointerCapture?.(event.pointerId);
+                img.classList.remove('is-dragging');
+                isDraggingImage = false;
+            });
+
+            img.addEventListener('pointercancel', (event) => {
+                img.releasePointerCapture?.(event.pointerId);
+                img.classList.remove('is-dragging');
+                isDraggingImage = false;
+            });
+
+            toolbar.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const button = event.target.closest('[data-action]');
+                if (!button) return;
+
+                const action = button.dataset.action;
+                if (action === 'zoom-in') {
+                    zoomBy(0.25);
+                } else if (action === 'zoom-out') {
+                    zoomBy(-0.25);
+                } else if (action === 'reset') {
+                    resetZoom();
+                } else if (action === 'close') {
+                    closePreview();
                 }
             });
+
+            preview.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                zoomBy(event.deltaY < 0 ? 0.1 : -0.1);
+            }, { passive: false });
+
+            document.addEventListener('keydown', handleKeydown);
         }
 
         async function getFingerprint() {
