@@ -46,6 +46,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
     <script defer src="assets/js/config.js"></script>
     <script defer src="assets/js/api.js"></script>
+    <script defer src="assets/js/chat-input-utils.js"></script>
     <script defer src="assets/js/app.js"></script>
 </head>
 <body>
@@ -145,7 +146,7 @@
                 <button class="emoji-toggle" id="emojiToggle">
                     <i class="far fa-smile"></i>
                 </button>
-                <input type="text" class="chat-input" id="chatInput" placeholder="来嘟两句呗..." maxlength="256">
+                <textarea class="chat-input" id="chatInput" placeholder="来嘟两句呗..." maxlength="256" rows="1"></textarea>
                 <button class="send-btn" id="sendBtn" disabled>
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -351,7 +352,7 @@
 
                         <div class="faction-option-row" data-faction="juan">
                             <div class="faction-animation-row" id="juanAnimation">
-                                <img class="faction-static-image" src="https://dummyimage.com/100x100/4a6cf7/ffffff&text=JUAN" alt="卷阵营">
+                                <img class="faction-static-image" src="https://rustfs.saidao.cc/images/0bc9460c-d3c0-4d59-80e3-7e437a798ca0.png" alt="卷阵营">
                             </div>
                             <div class="faction-content-row">
                                 <div class="faction-title-row">

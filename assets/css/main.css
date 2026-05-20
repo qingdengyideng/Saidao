@@ -260,8 +260,8 @@
 
         .live-badge {
             position: absolute;
-            top: 10px;
-            right: 12px;
+            top: 6px;
+            right: 8px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -269,13 +269,9 @@
             height: 24px;
             padding: 0 10px;
             border-radius: 999px;
-            background:
-                linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 42%),
-                repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.16) 0 4px, transparent 4px 8px),
-                linear-gradient(135deg, #ff3b30, #b80016);
+            background: #e11d2e;
             color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.58);
-            box-shadow: 0 8px 18px rgba(184, 0, 22, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+            box-shadow: 0 8px 18px rgba(225, 29, 46, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
             font-size: 11px;
             font-weight: 800;
             letter-spacing: 0.08em;
@@ -292,6 +288,8 @@
             border-radius: 50%;
             background: #fff;
             box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+            animation: live-dot-breathe 2s ease-in-out infinite;
+            transform-origin: center;
         }
 
         .offline-badge {
@@ -939,53 +937,11 @@
             padding: 0;
         }
 
-        .chat-image-shell {
-            position: relative;
-            display: block;
-            width: 220px;
-            height: 160px;
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: var(--chat-border);
-            background-image:
-                linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='160' viewBox='0 0 220 160'%3E%3Crect width='220' height='160' rx='12' fill='%23e7e1dc'/%3E%3Cpath d='M72 103l28-30 24 25 14-15 27 20' fill='none' stroke='%23958e86' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='143' cy='55' r='13' fill='%23958e86'/%3E%3C/svg%3E");
-            background-position: center;
-            background-repeat: no-repeat;
-            background-size: cover;
-        }
-
-        .chat-image-shell::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-            transform: translateX(-100%);
-            animation: image-loading-shimmer 1.2s infinite;
-        }
-
-        .chat-image-shell.is-loaded {
-            width: auto;
-            height: auto;
-            overflow: visible;
-            background-color: transparent;
-            background-image: none;
-        }
-
-        .chat-image-shell.is-loaded::after {
-            display: none;
-        }
-
         .message-text.image-only img {
             max-width: 220px;
             border-radius: 12px;
             display: block;
             cursor: pointer;
-            opacity: 0;
-        }
-
-        .message-text.image-only img.is-loaded {
-            opacity: 1;
         }
 
         .chat-image-hidden-tip {
@@ -1020,12 +976,6 @@
         .quote-image-hidden {
             color: var(--text-light);
             font-style: normal;
-        }
-
-        @keyframes image-loading-shimmer {
-            100% {
-                transform: translateX(100%);
-            }
         }
 
         .message-text.image-only::before,
@@ -1172,19 +1122,25 @@
 
         .chat-input-container {
             display: flex;
+            align-items: flex-end;
             gap: 8px;
         }
 
         .chat-input {
             flex-grow: 1;
+            min-height: 40px;
+            max-height: 120px;
             padding: 10px 14px;
             border-radius: 20px;
             border: 1px solid var(--chat-border);
             font-family: 'Inter', sans-serif;
             font-size: 16px;
+            line-height: 1.5;
             transition: var(--transition);
             background-color: var(--chat-border);
             color: var(--text-primary);
+            resize: none;
+            overflow-y: hidden;
         }
 
         .chat-emoji {
@@ -1817,6 +1773,19 @@
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
+        }
+
+        @keyframes live-dot-breathe {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.22);
+            }
+            50% {
+                opacity: 0.25;
+                transform: scale(0.68);
+                box-shadow: 0 0 0 7px rgba(255, 255, 255, 0);
+            }
         }
 
         @keyframes fadeIn {

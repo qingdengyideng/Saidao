@@ -6,6 +6,7 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 const byId = (id) => document.getElementById(id);
 const on = (target, event, handler, options) => target?.addEventListener(event, handler, options);
+const ChatInputUtils = window.ChatInputUtils;
 const setActiveItem = (items, current, activeClass = 'active') => {
     items.forEach((item) => item.classList.toggle(activeClass, item === current));
 };
@@ -73,6 +74,25 @@ function handleResize() {
 function setViewportHeightVar() {
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+function syncChatInputHeight(input = byId('chatInput')) {
+    if (!input) return;
+
+    const styles = window.getComputedStyle(input);
+    const minHeight = parseFloat(styles.minHeight) || input.clientHeight;
+    const maxHeight = parseFloat(styles.maxHeight) || input.scrollHeight;
+
+    input.style.height = 'auto';
+
+    const { height, overflowY } = ChatInputUtils.getAutoGrowMetrics({
+        scrollHeight: input.scrollHeight,
+        minHeight,
+        maxHeight,
+    });
+
+    input.style.height = `${height}px`;
+    input.style.overflowY = overflowY;
 }
 
 function initializeFactionSelection() {
@@ -160,29 +180,18 @@ function getFirstImageSrc(content) {
 
 function markImageLoaded(image) {
     if (!image) return;
-    const shell = image.closest('.chat-image-shell, .image-preview-content');
+    const previewContent = image.closest('.image-preview-content');
 
     if (image.complete && image.naturalWidth > 0) {
         image.classList.add('is-loaded');
-        shell?.classList.add('is-loaded');
+        previewContent?.classList.add('is-loaded');
         return;
     }
 
     image.addEventListener('load', () => {
         image.classList.add('is-loaded');
-        shell?.classList.add('is-loaded');
+        previewContent?.classList.add('is-loaded');
     }, { once: true });
-}
-
-function addChatImageLoadingShell(image) {
-    if (!image || image.parentElement?.classList.contains('chat-image-shell')) {
-        return;
-    }
-
-    const shell = document.createElement('span');
-    shell.className = 'chat-image-shell';
-    image.parentNode.insertBefore(shell, image);
-    shell.appendChild(image);
 }
 
 function ensureChatImageHiddenTip(messageElement) {
@@ -276,8 +285,9 @@ function initEventListeners() {
 
     on(input, 'input', handleChatInput);
     on(byId('tagEditorInput'), 'input', syncTagPreview);
+    syncChatInputHeight(input);
     on(input, 'keydown', (event) => {
-        if (event.key !== 'Enter') return;
+        if (!ChatInputUtils.shouldSendOnChatKeydown(event)) return;
         event.preventDefault();
         sendMessage();
     });
@@ -797,6 +807,7 @@ function getWebhookPlaceholder(type) {
 
             const chatInput = byId('chatInput');
             chatInput.value += `[${emoji.name}]`;
+            syncChatInputHeight(chatInput);
             chatInput.focus();
             const sendBtn = byId('sendBtn');
             sendBtn.disabled = false;
@@ -806,6 +817,7 @@ function getWebhookPlaceholder(type) {
         function handleChatInput() {
             const sendBtn = byId('sendBtn');
             sendBtn.disabled = this.value.trim() === '';
+            syncChatInputHeight(this);
         }
 
         // 显示用户详情
@@ -1460,6 +1472,20 @@ function getWebhookPlaceholder(type) {
             return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
         }
 
+        function shouldAppendStickToBottom(options, position) {
+            if (options.stickToBottom !== undefined && options.stickToBottom !== null) {
+                return options.stickToBottom;
+            }
+
+            return position === 'append' && (chatFollowMode || isChatNearBottom(CHAT_BOTTOM_SCROLL_EPSILON));
+        }
+
+        function followChatBottom() {
+            chatFollowMode = true;
+            hideNewMessageAlert();
+            scheduleChatScrollToBottom();
+        }
+
         function syncChatFollowMode() {
             chatFollowMode = isChatNearBottom(CHAT_BOTTOM_SCROLL_EPSILON);
             if (chatFollowMode) {
@@ -1616,9 +1642,9 @@ function getWebhookPlaceholder(type) {
                 return null;
             }
 
-            const shouldStickToBottom = options.stickToBottom ?? chatFollowMode;
             const suppressAlert = options.suppressAlert ?? false;
             const position = options.position || 'append';
+            const shouldStickToBottom = shouldAppendStickToBottom(options, position);
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message message-element';
 
@@ -1727,8 +1753,12 @@ function getWebhookPlaceholder(type) {
 
                 // 去掉气泡，只保留图片
                 messageText.classList.add('image-only');
-                addChatImageLoadingShell(imageEmoji);
                 markImageLoaded(imageEmoji);
+                imageEmoji.addEventListener('load', () => {
+                    if (shouldStickToBottom) {
+                        followChatBottom();
+                    }
+                }, { once: true });
                 if (isImageMessagesBlocked()) {
                     hideChatImageMessage(messageElement);
                 }
@@ -1749,7 +1779,7 @@ function getWebhookPlaceholder(type) {
             bindMessageContextMenu(messageElement, data);
 
             if (shouldStickToBottom) {
-                scheduleChatScrollToBottom();
+                followChatBottom();
             } else if (!suppressAlert) {
                 showNewMessageAlert();
             }
@@ -2130,6 +2160,7 @@ function getWebhookPlaceholder(type) {
             // 输入框自动聚焦并填入 @username
             const chatInput = document.getElementById('chatInput');
             chatInput.value = `@${messageData.uname} `;
+            syncChatInputHeight(chatInput);
             chatInput.focus();
             document.getElementById('sendBtn').disabled = false;
         }
@@ -2156,6 +2187,7 @@ function getWebhookPlaceholder(type) {
             const currentValue = chatInput.value.trim();
             const separator = currentValue && !currentValue.endsWith(' ') ? ' ' : '';
             chatInput.value = `${currentValue}${separator}@${uname} `;
+            syncChatInputHeight(chatInput);
             chatInput.focus();
             document.getElementById('sendBtn').disabled = false;
             // 注意：这里仅在前端输入框添加了文本，实际被@的UID列表需要在发送时从 currentQuote 或解析输入框内容获得。
@@ -2199,9 +2231,9 @@ function getWebhookPlaceholder(type) {
 
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message system-message';
-            const shouldStickToBottom = options.stickToBottom ?? chatFollowMode;
             const suppressAlert = options.suppressAlert ?? false;
             const position = options.position || 'append';
+            const shouldStickToBottom = shouldAppendStickToBottom(options, position);
 
             messageElement.innerHTML = `
             <div class="system-content">
@@ -2234,7 +2266,7 @@ function getWebhookPlaceholder(type) {
             trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
 
             if (shouldStickToBottom) {
-                scheduleChatScrollToBottom();
+                followChatBottom();
             } else if (!suppressAlert) {
                 showNewMessageAlert();
             }
@@ -2481,6 +2513,7 @@ function getWebhookPlaceholder(type) {
             socket.send(JSON.stringify(newMessage));
 
             chatInput.value = '';
+            syncChatInputHeight(chatInput);
             document.getElementById('sendBtn').disabled = true;
             clearQuote();
             closeEmojiSection();
