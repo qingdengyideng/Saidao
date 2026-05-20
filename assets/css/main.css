@@ -735,6 +735,141 @@
             font-weight: 600;
         }
 
+        .chat-hotwords {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 52px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--chat-border);
+            overflow-x: auto;
+            scrollbar-width: none;
+            background: linear-gradient(180deg, rgba(255, 250, 241, 0.98), rgba(248, 252, 255, 0.98));
+        }
+
+        .chat-hotwords[hidden] {
+            display: none;
+        }
+
+        .chat-hotwords::-webkit-scrollbar {
+            display: none;
+        }
+
+        .chat-hotwords::before {
+            content: "Hot";
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            height: 30px;
+            padding-right: 2px;
+            color: #e6403c;
+            font-size: 13px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .chat-hotwords::after {
+            content: "";
+            position: sticky;
+            right: -16px;
+            flex: 0 0 28px;
+            align-self: stretch;
+            margin-left: -28px;
+            background: linear-gradient(90deg, rgba(248, 252, 255, 0), rgba(248, 252, 255, 0.98));
+            pointer-events: none;
+        }
+
+        .hotword-chip {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            height: 34px;
+            max-width: 172px;
+            padding: 0 13px;
+            border: 1px solid rgba(212, 107, 8, 0.22);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.82);
+            color: #4a3420;
+            font-size: 13px;
+            font-weight: 700;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(116, 75, 16, 0.08);
+            transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .hotword-chip:hover {
+            transform: translateY(-1px);
+            border-color: rgba(212, 107, 8, 0.45);
+            background: #fff;
+            box-shadow: 0 5px 14px rgba(116, 75, 16, 0.13);
+        }
+
+        .hotword-chip-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .hotword-chip-count {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: rgba(255, 214, 102, 0.35);
+            color: #d46b08;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .hotword-match {
+            padding: 0 2px;
+            border-radius: 4px;
+            background: #ffd666;
+            color: #5c3b00;
+            font-weight: 800;
+        }
+
+        [data-theme="dark"] .chat-hotwords {
+            background: linear-gradient(180deg, rgba(38, 35, 30, 0.98), rgba(28, 34, 39, 0.98));
+        }
+
+        [data-theme="dark"] .chat-hotwords::before {
+            color: #ffd591;
+        }
+
+        [data-theme="dark"] .chat-hotwords::after {
+            background: linear-gradient(90deg, rgba(28, 34, 39, 0), rgba(28, 34, 39, 0.98));
+        }
+
+        [data-theme="dark"] .hotword-chip {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 180, 80, 0.24);
+            color: #fff7e6;
+            box-shadow: none;
+        }
+
+        [data-theme="dark"] .hotword-chip:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 180, 80, 0.5);
+        }
+
+        [data-theme="dark"] .hotword-chip-count {
+            background: rgba(250, 173, 20, 0.2);
+            color: #ffd591;
+        }
+
+        [data-theme="dark"] .hotword-match {
+            background: #ad6800;
+            color: #fff7e6;
+        }
 
         .chat-toggle {
             border: none;

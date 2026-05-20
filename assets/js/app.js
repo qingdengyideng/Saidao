@@ -12,6 +12,10 @@ const setActiveItem = (items, current, activeClass = 'active') => {
 };
 const setModalOpen = (id, isOpen) => byId(id)?.classList.toggle('active', isOpen);
 const BLOCK_IMAGE_MESSAGES_KEY = 'blockImageMessages';
+let hotWordSearchState = {
+    word: '',
+    cursor: null
+};
 
 // 检测设备类型
 function detectDeviceType() {
@@ -229,6 +233,118 @@ function showChatImageMessage(messageElement) {
     markImageLoaded(image);
 }
 
+function renderHotWords(words) {
+    const container = byId('chatHotWords');
+    if (!container) return;
+
+    const visibleWords = (Array.isArray(words) ? words : [])
+        .filter((word) => word && String(word.text || '').trim())
+        .slice(0, 8);
+
+    if (!visibleWords.length) {
+        container.hidden = true;
+        container.innerHTML = '';
+        return;
+    }
+
+    container.hidden = false;
+    container.innerHTML = visibleWords.map((word) => {
+        const text = String(word.text).trim();
+        const count = Number(word.count) || 0;
+        return `
+            <button class="hotword-chip" type="button" data-word="${escapeHtml(text)}" title="定位包含 ${escapeHtml(text)} 的消息">
+                <span class="hotword-chip-label">${escapeHtml(text)}</span>
+                <span class="hotword-chip-count">${count}</span>
+            </button>
+        `;
+    }).join('');
+}
+
+function getMessageSearchText(messageElement) {
+    const content = messageElement?.dataset?.content;
+    if (content) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = content;
+        return wrapper.innerText || wrapper.textContent || '';
+    }
+
+    return messageElement?.querySelector('.message-text')?.innerText || '';
+}
+
+function clearHotWordHighlights(root = document) {
+    root.querySelectorAll('mark.hotword-match').forEach((mark) => {
+        mark.replaceWith(document.createTextNode(mark.textContent));
+    });
+    root.normalize();
+}
+
+function highlightHotWordInMessage(messageElement, word) {
+    const messageText = messageElement?.querySelector('.message-text');
+    if (!messageText || !word) return;
+
+    clearHotWordHighlights(messageText);
+
+    const keyword = String(word);
+    const keywordLower = keyword.toLowerCase();
+    const walker = document.createTreeWalker(messageText, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        textNodes.push(node);
+    }
+
+    textNodes.forEach((textNode) => {
+        const value = textNode.nodeValue || '';
+        const index = value.toLowerCase().indexOf(keywordLower);
+        if (index < 0) return;
+
+        const range = document.createRange();
+        range.setStart(textNode, index);
+        range.setEnd(textNode, index + keyword.length);
+
+        const mark = document.createElement('mark');
+        mark.className = 'hotword-match';
+        range.surroundContents(mark);
+    });
+}
+
+function focusHotWordMessage(word) {
+    const keyword = String(word || '').trim().toLowerCase();
+    if (!keyword) return;
+
+    clearHotWordHighlights();
+
+    const messages = getChatMessageNodes();
+    const matches = messages.filter((messageElement) => (
+        getMessageSearchText(messageElement).toLowerCase().includes(keyword)
+    ));
+
+    if (!matches.length) {
+        hotWordSearchState = { word: '', cursor: null };
+        Toast.show('当前聊天记录中未找到该热词', 'info');
+        return;
+    }
+
+    const previousCursor = hotWordSearchState.word === keyword ? hotWordSearchState.cursor : null;
+    const previousIndex = previousCursor
+        ? matches.findIndex((messageElement) => messageElement === previousCursor)
+        : -1;
+    const nextIndex = previousIndex > 0 ? previousIndex - 1 : matches.length - 1;
+    const target = matches[nextIndex];
+    hotWordSearchState = { word: keyword, cursor: target };
+
+    target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+    });
+
+    highlightHotWordInMessage(target, word);
+    target.classList.add('message-highlight');
+    setTimeout(() => {
+        target.classList.remove('message-highlight');
+    }, 2000);
+}
+
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 // 初始化事件监听器
@@ -251,6 +367,11 @@ function initEventListeners() {
         fetchStreamers();
     });
     on(byId('blockImageMessages'), 'change', handleBlockImageMessagesChange);
+    on(byId('chatHotWords'), 'click', (event) => {
+        const chip = event.target.closest('.hotword-chip');
+        if (!chip) return;
+        focusHotWordMessage(chip.dataset.word);
+    });
 
         [
             ['closeLoginModal', closeLoginModal],
@@ -2447,6 +2568,8 @@ function getWebhookPlaceholder(type) {
                 } else if (data.type === 'onlineCount') {
                     const onlineCount = document.getElementById('onlineCount');
                     onlineCount.textContent = `${data.count}人在线`;
+                } else if (data.type === 'hotWords') {
+                    renderHotWords(data.words);
                 } else if (data.type === 'status') {
                     addSystemMessageToChat(data);
                     fetchStreamers()
