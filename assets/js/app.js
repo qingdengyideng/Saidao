@@ -12,6 +12,7 @@ const setActiveItem = (items, current, activeClass = 'active') => {
 };
 const setModalOpen = (id, isOpen) => byId(id)?.classList.toggle('active', isOpen);
 const BLOCK_IMAGE_MESSAGES_KEY = 'blockImageMessages';
+const HOT_WORDS_COLLAPSED_KEY = 'chatHotWordsCollapsed';
 let hotWordSearchState = {
     word: '',
     cursor: null
@@ -41,6 +42,7 @@ function initializeApp() {
     detectDeviceType();
     setViewportHeightVar();
     applyStoredChatImageFilter();
+    setHotWordsCollapsed(isHotWordsCollapsed());
     initEventListeners();
     initializeFactionSelection();
     initializeEmojiPreviewDelegation();
@@ -135,6 +137,26 @@ function applyStoredChatImageFilter() {
     if (checkbox) {
         checkbox.checked = isImageMessagesBlocked();
     }
+}
+
+function isHotWordsCollapsed() {
+    return localStorage.getItem(HOT_WORDS_COLLAPSED_KEY) === 'true';
+}
+
+function setHotWordsCollapsed(collapsed) {
+    const container = byId('chatHotWords');
+    const toggle = byId('chatHotWordsToggle');
+
+    if (container && container.dataset.hasHotWords === 'true') {
+        container.hidden = collapsed;
+        container.dataset.collapsed = String(collapsed);
+    }
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.setAttribute('title', collapsed ? '展开 Hot 模块' : '收起 Hot 模块');
+        toggle.classList.toggle('is-collapsed', collapsed);
+    }
+    localStorage.setItem(HOT_WORDS_COLLAPSED_KEY, String(collapsed));
 }
 
 function handleBlockImageMessagesChange(event) {
@@ -243,11 +265,13 @@ function renderHotWords(words) {
 
     if (!visibleWords.length) {
         container.hidden = true;
+        container.dataset.hasHotWords = 'false';
+        container.dataset.collapsed = String(isHotWordsCollapsed());
         container.innerHTML = '';
         return;
     }
 
-    container.hidden = false;
+    container.dataset.hasHotWords = 'true';
     container.innerHTML = visibleWords.map((word) => {
         const text = String(word.text).trim();
         const count = Number(word.count) || 0;
@@ -258,6 +282,13 @@ function renderHotWords(words) {
             </button>
         `;
     }).join('');
+    setHotWordsCollapsed(isHotWordsCollapsed());
+}
+
+function toggleHotWordsCollapsed() {
+    const container = byId('chatHotWords');
+    const collapsed = container?.dataset.collapsed === 'true' || isHotWordsCollapsed();
+    setHotWordsCollapsed(!collapsed);
 }
 
 function getMessageSearchText(messageElement) {
@@ -367,6 +398,10 @@ function initEventListeners() {
         fetchStreamers();
     });
     on(byId('blockImageMessages'), 'change', handleBlockImageMessagesChange);
+    on(byId('chatHotWordsToggle'), 'click', (event) => {
+        event.preventDefault();
+        toggleHotWordsCollapsed();
+    });
     on(byId('chatHotWords'), 'click', (event) => {
         const chip = event.target.closest('.hotword-chip');
         if (!chip) return;
@@ -408,6 +443,13 @@ function initEventListeners() {
     on(byId('tagEditorInput'), 'input', syncTagPreview);
     syncChatInputHeight(input);
     on(input, 'keydown', (event) => {
+        if (ChatInputUtils.shouldInsertLineBreakOnChatKeydown(event)) {
+            event.preventDefault();
+            input.setRangeText('\n', input.selectionStart, input.selectionEnd, 'end');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+
         if (!ChatInputUtils.shouldSendOnChatKeydown(event)) return;
         event.preventDefault();
         sendMessage();
@@ -1577,7 +1619,7 @@ function getWebhookPlaceholder(type) {
         let socket = null;
         let chatReconnectTimer = null;
         const CHAT_STICKY_BOTTOM_THRESHOLD = 700;
-        const CHAT_BOTTOM_SCROLL_EPSILON = 100;
+        const CHAT_BOTTOM_SCROLL_EPSILON = 200;
         const CHAT_HISTORY_TOP_THRESHOLD = 80;
         const CHAT_MESSAGE_LIMIT = 1000;
         const renderedMessageIds = new Set();

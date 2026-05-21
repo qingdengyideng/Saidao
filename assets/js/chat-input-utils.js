@@ -1,5 +1,9 @@
 (function (global) {
     function shouldSendOnChatKeydown(event) {
+        return event.key === 'Enter' && event.ctrlKey !== true;
+    }
+
+    function shouldInsertLineBreakOnChatKeydown(event) {
         return event.key === 'Enter' && event.ctrlKey === true;
     }
 
@@ -14,6 +18,7 @@
 
     const api = {
         shouldSendOnChatKeydown,
+        shouldInsertLineBreakOnChatKeydown,
         getAutoGrowMetrics,
     };
 

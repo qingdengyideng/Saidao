@@ -724,6 +724,16 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .chat-actions {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
         }
 
         .online-count {
@@ -767,6 +777,43 @@
             font-size: 13px;
             font-weight: 800;
             white-space: nowrap;
+        }
+
+        .chat-hotwords-toggle {
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 0;
+            background: transparent;
+            color: #e6403c;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .chat-hotwords-toggle:hover {
+            color: #c92f2b;
+        }
+
+        .chat-hotwords-toggle.is-collapsed {
+            background: transparent;
+            color: #8a8a8a;
+            opacity: 1;
+        }
+
+        .chat-hotwords-toggle.is-collapsed:hover {
+            background: transparent;
+            color: #6f6f6f;
+            opacity: 1;
+        }
+
+        .chat-hotwords-toggle:active {
+            transform: scale(0.95);
         }
 
         .chat-hotwords::after {
@@ -842,7 +889,7 @@
         }
 
         [data-theme="dark"] .chat-hotwords::before {
-            color: #ffd591;
+            color: #e6403c;
         }
 
         [data-theme="dark"] .chat-hotwords::after {
@@ -897,15 +944,27 @@
 
         .chat-close {
             border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
             background: transparent;
             color: var(--text-light);
-            font-size: 14px;
+            font-size: 18px;
             cursor: pointer;
-            padding: 4px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
         }
 
         .chat-close:hover {
-            color: #ff4d4f;
+            background: rgba(74, 144, 226, 0.1);
+            color: var(--primary-color);
+        }
+
+        .chat-close:active {
+            transform: scale(0.95);
         }
 
         .chat-body {
