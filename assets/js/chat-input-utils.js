@@ -16,10 +16,15 @@
         };
     }
 
+    function shouldShowVoiceEntry({ value, hasVoiceDraft }) {
+        return !hasVoiceDraft && String(value || '').trim() === '';
+    }
+
     const api = {
         shouldSendOnChatKeydown,
         shouldInsertLineBreakOnChatKeydown,
         getAutoGrowMetrics,
+        shouldShowVoiceEntry,
     };
 
     if (typeof module !== 'undefined' && module.exports) {

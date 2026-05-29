@@ -421,7 +421,8 @@ function initEventListeners() {
             ['forgotPassword', openForgotPasswordModal],
             ['testWebhookBtn', handleTestWebhook],
             ['emojiToggle', toggleEmojiSection],
-            ['sendBtn', sendMessage],
+            ['voiceToggle', toggleVoiceRecording],
+            ['voiceRecordingPanel', toggleVoiceRecording],
             ['logoutBtn', handleLogout],
         ].forEach(([id, handler]) => on(byId(id), 'click', handler));
 
@@ -886,7 +887,6 @@ function getWebhookPlaceholder(type) {
         function updateUIState() {
             const loginBtn = byId('loginBtn');
             const userAvatar = byId('userAvatar');
-            const sendBtn = byId('sendBtn');
             const chatInput = byId('chatInput');
 
             chatInput.disabled = false;
@@ -896,12 +896,9 @@ function getWebhookPlaceholder(type) {
                 loginBtn.style.display = 'none';
                 userAvatar.style.display = 'block';
                 userAvatar.src = state.currentUser.avatar;
-
-                sendBtn.disabled = false;
             } else {
                 loginBtn.style.display = 'flex';
                 userAvatar.style.display = 'none';
-                sendBtn.disabled = true;
             }
         }
 
@@ -954,8 +951,325 @@ function getWebhookPlaceholder(type) {
             state.emojiExpanded = false;
          }
 
+        let voiceRecorder = null;
+        let voiceChunks = [];
+        let voiceStream = null;
+        let voiceStartedAt = 0;
+        let voiceTimer = null;
+        let voiceDraft = null;
+        let voiceDraftAudio = null;
+        let isVoiceUploading = false;
+        const VOICE_MIN_SECONDS = 1;
+        const VOICE_MAX_SECONDS = 60;
+
+        function isVoiceRecording() {
+            return voiceRecorder && voiceRecorder.state === 'recording';
+        }
+
+        function updateVoiceRecordingUi(recording, uploading = isVoiceUploading) {
+            const button = byId('voiceToggle');
+            const time = byId('voiceRecordingTime');
+            const shell = byId('chatInputShell');
+            const recordingPanel = byId('voiceRecordingPanel');
+            const emojiButton = byId('emojiToggle');
+            button?.classList.toggle('recording', recording);
+            button?.classList.toggle('uploading', uploading);
+            button?.toggleAttribute('disabled', uploading);
+            shell?.classList.toggle('recording', recording);
+            if (recordingPanel) recordingPanel.hidden = !recording;
+            emojiButton?.classList.toggle('hidden-during-voice', recording || Boolean(voiceDraft));
+            if (time && recording) time.textContent = '0:00';
+        }
+
+        function syncChatComposerState() {
+            const chatInput = byId('chatInput');
+            const shell = byId('chatInputShell');
+            const showVoiceEntry = window.ChatInputUtils.shouldShowVoiceEntry({
+                value: chatInput?.value || '',
+                hasVoiceDraft: Boolean(voiceDraft),
+            });
+            shell?.classList.toggle('has-text', !showVoiceEntry && !voiceDraft);
+            shell?.classList.toggle('has-voice-draft', Boolean(voiceDraft));
+            byId('emojiToggle')?.classList.toggle('hidden-during-voice', Boolean(voiceDraft) || isVoiceRecording());
+        }
+
+        function stopVoiceTracks() {
+            voiceStream?.getTracks().forEach((track) => track.stop());
+            voiceStream = null;
+        }
+
+        function clearVoiceTimer() {
+            if (voiceTimer) {
+                clearInterval(voiceTimer);
+                voiceTimer = null;
+            }
+        }
+
+        async function toggleVoiceRecording() {
+            if (isVoiceUploading) {
+                return;
+            }
+            if (isVoiceRecording()) {
+                voiceRecorder.stop();
+                return;
+            }
+            await startVoiceRecording();
+        }
+
+        async function startVoiceRecording() {
+            clearVoiceDraft();
+            if (!state.isLoggedIn) {
+                openLoginModal();
+                Toast.show('请先登录后发送语音', 'error');
+                return;
+            }
+
+            if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+                Toast.show('当前浏览器不支持录音', 'error');
+                return;
+            }
+
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                Toast.show('聊天室连接中，请稍后再试', 'error');
+                return;
+            }
+
+            try {
+                const mimeType = window.ChatVoiceUtils.getSupportedVoiceMimeType();
+                voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                voiceChunks = [];
+                voiceRecorder = new MediaRecorder(voiceStream, mimeType ? { mimeType } : undefined);
+                voiceStartedAt = Date.now();
+
+                voiceRecorder.addEventListener('dataavailable', (event) => {
+                    if (event.data && event.data.size > 0) {
+                        voiceChunks.push(event.data);
+                    }
+                });
+                voiceRecorder.addEventListener('stop', handleVoiceRecordingStop, { once: true });
+                voiceRecorder.start();
+                updateVoiceRecordingUi(true);
+                startVoiceTimer();
+            } catch (error) {
+                console.error('录音失败:', error);
+                voiceRecorder = null;
+                voiceChunks = [];
+                stopVoiceTracks();
+                updateVoiceRecordingUi(false);
+                Toast.show('无法使用麦克风，请检查权限', 'error');
+            }
+        }
+
+        function startVoiceTimer() {
+            clearVoiceTimer();
+            voiceTimer = setInterval(() => {
+                const seconds = (Date.now() - voiceStartedAt) / 1000;
+                const time = byId('voiceRecordingTime');
+                if (time) {
+                    time.textContent = window.ChatVoiceUtils.formatVoiceDuration(seconds);
+                }
+                if (seconds >= VOICE_MAX_SECONDS && isVoiceRecording()) {
+                    voiceRecorder.stop();
+                }
+            }, 250);
+        }
+
+        async function handleVoiceRecordingStop() {
+            clearVoiceTimer();
+            updateVoiceRecordingUi(false);
+            stopVoiceTracks();
+
+            const duration = (Date.now() - voiceStartedAt) / 1000;
+            const mimeType = voiceRecorder?.mimeType || 'audio/webm';
+            const chunks = voiceChunks;
+            voiceRecorder = null;
+            voiceChunks = [];
+
+            if (duration < VOICE_MIN_SECONDS) {
+                Toast.show('录音时间太短', 'error');
+                return;
+            }
+
+            const blob = new Blob(chunks, { type: mimeType });
+            await setVoiceDraft(blob, duration);
+        }
+
+        async function setVoiceDraft(blob, estimatedDuration) {
+            const { duration, waveform } = await getVoiceBlobMeta(blob, estimatedDuration);
+            const audioUrl = URL.createObjectURL(blob);
+            voiceDraft = { blob, duration, waveform, audioUrl };
+            renderVoiceDraft();
+            syncChatComposerState();
+            closeEmojiSection();
+        }
+
+        function clearVoiceDraft() {
+            if (voiceDraftAudio) {
+                voiceDraftAudio.pause();
+                voiceDraftAudio = null;
+            }
+            if (voiceDraft?.audioUrl) {
+                URL.revokeObjectURL(voiceDraft.audioUrl);
+            }
+            voiceDraft = null;
+            const draft = byId('voiceDraft');
+            if (draft) {
+                draft.hidden = true;
+                draft.innerHTML = '';
+            }
+            syncChatComposerState();
+        }
+
+        function renderVoiceDraft() {
+            const draft = byId('voiceDraft');
+            if (!draft || !voiceDraft) return;
+            draft.hidden = false;
+            if (isVoiceUploading) {
+                draft.classList.add('uploading');
+                draft.innerHTML = `
+                    <span class="voice-upload-spinner" aria-hidden="true"></span>
+                    <span class="voice-upload-text">正在发送...</span>
+                `;
+                return;
+            }
+
+            draft.classList.remove('uploading');
+            draft.innerHTML = `
+                <button class="voice-draft-play" type="button" aria-label="试听语音">
+                    <i class="fas fa-play"></i>
+                </button>
+                <span class="voice-draft-label">试听</span>
+                <span class="voice-draft-duration">${window.ChatVoiceUtils.formatVoiceDurationSeconds(voiceDraft.duration)}</span>
+                <button class="voice-draft-send" type="button" aria-label="发送语音">
+                    发送
+                </button>
+                <button class="voice-draft-cancel" type="button" aria-label="取消语音">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            on(draft.querySelector('.voice-draft-play'), 'click', toggleVoiceDraftPlayback);
+            on(draft.querySelector('.voice-draft-send'), 'click', sendVoiceDraft);
+            on(draft.querySelector('.voice-draft-cancel'), 'click', clearVoiceDraft);
+        }
+
+        function toggleVoiceDraftPlayback() {
+            if (!voiceDraft) return;
+            const button = byId('voiceDraft')?.querySelector('.voice-draft-play');
+            if (!voiceDraftAudio) {
+                voiceDraftAudio = new Audio(voiceDraft.audioUrl);
+                voiceDraftAudio.addEventListener('ended', () => {
+                    button?.classList.remove('playing');
+                    button?.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
+                });
+            }
+
+            if (voiceDraftAudio.paused) {
+                voiceDraftAudio.play().then(() => {
+                    button?.classList.add('playing');
+                    button?.querySelector('i')?.classList.replace('fa-play', 'fa-pause');
+                }).catch(() => Toast.show('试听失败', 'error'));
+            } else {
+                voiceDraftAudio.pause();
+                button?.classList.remove('playing');
+                button?.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
+            }
+        }
+
+        async function sendVoiceBlob(blob, duration) {
+            try {
+                const waveform = voiceDraft?.waveform || await buildVoiceWaveform(blob);
+                const formData = new FormData();
+                formData.append('file', blob, `voice-${Date.now()}.webm`);
+                const result = await ApiEndpoints.uploadVoice(formData);
+                const audioUrl = result?.data?.url;
+                if (!audioUrl) {
+                    throw new Error('voice upload returned empty url');
+                }
+
+                const newMessage = {
+                    type: 'voice',
+                    audioUrl,
+                    duration: Math.round(duration * 10) / 10,
+                    waveform,
+                };
+                if (currentQuote) {
+                    newMessage.reply = currentQuote;
+                }
+                socket.send(JSON.stringify(newMessage));
+                clearQuote();
+                clearVoiceDraft();
+            } catch (error) {
+                console.error('发送语音失败:', error);
+                Toast.show('语音发送失败', 'error');
+            }
+        }
+
+        async function sendVoiceDraft() {
+            if (!voiceDraft || isVoiceUploading) return;
+            isVoiceUploading = true;
+            updateVoiceRecordingUi(false, true);
+            syncChatComposerState();
+            renderVoiceDraft();
+            try {
+                await sendVoiceBlob(voiceDraft.blob, voiceDraft.duration);
+            } finally {
+                isVoiceUploading = false;
+                updateVoiceRecordingUi(false, false);
+                syncChatComposerState();
+                if (voiceDraft) {
+                    renderVoiceDraft();
+                }
+            }
+        }
+
+        async function getVoiceBlobMeta(blob, fallbackDuration) {
+            try {
+                const arrayBuffer = await blob.arrayBuffer();
+                const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextCtor) {
+                    return {
+                        duration: Math.max(VOICE_MIN_SECONDS, Math.min(fallbackDuration, VOICE_MAX_SECONDS)),
+                        waveform: window.ChatVoiceUtils.clampWaveform([], 32),
+                    };
+                }
+                const audioContext = new AudioContextCtor();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                const samples = audioBuffer.getChannelData(0);
+                await audioContext.close?.();
+                return {
+                    duration: Math.max(VOICE_MIN_SECONDS, Math.min(audioBuffer.duration, VOICE_MAX_SECONDS)),
+                    waveform: window.ChatVoiceUtils.buildWaveformFromSamples(samples, 32),
+                };
+            } catch (error) {
+                console.warn('读取语音信息失败:', error);
+                return {
+                    duration: Math.max(VOICE_MIN_SECONDS, Math.min(fallbackDuration, VOICE_MAX_SECONDS)),
+                    waveform: window.ChatVoiceUtils.clampWaveform([], 32),
+                };
+            }
+        }
+
+        async function buildVoiceWaveform(blob) {
+            try {
+                const arrayBuffer = await blob.arrayBuffer();
+                const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextCtor) {
+                    return window.ChatVoiceUtils.clampWaveform([], 32);
+                }
+                const audioContext = new AudioContextCtor();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                const samples = audioBuffer.getChannelData(0);
+                await audioContext.close?.();
+                return window.ChatVoiceUtils.buildWaveformFromSamples(samples, 32);
+            } catch (error) {
+                console.warn('生成语音频谱失败:', error);
+                return window.ChatVoiceUtils.clampWaveform([], 32);
+            }
+        }
+
         // 插入表情到聊天输入框
         function insertEmoji(emoji) {
+            clearVoiceDraft();
 
             if (emoji && emoji.hasOwnProperty('clickSend') && emoji.clickSend) {
                 const newMessage = {
@@ -972,15 +1286,80 @@ function getWebhookPlaceholder(type) {
             chatInput.value += `[${emoji.name}]`;
             syncChatInputHeight(chatInput);
             chatInput.focus();
-            const sendBtn = byId('sendBtn');
-            sendBtn.disabled = false;
+            syncChatComposerState();
         }
 
         // 处理聊天输入
         function handleChatInput() {
-            const sendBtn = byId('sendBtn');
-            sendBtn.disabled = this.value.trim() === '';
+            if (this.value.trim() !== '') {
+                clearVoiceDraft();
+            }
+            syncChatComposerState();
             syncChatInputHeight(this);
+        }
+
+        let currentVoiceAudio = null;
+        let currentVoiceButton = null;
+
+        function renderVoiceMessage(data) {
+            const width = window.ChatVoiceUtils.getVoiceBubbleWidth(data.duration);
+
+            return `
+                <div class="voice-message" data-audio-url="${escapeHtml(data.audioUrl || '')}" style="--voice-width:${width}px">
+                    <button class="voice-play-btn" type="button" aria-label="播放语音">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <div class="voice-signal" aria-hidden="true">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <span class="voice-duration">${window.ChatVoiceUtils.formatVoiceDurationSeconds(data.duration)}</span>
+                </div>
+            `;
+        }
+
+        function bindVoicePlayback(messageElement) {
+            const voiceMessage = messageElement.querySelector('.voice-message');
+            const playButton = messageElement.querySelector('.voice-play-btn');
+            if (!voiceMessage || !playButton) return;
+
+            playButton.addEventListener('click', () => {
+                const audioUrl = voiceMessage.dataset.audioUrl;
+                if (!audioUrl) return;
+
+                if (currentVoiceAudio && currentVoiceButton !== playButton) {
+                    currentVoiceAudio.pause();
+                    currentVoiceButton?.closest('.voice-message')?.classList.remove('playing');
+                    currentVoiceButton?.classList.remove('playing');
+                    currentVoiceButton?.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
+                }
+
+                if (!voiceMessage._audio) {
+                    voiceMessage._audio = new Audio(audioUrl);
+                    voiceMessage._audio.addEventListener('ended', () => {
+                        voiceMessage.classList.remove('playing');
+                        playButton.classList.remove('playing');
+                        playButton.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
+                    });
+                }
+
+                const audio = voiceMessage._audio;
+                if (audio.paused) {
+                    audio.play().then(() => {
+                        currentVoiceAudio = audio;
+                        currentVoiceButton = playButton;
+                        voiceMessage.classList.add('playing');
+                        playButton.classList.add('playing');
+                        playButton.querySelector('i')?.classList.replace('fa-play', 'fa-pause');
+                    }).catch(() => Toast.show('语音播放失败', 'error'));
+                } else {
+                    audio.pause();
+                    voiceMessage.classList.remove('playing');
+                    playButton.classList.remove('playing');
+                    playButton.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
+                }
+            });
         }
 
         // 显示用户详情
@@ -1873,6 +2252,10 @@ function getWebhookPlaceholder(type) {
                 ipGeo = 'IP属地：' + data.ipGeo
             }
 
+            const messageBodyHTML = data.messageKind === 'voice'
+                ? renderVoiceMessage(data)
+                : processedContent;
+
             messageElement.innerHTML = `
                 <div class="avatar-container">
                     <img src="${data.avatar}" alt="${data.uname}" class="message-avatar" data-user-id="${data.uid}">
@@ -1886,7 +2269,7 @@ function getWebhookPlaceholder(type) {
                     <div class="message-footer">
                         ${ipGeo}
                     </div>
-                    <div class="message-text">${processedContent}</div>
+                    <div class="message-text${data.messageKind === 'voice' ? ' voice-bubble' : ''}">${messageBodyHTML}</div>
                     ${quoteHTML}
                 </div>
             `;
@@ -1940,6 +2323,10 @@ function getWebhookPlaceholder(type) {
 
             // 绑定右键/长按菜单
             bindMessageContextMenu(messageElement, data);
+
+            if (data.messageKind === 'voice') {
+                bindVoicePlayback(messageElement);
+            }
 
             if (shouldStickToBottom) {
                 followChatBottom();
@@ -2325,7 +2712,7 @@ function getWebhookPlaceholder(type) {
             chatInput.value = `@${messageData.uname} `;
             syncChatInputHeight(chatInput);
             chatInput.focus();
-            document.getElementById('sendBtn').disabled = false;
+            syncChatComposerState();
         }
 
         // 清除引用
@@ -2352,7 +2739,7 @@ function getWebhookPlaceholder(type) {
             chatInput.value = `${currentValue}${separator}@${uname} `;
             syncChatInputHeight(chatInput);
             chatInput.focus();
-            document.getElementById('sendBtn').disabled = false;
+            syncChatComposerState();
             // 注意：这里仅在前端输入框添加了文本，实际被@的UID列表需要在发送时从 currentQuote 或解析输入框内容获得。
             // 更优解：在发送时，解析输入框内容中的 @用户名，并将其转换为UID（需要后端或本地映射支持）。
             // 简易方案：仅当通过右键菜单触发@时，将UID存入一个全局 Set，发送时附带。
@@ -2657,6 +3044,11 @@ function getWebhookPlaceholder(type) {
 
         // 发送消息
         function sendMessage() {
+            if (voiceDraft) {
+                sendVoiceDraft();
+                return;
+            }
+
             const chatInput = document.getElementById('chatInput');
             const message = chatInput.value.trim();
 
@@ -2679,7 +3071,7 @@ function getWebhookPlaceholder(type) {
 
             chatInput.value = '';
             syncChatInputHeight(chatInput);
-            document.getElementById('sendBtn').disabled = true;
+            syncChatComposerState();
             clearQuote();
             closeEmojiSection();
         }

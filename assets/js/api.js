@@ -86,6 +86,7 @@ window.ApiEndpoints = {
     updateSaidaoTag: (data) => request('/saidao/tag', { method: 'POST', body: data, withAuth: true }),
     clickSaidao: (saidaoId) => request(`/saidao/click?saidaoId=${saidaoId}`, { method: 'POST', showLoading: false }),
     uploadImages: (data) => request('/api/image/upload', { method: 'POST', body: data, withAuth: true }),
+    uploadVoice: (data) => request('/api/voice/upload', { method: 'POST', body: data, withAuth: true, showLoading: false }),
     queryEmojis: (group) => request(`/emoji/${group}`, { withAuth: true }),
     messageHistory: (messageId) => request(`/message/history?messageId=${encodeURIComponent(messageId)}`, { withAuth: true, showLoading: false }),
     uploadEmojis: (data) => request('/emoji/upload', { method: 'POST', body: data, withAuth: true }),
