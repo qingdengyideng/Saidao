@@ -150,6 +150,9 @@
                 <span>隐藏图片消息</span>
             </label>
             <div class="chat-input-container">
+                <button class="emoji-picker-toggle" id="emojiPickerToggle" type="button" title="表情" aria-label="表情">
+                    <i class="far fa-smile"></i>
+                </button>
                 <div class="voice-draft" id="voiceDraft" hidden></div>
                 <div class="chat-input-shell" id="chatInputShell">
                     <button class="voice-toggle" id="voiceToggle" type="button" title="录音" aria-label="录音">
@@ -163,8 +166,8 @@
                     <span class="voice-recording-time" id="voiceRecordingTime">0:00</span>
                     <span class="voice-recording-hint">点击结束</span>
                 </button>
-                <button class="chat-tool-btn emoji-toggle" id="emojiToggle" type="button" title="表情" aria-label="表情">
-                    <i class="far fa-smile"></i>
+                <button class="chat-tool-btn chat-send-toggle" id="emojiToggle" type="button" title="发送" aria-label="发送" disabled>
+                    <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
         </div>

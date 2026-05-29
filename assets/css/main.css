@@ -1445,7 +1445,7 @@
             display: none;
         }
 
-        .emoji-toggle.hidden-during-voice {
+        .emoji-picker-toggle.hidden-during-voice {
             display: none;
         }
 
@@ -1511,9 +1511,39 @@
             transform: translateY(-1px);
         }
 
-        .emoji-toggle {
+        .emoji-picker-toggle {
+            width: 24px;
+            height: 40px;
             border: none;
+            background: transparent;
+            color: var(--text-light);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
             font-size: 18px;
+        }
+
+        .emoji-picker-toggle:hover {
+            color: var(--primary-dark);
+            transform: scale(1.08);
+        }
+
+        .chat-send-toggle {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: #fff;
+            border: none;
+            font-size: 15px;
+        }
+
+        .chat-send-toggle:disabled {
+            background: var(--text-light);
+            color: rgba(255, 255, 255, 0.86);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .voice-toggle {

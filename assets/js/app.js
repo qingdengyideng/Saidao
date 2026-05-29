@@ -420,7 +420,8 @@ function initEventListeners() {
             ['switchToLogin', switchToLogin],
             ['forgotPassword', openForgotPasswordModal],
             ['testWebhookBtn', handleTestWebhook],
-            ['emojiToggle', toggleEmojiSection],
+            ['emojiPickerToggle', toggleEmojiSection],
+            ['emojiToggle', sendMessage],
             ['voiceToggle', toggleVoiceRecording],
             ['voiceRecordingPanel', toggleVoiceRecording],
             ['logoutBtn', handleLogout],
@@ -928,7 +929,7 @@ function getWebhookPlaceholder(type) {
         // 切换表情面板
         function toggleEmojiSection() {
             const emojiSection = byId('emojiSection');
-            const emojiToggleIcon = $('i', byId('emojiToggle'));
+            const emojiToggleIcon = $('i', byId('emojiPickerToggle'));
 
             state.emojiExpanded = !state.emojiExpanded;
 
@@ -945,7 +946,7 @@ function getWebhookPlaceholder(type) {
         function closeEmojiSection() {
             if (!state.emojiExpanded) return;
             const emojiSection = byId('emojiSection');
-            const emojiToggleIcon = $('i', byId('emojiToggle'));
+            const emojiToggleIcon = $('i', byId('emojiPickerToggle'));
             emojiSection.classList.remove('expanded');
             emojiToggleIcon.className = 'far fa-smile';
             state.emojiExpanded = false;
@@ -971,7 +972,7 @@ function getWebhookPlaceholder(type) {
             const time = byId('voiceRecordingTime');
             const shell = byId('chatInputShell');
             const recordingPanel = byId('voiceRecordingPanel');
-            const emojiButton = byId('emojiToggle');
+            const emojiButton = byId('emojiPickerToggle');
             button?.classList.toggle('recording', recording);
             button?.classList.toggle('uploading', uploading);
             button?.toggleAttribute('disabled', uploading);
@@ -984,13 +985,17 @@ function getWebhookPlaceholder(type) {
         function syncChatComposerState() {
             const chatInput = byId('chatInput');
             const shell = byId('chatInputShell');
+            const sendButton = byId('emojiToggle');
             const showVoiceEntry = window.ChatInputUtils.shouldShowVoiceEntry({
                 value: chatInput?.value || '',
                 hasVoiceDraft: Boolean(voiceDraft),
             });
             shell?.classList.toggle('has-text', !showVoiceEntry && !voiceDraft);
             shell?.classList.toggle('has-voice-draft', Boolean(voiceDraft));
-            byId('emojiToggle')?.classList.toggle('hidden-during-voice', Boolean(voiceDraft) || isVoiceRecording());
+            byId('emojiPickerToggle')?.classList.toggle('hidden-during-voice', Boolean(voiceDraft) || isVoiceRecording());
+            if (sendButton) {
+                sendButton.disabled = isVoiceUploading || (!voiceDraft && (chatInput?.value.trim() || '') === '');
+            }
         }
 
         function stopVoiceTracks() {
