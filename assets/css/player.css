@@ -182,6 +182,27 @@ body {
   font-size: 16px;
 }
 
+.danmaku-toggle {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  z-index: 6;
+  min-width: 70px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.danmaku-toggle.is-on {
+  border-color: rgba(255, 77, 109, 0.45);
+  background: rgba(255, 77, 109, 0.45);
+}
+
 .volume-pop {
   position: relative;
 }
@@ -218,10 +239,17 @@ body {
 
 .danmaku-layer {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 50%;
   pointer-events: none;
   overflow: hidden;
   z-index: 3;
+}
+
+.danmaku-layer.is-hidden {
+  display: none;
 }
 
 .danmaku-item {

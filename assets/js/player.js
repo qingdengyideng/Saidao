@@ -20,6 +20,7 @@
   const volumeSlider = document.getElementById("volumeSlider");
   const volumeBtn = document.getElementById("volumeBtn");
   const volumePopover = document.getElementById("volumePopover");
+  const danmakuToggleBtn = document.getElementById("danmakuToggleBtn");
   const commentList = document.getElementById("commentList");
   const commentSub = document.getElementById("commentSub");
   const scrollBottomBtn = document.getElementById("scrollBottomBtn");
@@ -28,6 +29,7 @@
 
   let hls = null;
   let flvPlayer = null;
+  let hlsRestartTimer = null;
   let totalComments = 0;
   let audioUnlocked = false;
   let originUrl = "";
@@ -38,6 +40,7 @@
   let reconnectTimer = null;
   let isPageClosing = false;
   let isCommentListAtBottom = true;
+  let danmakuEnabled = true;
 
   const params = new URLSearchParams(window.location.search);
   const uid = params.get("uid") || DEFAULT_UID;
@@ -100,6 +103,13 @@
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
+    }
+  };
+
+  const clearHlsRestartTimer = () => {
+    if (hlsRestartTimer) {
+      clearTimeout(hlsRestartTimer);
+      hlsRestartTimer = null;
     }
   };
 
@@ -166,7 +176,10 @@
   };
 
   const tryAutoplay = async () => {
-    video.muted = true;
+    if (!audioUnlocked) {
+      video.muted = true;
+    }
+
     try {
       await video.play();
       hideStatus();
@@ -178,21 +191,12 @@
     }
 
     if (!audioUnlocked) {
-      try {
-        video.muted = false;
-        await video.play();
-        audioUnlocked = true;
-        hideSoundHint();
-        hideTapPlay();
-        setMuted(false);
-      } catch (err) {
-        setMuted(true);
-        showSoundHint();
-      }
+      showSoundHint();
     }
   };
 
   const attachStream = (url) => {
+    clearHlsRestartTimer();
     if (hls) {
       hls.destroy();
       hls = null;
@@ -266,6 +270,39 @@
       hls.on(Hls.Events.MEDIA_ATTACHED, () => {
         tryAutoplay();
       });
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.warn("HLS 播放错误", data.type, data.details, data);
+
+        if (!data.fatal) {
+          if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            hls.startLoad(-1);
+            video.play().catch(() => {
+              showTapPlay();
+            });
+          }
+          return;
+        }
+
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          showStatus("直播加载中断", "正在重连直播流...");
+          hls.startLoad(-1);
+          return;
+        }
+
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          showStatus("播放解码异常", "正在恢复播放器...");
+          hls.recoverMediaError();
+          video.play().catch(() => {
+            showTapPlay();
+          });
+          return;
+        }
+
+        showStatus("播放连接中断", "正在重新连接直播流...");
+        hlsRestartTimer = setTimeout(() => {
+          attachStream(url);
+        }, 800);
+      });
     } else {
       showStatus("无法播放", "当前浏览器不支持该流格式");
       return;
@@ -289,6 +326,10 @@
   };
 
   const addDanmaku = (item) => {
+    if (!danmakuEnabled) {
+      return;
+    }
+
     const node = document.createElement("div");
     node.className = "danmaku-item";
     node.innerHTML = item.text || "";
@@ -315,6 +356,17 @@
     const maxItems = 60;
     while (danmakuLayer.children.length > maxItems) {
       danmakuLayer.removeChild(danmakuLayer.firstChild);
+    }
+  };
+
+  const syncDanmakuState = () => {
+    danmakuLayer.classList.toggle("is-hidden", !danmakuEnabled);
+    danmakuToggleBtn.classList.toggle("is-on", danmakuEnabled);
+    danmakuToggleBtn.textContent = danmakuEnabled ? "弹幕开" : "弹幕关";
+    danmakuToggleBtn.setAttribute("aria-pressed", danmakuEnabled ? "true" : "false");
+
+    if (!danmakuEnabled) {
+      danmakuLayer.innerHTML = "";
     }
   };
 
@@ -529,6 +581,7 @@
       hls.destroy();
       hls = null;
     }
+    clearHlsRestartTimer();
     if (flvPlayer) {
       flvPlayer.destroy();
       flvPlayer = null;
@@ -542,6 +595,11 @@
     video.load();
     init();
     setMuted(true);
+  });
+
+  danmakuToggleBtn.addEventListener("click", () => {
+    danmakuEnabled = !danmakuEnabled;
+    syncDanmakuState();
   });
 
   commentList.addEventListener("scroll", () => {
@@ -603,12 +661,19 @@
   volumePopover.addEventListener("mouseenter", showVolumePopover);
   volumePopover.addEventListener("mouseleave", scheduleHideVolumePopover);
 
-  tapPlayBtn.addEventListener("click", () => {
+  tapPlayBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
     video.muted = true;
-    video.play().then(() => {
-      hideTapPlay();
-      hideStatus();
-    });
+    video
+      .play()
+      .then(() => {
+        hideTapPlay();
+        hideStatus();
+      })
+      .catch(() => {
+        showStatus("正在连接直播...", "请稍候或刷新重试");
+        showTapPlay();
+      });
   });
 
   document.addEventListener("fullscreenchange", syncFullscreenState);
@@ -627,8 +692,12 @@
     }
   });
 
-  document.addEventListener("click", () => {
-    if (!audioUnlocked && video.muted) {
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("button, input")) {
+      return;
+    }
+
+    if (!audioUnlocked && video.muted && !video.paused) {
       setMuted(false);
       audioUnlocked = true;
       hideSoundHint();
@@ -639,6 +708,7 @@
   });
 
   syncCommentListState();
+  syncDanmakuState();
 
   video.addEventListener("play", () => {
     hideTapPlay();
@@ -647,6 +717,18 @@
   video.addEventListener("pause", () => {
     if (!video.ended) {
       showTapPlay();
+    }
+  });
+
+  video.addEventListener("stalled", () => {
+    if (hls && !video.paused) {
+      hls.startLoad(-1);
+    }
+  });
+
+  video.addEventListener("waiting", () => {
+    if (hls && !video.paused) {
+      hls.startLoad(-1);
     }
   });
 
@@ -673,6 +755,7 @@
       hls.destroy();
       hls = null;
     }
+    clearHlsRestartTimer();
     if (flvPlayer) {
       flvPlayer.destroy();
       flvPlayer = null;
