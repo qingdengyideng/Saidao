@@ -1324,48 +1324,7 @@ function getWebhookPlaceholder(type) {
             `;
         }
 
-        function bindVoicePlayback(messageElement) {
-            const voiceMessage = messageElement.querySelector('.voice-message');
-            const playButton = messageElement.querySelector('.voice-play-btn');
-            if (!voiceMessage || !playButton) return;
-
-            playButton.addEventListener('click', () => {
-                const audioUrl = voiceMessage.dataset.audioUrl;
-                if (!audioUrl) return;
-
-                if (currentVoiceAudio && currentVoiceButton !== playButton) {
-                    currentVoiceAudio.pause();
-                    currentVoiceButton?.closest('.voice-message')?.classList.remove('playing');
-                    currentVoiceButton?.classList.remove('playing');
-                    currentVoiceButton?.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
-                }
-
-                if (!voiceMessage._audio) {
-                    voiceMessage._audio = new Audio(audioUrl);
-                    voiceMessage._audio.addEventListener('ended', () => {
-                        voiceMessage.classList.remove('playing');
-                        playButton.classList.remove('playing');
-                        playButton.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
-                    });
-                }
-
-                const audio = voiceMessage._audio;
-                if (audio.paused) {
-                    audio.play().then(() => {
-                        currentVoiceAudio = audio;
-                        currentVoiceButton = playButton;
-                        voiceMessage.classList.add('playing');
-                        playButton.classList.add('playing');
-                        playButton.querySelector('i')?.classList.replace('fa-play', 'fa-pause');
-                    }).catch(() => Toast.show('语音播放失败', 'error'));
-                } else {
-                    audio.pause();
-                    voiceMessage.classList.remove('playing');
-                    playButton.classList.remove('playing');
-                    playButton.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
-                }
-            });
-        }
+        // 语音播放逻辑已迁移到容器事件委托中的 handleVoicePlayClick
 
         // 显示用户详情
         async function showUserDetail(userId) {
@@ -2005,11 +1964,12 @@ function getWebhookPlaceholder(type) {
         const CHAT_STICKY_BOTTOM_THRESHOLD = 700;
         const CHAT_BOTTOM_SCROLL_EPSILON = 200;
         const CHAT_HISTORY_TOP_THRESHOLD = 80;
-        const CHAT_MESSAGE_LIMIT = 1000;
+        const CHAT_MESSAGE_LIMIT = 300;
         const renderedMessageIds = new Set();
         const observedChatNodes = new Set();
         let chatFollowMode = true;
         let chatScrollRaf = null;
+        let chatScrollListenerRaf = null;
         let chatResizeObserver = null;
         let isLoadingHistory = false;
         let hasMoreHistory = true;
@@ -2263,7 +2223,7 @@ function getWebhookPlaceholder(type) {
 
             messageElement.innerHTML = `
                 <div class="avatar-container">
-                    <img src="${data.avatar}" alt="${data.uname}" class="message-avatar" data-user-id="${data.uid}">
+                    <img src="${data.avatar}" alt="${data.uname}" class="message-avatar" data-user-id="${data.uid}" loading="lazy" decoding="async">
                     ${factionHTML}
                 </div>
                 <div class="message-content">
@@ -2279,12 +2239,7 @@ function getWebhookPlaceholder(type) {
                 </div>
             `;
 
-            // 添加头像点击事件
-            const avatar = messageElement.querySelector('.message-avatar');
-            avatar.addEventListener('click', function () {
-                console.log('点击头像，用户ID:', this.dataset.userId)
-                showUserDetail(parseInt(this.dataset.userId));
-            });
+            // 头像点击通过容器事件委托处理（见 chatBody 委托监听），此处不再逐条绑定
 
             if (position === 'prepend') {
                 container.insertBefore(messageElement, options.beforeNode || getFirstChatMessageNode());
@@ -2326,12 +2281,8 @@ function getWebhookPlaceholder(type) {
                 showMentionAlert(data.messageId);
             }
 
-            // 绑定右键/长按菜单
-            bindMessageContextMenu(messageElement, data);
-
-            if (data.messageKind === 'voice') {
-                bindVoicePlayback(messageElement);
-            }
+            // 将消息数据挂到节点上，供容器事件委托读取（替代逐条 addEventListener）
+            messageElement._messageData = data;
 
             if (shouldStickToBottom) {
                 followChatBottom();
@@ -2440,51 +2391,120 @@ function getWebhookPlaceholder(type) {
         });
 
         let currentContextMenu = null;
-        let touchTimer = null;
         let currentContextMenuCloseHandler = null;
 
-        // 主入口：绑定元素
-        function bindMessageContextMenu(messageElement, messageData) {
-            // PC 右键
-            messageElement.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                showMessageContextMenu(e, messageData);
+        // 通过容器事件委托统一处理消息交互（头像点击 / 语音播放 / 右键 / 长按）
+        // 只在 chatBody 上绑定固定几个监听器，替代每条消息逐个 addEventListener
+        let longPressTimer = null;
+        let longPressStart = null;
+
+        function getMessageDataFromNode(node) {
+            const messageEl = node?.closest?.('.chat-message');
+            return messageEl?._messageData || null;
+        }
+
+        function clearLongPressTimer() {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            longPressStart = null;
+        }
+
+        function setupMessageDelegation() {
+            // 头像点击 + 语音播放按钮（点击委托）
+            container.addEventListener('click', function (e) {
+                const avatar = e.target.closest('.message-avatar');
+                if (avatar) {
+                    showUserDetail(parseInt(avatar.dataset.userId));
+                    return;
+                }
+
+                const playButton = e.target.closest('.voice-play-btn');
+                if (playButton) {
+                    handleVoicePlayClick(playButton);
+                }
             });
 
-            // 移动端长按
-            messageElement.addEventListener('touchstart', function(e) {
+            // PC 右键菜单
+            container.addEventListener('contextmenu', function (e) {
+                const data = getMessageDataFromNode(e.target);
+                if (!data) return;
+                e.preventDefault();
+                showMessageContextMenu(e, data);
+            });
+
+            // 移动端长按菜单
+            container.addEventListener('touchstart', function (e) {
+                const messageEl = e.target.closest('.chat-message');
+                if (!messageEl || !messageEl._messageData) return;
                 const touch = e.touches && e.touches[0];
                 if (!touch) return;
-                const startX = touch.clientX;
-                const startY = touch.clientY;
-                if (touchTimer) clearTimeout(touchTimer);
-                touchTimer = setTimeout(() => {
-                    showMessageContextMenu(touch, messageData); // 使用第一个触点
-                }, 500); // 500ms 长按
-                messageElement._touchStart = { x: startX, y: startY };
+                clearLongPressTimer();
+                longPressStart = { x: touch.clientX, y: touch.clientY };
+                const data = messageEl._messageData;
+                longPressTimer = setTimeout(() => {
+                    showMessageContextMenu(touch, data);
+                }, 500);
             }, { passive: true });
 
-            messageElement.addEventListener('touchmove', function(e) {
+            container.addEventListener('touchmove', function (e) {
+                if (!longPressStart) return;
                 const touch = e.touches && e.touches[0];
-                if (!touch || !messageElement._touchStart) return;
-                const dx = Math.abs(touch.clientX - messageElement._touchStart.x);
-                const dy = Math.abs(touch.clientY - messageElement._touchStart.y);
+                if (!touch) return;
+                const dx = Math.abs(touch.clientX - longPressStart.x);
+                const dy = Math.abs(touch.clientY - longPressStart.y);
                 if (dx > 10 || dy > 10) {
-                    clearTouchTimer();
+                    clearLongPressTimer();
                 }
             }, { passive: true });
 
-            messageElement.addEventListener('touchend', clearTouchTimer);
-            messageElement.addEventListener('touchcancel', clearTouchTimer);
+            container.addEventListener('touchend', clearLongPressTimer);
+            container.addEventListener('touchcancel', clearLongPressTimer);
+        }
 
-            function clearTouchTimer() {
-                if (touchTimer) {
-                    clearTimeout(touchTimer);
-                    touchTimer = null;
-                }
-                messageElement._touchStart = null;
+        // 处理语音播放按钮点击（从节点上读取语音状态，无需逐条绑定）
+        function handleVoicePlayClick(playButton) {
+            const voiceMessage = playButton.closest('.chat-message')?.querySelector('.voice-message');
+            if (!voiceMessage) return;
+
+            const audioUrl = voiceMessage.dataset.audioUrl;
+            if (!audioUrl) return;
+
+            if (currentVoiceAudio && currentVoiceButton !== playButton) {
+                currentVoiceAudio.pause();
+                currentVoiceButton?.closest('.voice-message')?.classList.remove('playing');
+                currentVoiceButton?.classList.remove('playing');
+                currentVoiceButton?.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
+            }
+
+            if (!voiceMessage._audio) {
+                voiceMessage._audio = new Audio(audioUrl);
+                voiceMessage._audio.addEventListener('ended', () => {
+                    voiceMessage.classList.remove('playing');
+                    playButton.classList.remove('playing');
+                    playButton.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
+                });
+            }
+
+            const audio = voiceMessage._audio;
+            if (audio.paused) {
+                audio.play().then(() => {
+                    currentVoiceAudio = audio;
+                    currentVoiceButton = playButton;
+                    voiceMessage.classList.add('playing');
+                    playButton.classList.add('playing');
+                    playButton.querySelector('i')?.classList.replace('fa-play', 'fa-pause');
+                }).catch(() => Toast.show('语音播放失败', 'error'));
+            } else {
+                audio.pause();
+                voiceMessage.classList.remove('playing');
+                playButton.classList.remove('playing');
+                playButton.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
             }
         }
+
+        setupMessageDelegation();
 
         // 显示菜单
         function showMessageContextMenu(event, messageData) {
@@ -2670,14 +2690,7 @@ function getWebhookPlaceholder(type) {
         document.head.appendChild(style);
 
 
-        const messageElements = document.querySelectorAll('.message-element');
-        messageElements.forEach(el => {
-            bindMessageContextMenu(el, {
-                uname: el.dataset.uname,
-                uid: el.dataset.uid,
-                content: el.dataset.content
-            });
-        });
+        // 消息交互已由 setupMessageDelegation 的容器事件委托统一处理，无需在此逐条绑定
 
         // 全局状态，记录当前引用的消息
         let currentQuote = null;
@@ -2948,12 +2961,19 @@ function getWebhookPlaceholder(type) {
         }
 
         // 监听容器滚动，当用户滚动到底部时隐藏提示，滚动到顶部时加载历史消息
+        // 用 rAF 节流，避免移动端惯性滚动时每帧都触发回调及强制重排
         container.addEventListener('scroll', function() {
-            syncChatFollowMode();
-            if (container.scrollTop <= CHAT_HISTORY_TOP_THRESHOLD) {
-                loadOlderMessages();
+            if (chatScrollListenerRaf) {
+                return;
             }
-        });
+            chatScrollListenerRaf = requestAnimationFrame(function() {
+                chatScrollListenerRaf = null;
+                syncChatFollowMode();
+                if (container.scrollTop <= CHAT_HISTORY_TOP_THRESHOLD) {
+                    loadOlderMessages();
+                }
+            });
+        }, { passive: true });
 
         async function setupWebSocket() {
             clearChatReconnectTimer();
@@ -3045,6 +3065,24 @@ function getWebhookPlaceholder(type) {
             clearChatReconnectTimer();
             closeChatSocket({ preventReconnect: true });
             clearChatObservers();
+        });
+
+        // 页面切到后台/锁屏时暂停动画与连接，回到前台再恢复，避免后台持续耗电发热
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (typeof LOTTIE_POOL !== 'undefined') {
+                    LOTTIE_POOL.forEach((anim) => anim?.pause?.());
+                }
+                clearChatReconnectTimer();
+                closeChatSocket({ preventReconnect: true });
+            } else {
+                if (typeof syncCardAnimationsWithChatState === 'function') {
+                    syncCardAnimationsWithChatState();
+                }
+                if (!socket) {
+                    setupWebSocket();
+                }
+            }
         });
 
         // 发送消息
