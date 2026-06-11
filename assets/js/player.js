@@ -41,6 +41,7 @@
   let isPageClosing = false;
   let isCommentListAtBottom = true;
   let danmakuEnabled = true;
+  let streamEnded = false;
 
   const params = new URLSearchParams(window.location.search);
   const uid = params.get("uid") || DEFAULT_UID;
@@ -111,6 +112,41 @@
       clearTimeout(hlsRestartTimer);
       hlsRestartTimer = null;
     }
+  };
+
+  const handleStreamEnded = () => {
+    if (streamEnded) {
+      return;
+    }
+    streamEnded = true;
+
+    // 阻止 HLS 重连定时器再次拉流
+    clearHlsRestartTimer();
+
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    if (flvPlayer) {
+      try {
+        flvPlayer.pause();
+        flvPlayer.unload();
+        flvPlayer.destroy();
+      } catch (err) {
+        // ignore destroy failure
+      }
+      flvPlayer = null;
+    }
+
+    try {
+      video.pause();
+    } catch (err) {
+      // ignore pause failure
+    }
+
+    hideTapPlay();
+    hideSoundHint();
+    showStatus("直播已结束", "主播已关播");
   };
 
   const closeWs = ({ preventReconnect = false } = {}) => {
@@ -196,6 +232,7 @@
   };
 
   const attachStream = (url) => {
+    streamEnded = false;
     clearHlsRestartTimer();
     if (hls) {
       hls.destroy();
@@ -247,6 +284,10 @@
         flvPlayer.on(flvLib.Events.MEDIA_ATTACHING, () => {
           tryAutoplay();
         });
+        // 直播流被服务端关闭（关播）时，mpegts/flv 会触发 LOADING_COMPLETE
+        flvPlayer.on(flvLib.Events.LOADING_COMPLETE, () => {
+          handleStreamEnded();
+        });
       } else {
         showStatus("无法播放", "当前浏览器不支持 FLV");
         return;
@@ -270,7 +311,32 @@
       hls.on(Hls.Events.MEDIA_ATTACHED, () => {
         tryAutoplay();
       });
+      // 直播流末尾出现 #EXT-X-ENDLIST（关播）时，hls.js 会触发 BUFFER_EOS
+      hls.on(Hls.Events.BUFFER_EOS, () => {
+        handleStreamEnded();
+      });
+      // 直播流转为点播（出现 ENDLIST）说明已关播，缓冲播放完毕后提示
+      hls.on(Hls.Events.LEVEL_UPDATED, (event, data) => {
+        if (data && data.details && data.details.live === false) {
+          const checkEnded = () => {
+            if (streamEnded) {
+              return;
+            }
+            const buffered = video.buffered;
+            const remaining =
+              buffered.length > 0 ? buffered.end(buffered.length - 1) - video.currentTime : 0;
+            if (video.ended || remaining <= 0.5) {
+              handleStreamEnded();
+            }
+          };
+          checkEnded();
+          video.addEventListener("ended", handleStreamEnded, { once: true });
+        }
+      });
       hls.on(Hls.Events.ERROR, (event, data) => {
+        if (streamEnded) {
+          return;
+        }
         console.warn("HLS 播放错误", data.type, data.details, data);
 
         if (!data.fatal) {
@@ -577,6 +643,7 @@
   });
 
   refreshBtn.addEventListener("click", () => {
+    streamEnded = false;
     if (hls) {
       hls.destroy();
       hls = null;
@@ -715,18 +782,29 @@
   });
 
   video.addEventListener("pause", () => {
-    if (!video.ended) {
+    if (!video.ended && !streamEnded) {
       showTapPlay();
     }
   });
 
+  // 媒体真正播放结束（关播兜底信号）
+  video.addEventListener("ended", () => {
+    handleStreamEnded();
+  });
+
   video.addEventListener("stalled", () => {
+    if (streamEnded) {
+      return;
+    }
     if (hls && !video.paused) {
       hls.startLoad(-1);
     }
   });
 
   video.addEventListener("waiting", () => {
+    if (streamEnded) {
+      return;
+    }
     if (hls && !video.paused) {
       hls.startLoad(-1);
     }

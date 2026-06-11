@@ -1964,7 +1964,7 @@ function getWebhookPlaceholder(type) {
         const CHAT_STICKY_BOTTOM_THRESHOLD = 700;
         const CHAT_BOTTOM_SCROLL_EPSILON = 200;
         const CHAT_HISTORY_TOP_THRESHOLD = 80;
-        const CHAT_MESSAGE_LIMIT = 300;
+        const CHAT_MESSAGE_LIMIT = 1000;
         const renderedMessageIds = new Set();
         const observedChatNodes = new Set();
         let chatFollowMode = true;
