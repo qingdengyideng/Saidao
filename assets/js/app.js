@@ -3067,20 +3067,15 @@ function getWebhookPlaceholder(type) {
             clearChatObservers();
         });
 
-        // 页面切到后台/锁屏时暂停动画与连接，回到前台再恢复，避免后台持续耗电发热
+        // 页面切到后台时暂停卡片动画，减少后台 GPU/CPU 开销，但保持 WebSocket 连接
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 if (typeof LOTTIE_POOL !== 'undefined') {
                     LOTTIE_POOL.forEach((anim) => anim?.pause?.());
                 }
-                clearChatReconnectTimer();
-                closeChatSocket({ preventReconnect: true });
             } else {
                 if (typeof syncCardAnimationsWithChatState === 'function') {
                     syncCardAnimationsWithChatState();
-                }
-                if (!socket) {
-                    setupWebSocket();
                 }
             }
         });
