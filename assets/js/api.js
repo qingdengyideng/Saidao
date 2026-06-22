@@ -81,6 +81,7 @@ window.ApiEndpoints = {
     forgotPassword: (data) => request('/user/forgotPassword', { method: 'POST', body: data }),
     profileUpdate: (data) => request('/user/update', { method: 'POST', body: data, withAuth: true }),
     chatBan: (data) => request('/user/chatBan', { method: 'POST', body: data, withAuth: true }),
+    messageDelete: (messageId) => request('/message/delete', { method: 'POST', body: { messageId }, withAuth: true }),
     sendVerificationCode: (data) => request('/user/sendVerificationCode', { method: 'POST', body: data }),
     updateOptions: (data) => request('/saidao/options', { method: 'POST', body: data, withAuth: true }),
     updateSaidaoTag: (data) => request('/saidao/tag', { method: 'POST', body: data, withAuth: true }),

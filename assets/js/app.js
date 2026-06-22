@@ -2149,6 +2149,20 @@ function getWebhookPlaceholder(type) {
                 return null;
             }
 
+            // 已删除的消息渲染为占位提示（历史消息中带 deleted 标记）
+            if (data.deleted === true) {
+                const position = options.position || 'append';
+                const placeholder = buildDeletedPlaceholderElement(data.messageId);
+                if (position === 'prepend') {
+                    container.insertBefore(placeholder, options.beforeNode || getFirstChatMessageNode());
+                } else {
+                    container.appendChild(placeholder);
+                }
+                observeChatNode(placeholder);
+                trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
+                return placeholder;
+            }
+
             const suppressAlert = options.suppressAlert ?? false;
             const position = options.position || 'append';
             const shouldStickToBottom = shouldAppendStickToBottom(options, position);
@@ -2592,6 +2606,25 @@ function getWebhookPlaceholder(type) {
                 extraMenuItems.push(ban7dItem);
             }
 
+            // “删除消息”菜单项：有 chatBan 权限即可删除任意消息
+            const canDelete = state.currentUser?.canChatBan === true && !!messageData.messageId;
+            if (canDelete) {
+                const deleteItem = document.createElement('div');
+                deleteItem.className = 'context-menu-item';
+                deleteItem.textContent = '删除';
+                styleMenuItem(deleteItem);
+                deleteItem.style.color = '#d4380d';
+                deleteItem.addEventListener('click', async () => {
+                    try {
+                        await deleteChatMessage(messageData);
+                    } finally {
+                        closeMessageContextMenu();
+                    }
+                });
+                menu.appendChild(deleteItem);
+                extraMenuItems.push(deleteItem);
+            }
+
             // 悬停效果
             [copyItem, quoteItem, mentionItem, ...extraMenuItems].forEach(item => {
                 item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--bg-color)');
@@ -2790,6 +2823,49 @@ function getWebhookPlaceholder(type) {
                 const label = banSeconds === 3600 ? '1小时' : '7天';
                 Toast.show(`已封禁${label}`, 'success');
             }
+        }
+
+        // 删除聊天消息（需 chatBan 权限），后端软删除并广播 messageDeleted
+        async function deleteChatMessage(messageData) {
+            if (!state.currentUser?.canChatBan) {
+                return;
+            }
+            const messageId = messageData?.messageId;
+            if (!messageId) {
+                Toast.show('无法定位该消息', 'error');
+                return;
+            }
+
+            const result = await ApiEndpoints.messageDelete(messageId);
+            if (result.code === '0') {
+                Toast.show('已删除', 'success');
+            }
+        }
+
+        // 构造“该消息已被删除”占位元素
+        function buildDeletedPlaceholderElement(messageId) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'chat-message message-deleted-placeholder';
+            placeholder.innerHTML = '<div class="message-deleted-text">该消息已被删除</div>';
+            if (messageId) {
+                placeholder.dataset.messageId = messageId;
+            }
+            return placeholder;
+        }
+
+        // 将已存在的消息节点就地替换为“已删除”占位
+        function markChatMessageDeleted(messageId) {
+            if (!messageId) return;
+            const node = container.querySelector(
+                `.chat-message[data-message-id="${messageId}"]`
+            );
+            if (!node) return;
+            if (node.classList.contains('message-deleted-placeholder')) return;
+
+            const placeholder = buildDeletedPlaceholderElement(messageId);
+            unobserveChatNode(node);
+            node.replaceWith(placeholder);
+            observeChatNode(placeholder);
         }
 
         function addSystemMessageToChat(data, options = {}) {
@@ -3033,6 +3109,8 @@ function getWebhookPlaceholder(type) {
                     applyHotScoreUpdate(data.scores);
                 } else if (data.type === 'clear') {
                     resetChatMessages();
+                } else if (data.type === 'messageDeleted') {
+                    markChatMessageDeleted(data.messageId);
                 }
             });
 
