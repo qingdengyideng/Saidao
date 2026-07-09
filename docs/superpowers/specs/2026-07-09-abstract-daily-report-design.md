@@ -237,20 +237,18 @@ public void save(List<DailyReportDto.Save> list) {
 
 ### 4.7 WebSocket 广播
 
-在 `wschat/ChatWebSocketHandler` 增加方法(仿现有 `broadcastSaidaoTagUpdate`, 走底层 `broadcastMessage(JSONObject)`):
+在 `wschat/ChatWebSocketHandler` 增加方法,广播 `type=dailyReportUpdate` 且 `addToHistory=true` 的消息(对标 `status` 类型的处理模式):
 
 ```java
 public void broadcastDailyReportUpdate(String title, String link) {
-    JSONObject json = new JSONObject();
-    json.set("type", "dailyReportUpdate");
-    json.set("title", title);
-    json.set("link", link);
-    json.set("timestamp", LocalDateTime.now().format(TIME_FORMATTER));
-    broadcastMessage(json);
+    String content = "抽象日报更新啦：<a href=\"" + link
+            + "\" target=\"_blank\" rel=\"noopener\">"
+            + cn.hutool.http.HtmlUtil.escape(title) + "</a>";
+    broadcastMessage(content, "dailyReportUpdate", true);
 }
 ```
 
-该消息不写入历史(系统消息由前端本地渲染, 见 5.3)。
+`title` 经 `HtmlUtil.escape` 转义防注入; `link` 为受信来源(微信文章链接)。前端对 `dailyReportUpdate` 的处理与 `status` 一致:实时消息 → 聊天室显示 + 刷新列表;history 回放 → 仅聊天室显示。
 
 ### 4.8 配置
 
@@ -291,37 +289,41 @@ daily-report:
   ```js
   if (state.currentStatus === 'dailyReport') { renderDailyReportCards(); return; }
   ```
-- **`renderDailyReportCards()`**: 清空 `#cardsGrid`, 遍历 `state.dailyReports` 生成 `.report-card`:
-  - 顶部 `.report-card-cover`(背景/img 用 `cover`)
+- **`renderDailyReportCards()`**: 清空 `#cardsGrid`, 遍历 `dailyReportsData` 生成 `.report-card`:
+  - 顶部 `.report-card-cover`(背景图用 `cover`)
   - `.report-card-title`(title)
   - `.report-card-time`(格式化 `update_time`, 秒 → 本地日期)
-  - 若 `report.id > getLastSeenId()` → 右上角 `.report-badge` "最近更新"
   - 卡片 `dataset.link = report.link`
-- **点击日报卡片**(事件委托在 `#cardsGrid`, 与现有卡片委托共存, 用 `.report-card` 判定):
-  ```js
-  window.open(link, '_blank', 'noopener');
-  setLastSeenId(maxIdOf(state.dailyReports));  // 标记已看过 = 当前列表最大 id
-  refreshReportTabDot();                        // 隐藏 tab 红点
-  renderDailyReportCards();                     // 消除所有"最近更新"角标
-  ```
-- **`refreshReportTabDot()`**: `maxId > getLastSeenId()` → 显示 `#reportTabDot`, 否则隐藏。
-- **`getLastSeenId()` / `setLastSeenId(id)`**: 读写 localStorage, 空值按 0 处理。
+  - 卡片本身不显示"最近更新"角标(更新提示只体现在 tab 红点)
+- **点击日报卡片**(事件委托在 `#cardsGrid`, 与现有卡片委托共存, 用 `.report-card` 判定): 仅 `window.open(link, '_blank', 'noopener')` 跳转, 不改变已看状态。
+- **点击"抽象日报"tab**(`.filter-tab` click 监听): 若 `data-status === 'dailyReport'` 则调 `markDailyReportsSeen()` — 把 `lastSeenId` 设为当前列表最大 id 并刷新红点(隐藏"更新啦")。
+- **`refreshReportTabDot()`**: `getDailyReportsMaxId() > getDailyReportLastSeenId()` → 显示 `#reportTabDot`, 否则隐藏。
+- **`getDailyReportLastSeenId()` / `setDailyReportLastSeenId(id)`**: 读写 localStorage, 空值按 0 处理。
 
 ### 5.3 WebSocket
 
-在 app.js 的 `onmessage` 分发链(第 3069-3114 行)增加:
+在 app.js 的 `onmessage` 分发链(第 3184-3225 行)增加分支,对标 `status` 的处理模式:
 
+**实时消息**(第 3211-3224 行):
 ```js
 else if (data.type === 'dailyReportUpdate') {
-    fetchDailyReports();  // 重新拉列表, 刷新角标 + tab 红点
-    addSystemMessageToChat({
-        content: `抽象日报更新啦：<a href="${data.link}" target="_blank" rel="noopener">${escapeHtml(data.title)}</a>`,
-        timestamp: data.timestamp
-    });
+    addSystemMessageToChat(data);
+    fetchDailyReports();
 }
 ```
 
-`addSystemMessageToChat` 的 `content` 以 innerHTML 渲染, 因此链接可点击。link/title 需 `escapeHtml` 防注入(title)与属性转义(link)。
+**history 回放**(第 3184-3201 行):
+```js
+data.messages.forEach(msg => {
+    if (msg.type === 'status' || msg.type === 'dailyReportUpdate') {
+        addSystemMessageToChat(msg, { stickToBottom: false, suppressAlert: true });
+    } else {
+        addMessageToChat(msg, { stickToBottom: false, suppressAlert: true });
+    }
+});
+```
+
+后端只广播一条 `type=dailyReportUpdate` 消息(`content` 含标题链接, `addToHistory=true`), 前端既显示到聊天室(含历史回放)又触发列表刷新。
 
 ### 5.4 api.js
 
@@ -348,7 +350,7 @@ dailyReportList: () => request('/dailyReport/list'),
 - **首次访问(无 localStorage)**: `lastSeenId=0`, 所有日报均显示"最近更新", tab 显示红点; 符合"有更新即提示"预期。
 - **save 幂等**: upsert 按 id 冲突更新, 重复推送同一批数据不产生脏数据; 因 oldMaxId 未变化, 不会重复广播。
 - **save 鉴权失败**: 返回 `Response.fail("无权限")`, 由全局异常处理器统一包装。
-- **ws 消息 xss**: title 经 `escapeHtml`, link 作为 href 需属性转义, 避免注入。
+- **ws 消息 xss**: 系统消息在后端生成, title 经 `HtmlUtil.escape` 转义, link 为受信来源。
 
 ## 7. 验证
 

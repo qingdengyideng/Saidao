@@ -227,6 +227,82 @@
             color: var(--primary-color);
         }
 
+        /* 抽象日报 tab "更新啦" 红点 */
+        .report-tab {
+            position: relative;
+        }
+
+        .tab-dot {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            padding: 1px 7px;
+            border-radius: 999px;
+            background: #e11d2e;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.6;
+            box-shadow: 0 4px 10px rgba(225, 29, 46, 0.35);
+            white-space: nowrap;
+        }
+
+        .tab-dot[hidden] {
+            display: none;
+        }
+
+        /* 抽象日报卡片 */
+        .report-card {
+            background-color: var(--card-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-light);
+            transition: var(--transition);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .report-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .report-card-cover {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--bg-color);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .report-card-content {
+            padding: 12px 14px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .report-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.4;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .report-card-time {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: auto;
+        }
+
         /* 主播卡片容器 */
         .cards-container {
             margin-bottom: 24px;
@@ -2252,6 +2328,15 @@
         @media (max-width: 576px) {
             .cards-grid {
                 grid-template-columns: repeat(2, 1fr);
+            }
+
+            .report-card-title {
+                font-size: 13px;
+                -webkit-line-clamp: 3;
+            }
+
+            .report-card-time {
+                font-size: 11px;
             }
 
             .container {

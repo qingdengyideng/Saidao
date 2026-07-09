@@ -24,6 +24,7 @@ function detectDeviceType() {
 }
 
 let streamersData = [];
+let dailyReportsData = [];
 const emojiData = {};
 let tagEditorTarget = null;
 
@@ -47,6 +48,7 @@ function initializeApp() {
     initializeFactionSelection();
     initializeEmojiPreviewDelegation();
     fetchStreamers();
+    fetchDailyReports();
     checkIsLogin();
     setupWebSocket();
     updateUIState();
@@ -461,6 +463,9 @@ function initEventListeners() {
         on(tab, 'click', () => {
             setActiveItem(filterTabs, tab);
             state.currentStatus = tab.dataset.status;
+            if (tab.dataset.status === 'dailyReport') {
+                markDailyReportsSeen();
+            }
             renderStreamerCards();
         });
     });
@@ -487,6 +492,15 @@ function initEventListeners() {
 
     if (cardsGrid) {
         on(cardsGrid, 'click', (event) => {
+            const reportCard = event.target.closest('.report-card');
+            if (reportCard) {
+                const link = reportCard.dataset.link;
+                if (link) {
+                    window.open(link, '_blank', 'noopener');
+                }
+                return;
+            }
+
             const tagTrigger = event.target.closest('.streamer-tag.is-editable');
             if (tagTrigger) {
                 event.stopPropagation();
@@ -626,6 +640,10 @@ function getWebhookPlaceholder(type) {
 
         // 渲染主播卡片
         function renderStreamerCards() {
+            if (state.currentStatus === 'dailyReport') {
+                renderDailyReportCards();
+                return;
+            }
             destroyAllLotties();
             const container = document.getElementById('cardsGrid');
             container.innerHTML = '';
@@ -1931,6 +1949,96 @@ function getWebhookPlaceholder(type) {
             renderStreamerCards();
         }
 
+        // ==================== 抽象日报 ====================
+        const DAILY_REPORT_LAST_SEEN_ID = 'DAILY_REPORT_LAST_SEEN_ID';
+
+        function getDailyReportLastSeenId() {
+            return Number(localStorage.getItem(DAILY_REPORT_LAST_SEEN_ID)) || 0;
+        }
+
+        function setDailyReportLastSeenId(id) {
+            localStorage.setItem(DAILY_REPORT_LAST_SEEN_ID, String(id || 0));
+        }
+
+        function getDailyReportsMaxId() {
+            return dailyReportsData.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
+        }
+
+        function refreshReportTabDot() {
+            const dot = document.getElementById('reportTabDot');
+            if (!dot) return;
+            const hasUpdate = getDailyReportsMaxId() > getDailyReportLastSeenId();
+            dot.hidden = !hasUpdate;
+        }
+
+        async function fetchDailyReports() {
+            try {
+                const result = await ApiEndpoints.dailyReportList();
+                dailyReportsData = (result?.data || []).map(item => ({
+                    id: item.id,
+                    title: item.title,
+                    link: item.link,
+                    cover: item.cover,
+                    updateTime: item.update_time
+                }));
+            } catch (e) {
+                console.error('获取抽象日报失败', e);
+                dailyReportsData = dailyReportsData || [];
+            }
+            refreshReportTabDot();
+            if (state.currentStatus === 'dailyReport') {
+                renderDailyReportCards();
+            }
+        }
+
+        function formatReportTime(unixSeconds) {
+            const ts = Number(unixSeconds);
+            if (!ts) return '';
+            const d = new Date(ts * 1000);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function renderDailyReportCards() {
+            destroyAllLotties();
+            const container = document.getElementById('cardsGrid');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (dailyReportsData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-newspaper"></i>
+                        </div>
+                        <h3>暂无日报</h3>
+                        <p>还没有发布抽象日报</p>
+                    </div>
+                `;
+                return;
+            }
+
+            dailyReportsData.forEach(report => {
+                const card = document.createElement('div');
+                card.className = 'report-card';
+                card.dataset.id = report.id;
+                card.dataset.link = report.link || '';
+                card.innerHTML = `
+                    <div class="report-card-cover"${report.cover ? ` style="background-image:url('${escapeHtml(report.cover)}')"` : ''}></div>
+                    <div class="report-card-content">
+                        <h3 class="report-card-title">${escapeHtml(report.title)}</h3>
+                        <div class="report-card-time"><i class="far fa-clock"></i> ${escapeHtml(formatReportTime(report.updateTime))}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function markDailyReportsSeen() {
+            setDailyReportLastSeenId(getDailyReportsMaxId());
+            refreshReportTabDot();
+        }
+
         // toast.js
         const Toast = (() => {
             const container = document.getElementById('toast-container');
@@ -3077,7 +3185,7 @@ function getWebhookPlaceholder(type) {
                     resetChatMessages();
                     // 添加消息到聊天室
                     data.messages.forEach(msg => {
-                        if (msg.type === 'status') {
+                        if (msg.type === 'status' || msg.type === 'dailyReportUpdate') {
                             addSystemMessageToChat(msg, {
                                 stickToBottom: false,
                                 suppressAlert: true
@@ -3103,6 +3211,9 @@ function getWebhookPlaceholder(type) {
                 } else if (data.type === 'status') {
                     addSystemMessageToChat(data);
                     fetchStreamers()
+                } else if (data.type === 'dailyReportUpdate') {
+                    addSystemMessageToChat(data);
+                    fetchDailyReports();
                 } else if (data.type === 'saidaoTagUpdated') {
                     applySaidaoTagUpdate(data);
                 } else if (data.type === 'hotScoreUpdate') {
@@ -3111,6 +3222,8 @@ function getWebhookPlaceholder(type) {
                     resetChatMessages();
                 } else if (data.type === 'messageDeleted') {
                     markChatMessageDeleted(data.messageId);
+                } else if (data.type === 'dailyReportUpdate') {
+                    fetchDailyReports();
                 }
             });
 
