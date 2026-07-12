@@ -29,6 +29,40 @@
                 transition-duration: 0.001ms !important;
             }
         }
+
+        .saidao-inline-ad {
+            position: relative;
+            width: fit-content;
+            max-width: 100%;
+            margin: 10px 0 18px;
+        }
+
+        .saidao-inline-ad[hidden] {
+            display: none !important;
+        }
+
+        .saidao-ad-close {
+            position: absolute;
+            top: -9px;
+            right: -9px;
+            width: 22px;
+            height: 22px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 50%;
+            background: rgba(32, 32, 32, 0.86);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            cursor: pointer;
+            z-index: 3;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+        }
+
+        .saidao-ad-close:hover {
+            background: rgba(229, 57, 53, 0.94);
+        }
     </style>
     <script>
         (function () {
@@ -112,6 +146,28 @@
             <!-- 卡片将通过JavaScript动态生成 -->
         </div>
     </div>
+
+    <div class="saidao-inline-ad" id="saidaoInlineAd">
+        <button class="saidao-ad-close" type="button" id="closeSaidaoInlineAd" aria-label="关闭广告">
+            <i class="fas fa-times"></i>
+        </button>
+        <script>
+            atOptions = {
+                'key' : '04871db8914319dc32157e4b18a41c55',
+                'format' : 'iframe',
+                'height' : 50,
+                'width' : 320,
+                'params' : {}
+            };
+        </script>
+        <script src="https://www.highperformanceformat.com/04871db8914319dc32157e4b18a41c55/invoke.js"></script>
+    </div>
+    <script>
+        document.getElementById('closeSaidaoInlineAd')?.addEventListener('click', function () {
+            document.getElementById('saidaoInlineAd')?.setAttribute('hidden', '');
+        });
+    </script>
+
 
     <!-- 聊天室侧边栏 -->
     <div class="chat-sidebar collapsed" id="chatSidebar">
