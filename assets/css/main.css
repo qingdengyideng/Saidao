@@ -1431,6 +1431,65 @@
             user-select: none;
         }
 
+        .chat-filter-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-filter-settings {
+            width: fit-content;
+            border: none;
+            padding: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .chat-filter-settings:hover {
+            color: var(--primary-color);
+        }
+
+        .chat-filter-hint {
+            margin: 0 0 14px;
+            color: var(--text-light);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .chat-filter-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .chat-filter-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-height: 30px;
+        }
+
+        .chat-filter-user {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border: 1px solid var(--chat-border);
+            border-radius: 999px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .chat-filter-user button {
+            border: none;
+            padding: 0;
+            background: transparent;
+            color: var(--text-light);
+            cursor: pointer;
+        }
+
         .chat-image-filter input {
             width: 15px;
             height: 15px;

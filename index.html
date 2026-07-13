@@ -12,8 +12,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/main.css">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3186770561555936"
-            crossorigin="anonymous"></script>
     <style>
         /* Reduce animation load on low-power/mobile devices */
         html.reduced-motion #logo-container,
@@ -140,13 +138,6 @@
     <!-- 在页面 body 里加入一个容器 -->
     <div id="toast-container"></div>
 
-    <!-- 主播卡片容器 -->
-    <div class="cards-container">
-        <div class="cards-grid" id="cardsGrid">
-            <!-- 卡片将通过JavaScript动态生成 -->
-        </div>
-    </div>
-
     <div class="saidao-inline-ad" id="saidaoInlineAd">
         <button class="saidao-ad-close" type="button" id="closeSaidaoInlineAd" aria-label="关闭广告">
             <i class="fas fa-times"></i>
@@ -167,6 +158,14 @@
             document.getElementById('saidaoInlineAd')?.setAttribute('hidden', '');
         });
     </script>
+
+    <!-- 主播卡片容器 -->
+    <div class="cards-container">
+        <div class="cards-grid" id="cardsGrid">
+            <!-- 卡片将通过JavaScript动态生成 -->
+        </div>
+    </div>
+
 
 
     <!-- 聊天室侧边栏 -->
@@ -207,10 +206,16 @@
                     <!-- 表情将通过JavaScript动态生成 -->
                 </div>
             </div>
-            <label class="chat-image-filter">
-                <input type="checkbox" id="blockImageMessages">
-                <span>隐藏图片消息</span>
-            </label>
+            <div class="chat-filter-row">
+                <label class="chat-image-filter">
+                    <input type="checkbox" id="blockImageMessages">
+                    <span>隐藏图片消息</span>
+                </label>
+                <button class="chat-filter-settings" id="openChatFilterModal" type="button">
+                    <i class="fas fa-ban"></i>
+                    屏蔽设置
+                </button>
+            </div>
             <div class="chat-input-container">
                 <button class="emoji-picker-toggle" id="emojiPickerToggle" type="button" title="表情" aria-label="表情">
                     <i class="far fa-smile"></i>
@@ -231,6 +236,30 @@
                 <button class="chat-tool-btn chat-send-toggle" id="emojiToggle" type="button" title="发送" aria-label="发送" disabled>
                     <i class="fas fa-paper-plane"></i>
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="chatFilterModal">
+    <div class="modal-content chat-filter-modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">弹幕屏蔽</h3>
+            <button class="modal-close" id="closeChatFilterModal" type="button"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p class="chat-filter-hint">通过消息右键或长按“屏蔽此用户”添加用户。</p>
+            <div class="form-group">
+                <label class="form-label">已屏蔽用户</label>
+                <div class="chat-filter-list" id="blockedUsersList"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="blockedKeywordPatterns">屏蔽关键词（正则）</label>
+                <textarea class="form-input" id="blockedKeywordPatterns" rows="4" placeholder="例如：广告|推广&#10;https?://\S+"></textarea>
+            </div>
+            <div class="chat-filter-actions">
+                <button class="btn btn-secondary" id="clearChatFilterRules" type="button">清空</button>
+                <button class="btn btn-primary" id="saveChatFilterRules" type="button">保存</button>
             </div>
         </div>
     </div>

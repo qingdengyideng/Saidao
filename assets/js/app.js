@@ -13,6 +13,11 @@ const setActiveItem = (items, current, activeClass = 'active') => {
 const setModalOpen = (id, isOpen) => byId(id)?.classList.toggle('active', isOpen);
 const BLOCK_IMAGE_MESSAGES_KEY = 'blockImageMessages';
 const HOT_WORDS_COLLAPSED_KEY = 'chatHotWordsCollapsed';
+const CHAT_FILTER_RULES_KEY = 'chatFilterRulesV1';
+let chatFilterRules = createEmptyChatFilterRules();
+const blockedUserNameCache = new Map();
+const chatMessageBuffer = [];
+const CHAT_MESSAGE_BUFFER_LIMIT = 1000;
 let hotWordSearchState = {
     word: '',
     cursor: null
@@ -44,6 +49,7 @@ function initializeApp() {
     setViewportHeightVar();
     applyStoredChatImageFilter();
     setHotWordsCollapsed(isHotWordsCollapsed());
+    loadChatFilterRules();
     initEventListeners();
     initializeFactionSelection();
     initializeEmojiPreviewDelegation();
@@ -132,6 +138,166 @@ function initializeEmojiPreviewDelegation() {
 
 function isImageMessagesBlocked() {
     return localStorage.getItem(BLOCK_IMAGE_MESSAGES_KEY) === 'true';
+}
+
+function createEmptyChatFilterRules() {
+    return { blockedUserIds: [], blockedNicknames: [], keywordPatterns: [] };
+}
+
+function normalizeChatFilterRules(value) {
+    const uniqueLines = (items) => [...new Set((Array.isArray(items) ? items : [])
+        .map((item) => String(item ?? '').trim()).filter(Boolean))];
+    return {
+        blockedUserIds: uniqueLines(value?.blockedUserIds).filter((id) => /^\d+$/.test(id) && id !== '0'),
+        blockedNicknames: uniqueLines(value?.blockedNicknames),
+        keywordPatterns: uniqueLines(value?.keywordPatterns)
+    };
+}
+
+function readStoredChatFilterRules() {
+    try {
+        return normalizeChatFilterRules(JSON.parse(localStorage.getItem(CHAT_FILTER_RULES_KEY) || '{}'));
+    } catch {
+        return createEmptyChatFilterRules();
+    }
+}
+
+function getChatMessageText(content) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = content || '';
+    return wrapper.innerText || wrapper.textContent || '';
+}
+
+function shouldFilterChatMessage(data) {
+    if (!data || data.type && data.type !== 'user') return false;
+    const uid = String(data.uid ?? '0');
+    if (uid !== '0' && chatFilterRules.blockedUserIds.includes(uid)) return true;
+    if (uid === '0' && chatFilterRules.blockedNicknames.includes(String(data.uname || '').trim())) return true;
+    const text = getChatMessageText(data.content);
+    return chatFilterRules.keywordPatterns.some((pattern) => {
+        try {
+            return new RegExp(pattern, 'i').test(text);
+        } catch {
+            return false;
+        }
+    });
+}
+
+let rerenderChatFromBuffer = () => {};
+
+function bufferChatMessage(data, position = 'append') {
+    if (!data) return;
+    const messageId = data.messageId ? String(data.messageId) : '';
+    if (messageId && chatMessageBuffer.some((item) => item.id === messageId)) {
+        return;
+    }
+    const entry = { id: messageId, data };
+    if (position === 'prepend') {
+        chatMessageBuffer.unshift(entry);
+        if (chatMessageBuffer.length > CHAT_MESSAGE_BUFFER_LIMIT) chatMessageBuffer.pop();
+    } else {
+        chatMessageBuffer.push(entry);
+        if (chatMessageBuffer.length > CHAT_MESSAGE_BUFFER_LIMIT) chatMessageBuffer.shift();
+    }
+}
+
+function applyChatFilterRules() {
+    rerenderChatFromBuffer();
+}
+
+async function loadChatFilterRules() {
+    chatFilterRules = readStoredChatFilterRules();
+    if (state.isLoggedIn) {
+        try {
+            const result = await ApiEndpoints.chatFilterConfig();
+            chatFilterRules = normalizeChatFilterRules(result.data);
+            localStorage.setItem(CHAT_FILTER_RULES_KEY, JSON.stringify(chatFilterRules));
+        } catch (error) {
+            console.warn('加载聊天室屏蔽设置失败:', error);
+        }
+    }
+    applyChatFilterRules();
+}
+
+async function saveChatFilterRules(rules) {
+    chatFilterRules = normalizeChatFilterRules(rules);
+    localStorage.setItem(CHAT_FILTER_RULES_KEY, JSON.stringify(chatFilterRules));
+    if (state.isLoggedIn) await ApiEndpoints.updateChatFilterConfig(chatFilterRules);
+    applyChatFilterRules();
+}
+
+async function openChatFilterModal() {
+    byId('blockedKeywordPatterns').value = chatFilterRules.keywordPatterns.join('\n');
+    setModalOpen('chatFilterModal', true);
+    await renderBlockedUsersList();
+}
+
+function closeChatFilterModal() {
+    setModalOpen('chatFilterModal', false);
+}
+
+function getChatFilterRulesFromForm() {
+    const keywordPatterns = byId('blockedKeywordPatterns').value.split('\n').map((line) => line.trim()).filter(Boolean);
+    for (const pattern of keywordPatterns) new RegExp(pattern, 'i');
+    return { ...chatFilterRules, keywordPatterns };
+}
+
+async function renderBlockedUsersList() {
+    const list = byId('blockedUsersList');
+    if (!list) return;
+    list.textContent = '正在加载已屏蔽用户...';
+    const userNames = await Promise.all(chatFilterRules.blockedUserIds.map(async (id) => {
+        if (blockedUserNameCache.has(id)) return blockedUserNameCache.get(id);
+        try {
+            const result = await ApiEndpoints.showUserDetail(id);
+            const name = String(result.data?.name || '用户已不存在');
+            blockedUserNameCache.set(id, name);
+            return name;
+        } catch {
+            return '用户已不存在';
+        }
+    }));
+    const users = [
+        ...chatFilterRules.blockedUserIds.map((id, index) => ({ type: 'id', value: id, label: userNames[index] })),
+        ...chatFilterRules.blockedNicknames.map((name) => ({ type: 'nickname', value: name, label: name }))
+    ];
+    if (!users.length) {
+        list.textContent = '暂无屏蔽用户';
+        return;
+    }
+    list.replaceChildren(...users.map((user) => {
+        const item = document.createElement('span');
+        item.className = 'chat-filter-user';
+        item.textContent = user.label;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.title = '取消屏蔽';
+        remove.setAttribute('aria-label', `取消屏蔽 ${user.label}`);
+        remove.innerHTML = '<i class="fas fa-times"></i>';
+        remove.addEventListener('click', async () => {
+            const rules = { ...chatFilterRules };
+            if (user.type === 'id') rules.blockedUserIds = rules.blockedUserIds.filter((id) => id !== user.value);
+            else rules.blockedNicknames = rules.blockedNicknames.filter((name) => name !== user.value);
+            try {
+                await saveChatFilterRules(rules);
+                openChatFilterModal();
+            } catch (error) {
+                Toast.show(error.message || '更新屏蔽设置失败', 'error');
+            }
+        });
+        item.appendChild(remove);
+        return item;
+    }));
+}
+
+async function handleSaveChatFilterRules() {
+    try {
+        await saveChatFilterRules(getChatFilterRulesFromForm());
+        closeChatFilterModal();
+        Toast.show('屏蔽设置已保存', 'success');
+    } catch (error) {
+        Toast.show(error.message || '屏蔽规则格式无效', 'error');
+    }
 }
 
 function applyStoredChatImageFilter() {
@@ -400,6 +566,7 @@ function initEventListeners() {
         fetchStreamers();
     });
     on(byId('blockImageMessages'), 'change', handleBlockImageMessagesChange);
+    on(byId('openChatFilterModal'), 'click', openChatFilterModal);
     on(byId('chatHotWordsToggle'), 'click', (event) => {
         event.preventDefault();
         toggleHotWordsCollapsed();
@@ -417,6 +584,12 @@ function initEventListeners() {
             ['closeProfileModal', closeProfileModal],
             ['closeUserDetailModal', closeUserDetailModal],
             ['closeTagEditorModal', closeTagEditor],
+            ['closeChatFilterModal', closeChatFilterModal],
+            ['saveChatFilterRules', handleSaveChatFilterRules],
+            ['clearChatFilterRules', async () => {
+                await saveChatFilterRules(createEmptyChatFilterRules());
+                openChatFilterModal();
+            }],
             ['tagEditorCancelBtn', closeTagEditor],
             ['switchToRegister', switchToRegister],
             ['switchToLogin', switchToLogin],
@@ -1671,6 +1844,7 @@ function getWebhookPlaceholder(type) {
                 updateUIState();
                 renderStreamerCards();
                 closeLoginModal();
+                await loadChatFilterRules();
             }
         }
 
@@ -2250,7 +2424,29 @@ function getWebhookPlaceholder(type) {
             }
         }
 
+        // 屏蔽规则变化后，基于消息缓冲重新渲染，使取消屏蔽能恢复消息
+        rerenderChatFromBuffer = function rerenderChatFromBufferImpl() {
+            const wasFollowing = chatFollowMode;
+            container.querySelectorAll('.chat-message').forEach((messageElement) => {
+                unobserveChatNode(messageElement);
+                messageElement.remove();
+            });
+            renderedMessageIds.clear();
+            chatMessageBuffer.forEach((entry) => {
+                addMessageToChat(entry.data, { skipBuffer: true, suppressAlert: true, stickToBottom: false });
+            });
+            if (wasFollowing) {
+                followChatBottom();
+            }
+        };
+
         function addMessageToChat(data, options = {}) {
+            if (!options.skipBuffer) {
+                bufferChatMessage(data, options.position || 'append');
+            }
+            if (shouldFilterChatMessage(data)) {
+                return null;
+            }
             const isPureImageMessage = isPureImageMessageContent(data.content);
 
             if (!trackRenderedMessage(data.messageId)) {
@@ -2679,6 +2875,25 @@ function getWebhookPlaceholder(type) {
             });
             menu.appendChild(mentionItem);
 
+            const blockItem = document.createElement('div');
+            blockItem.className = 'context-menu-item';
+            blockItem.textContent = Number(messageData.uid) === 0 ? `屏蔽 ${messageData.uname}` : '屏蔽此用户';
+            styleMenuItem(blockItem);
+            blockItem.addEventListener('click', async () => {
+                const rules = { ...chatFilterRules };
+                if (Number(messageData.uid) === 0) rules.blockedNicknames = [...rules.blockedNicknames, messageData.uname];
+                else rules.blockedUserIds = [...rules.blockedUserIds, String(messageData.uid)];
+                try {
+                    await saveChatFilterRules(rules);
+                    Toast.show('已屏蔽该用户', 'success');
+                } catch (error) {
+                    Toast.show(error.message || '保存屏蔽设置失败', 'error');
+                } finally {
+                    closeMessageContextMenu();
+                }
+            });
+            menu.appendChild(blockItem);
+
             const extraMenuItems = [];
             const canBan = state.currentUser?.canChatBan === true
                 && Number(messageData.uid) !== Number(state.currentUser?.id);
@@ -2734,7 +2949,7 @@ function getWebhookPlaceholder(type) {
             }
 
             // 悬停效果
-            [copyItem, quoteItem, mentionItem, ...extraMenuItems].forEach(item => {
+            [copyItem, quoteItem, mentionItem, blockItem, ...extraMenuItems].forEach(item => {
                 item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--bg-color)');
                 item.addEventListener('mouseleave', () => item.style.backgroundColor = '');
             });
