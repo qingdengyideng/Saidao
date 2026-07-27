@@ -95,5 +95,12 @@ window.ApiEndpoints = {
     uploadEmojis: (data) => request('/emoji/upload', { method: 'POST', body: data, withAuth: true }),
     testWebhook: (data) => request('/webhook/testWebhook', { method: 'POST', body: data, withAuth: true, fromN8N: true }),
     getCaptcha: () => request('/user/captcha'),
-    dailyReportList: () => request('/dailyReport/list', { showLoading: false })
+    dailyReportList: () => request('/dailyReport/list', { showLoading: false }),
+    
+    // 视频点播相关
+    videoRequestSubmit: (data) => request('/videoRequest/submit', { method: 'POST', body: data, withAuth: true }),
+    videoRequestVote: (data) => request('/videoRequest/vote', { method: 'POST', body: data, withAuth: true }),
+    videoRequestList: () => request('/videoRequest/list', { showLoading: false }),
+    videoRequestSkip: () => request('/videoRequest/skip', { method: 'POST', withAuth: true }),
+    videoRequestDelete: (videoRequestId) => request(`/videoRequest/delete?videoRequestId=${videoRequestId}`, { method: 'POST', withAuth: true })
 };

@@ -2543,6 +2543,11 @@
             z-index: 9999;
         }
 
+        #global-loading[hidden] {
+            display: none !important;
+            pointer-events: none;
+        }
+
         .form-label-row {
             display: flex;
             justify-content: space-between;

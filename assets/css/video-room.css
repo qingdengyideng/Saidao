@@ -1,0 +1,404 @@
+/* ==================== 点播室模块样式 ==================== */
+
+.video-room-container {
+    padding: 24px;
+    max-width: 1800px;
+    margin: 0 auto;
+}
+
+.video-room {
+    display: grid;
+    grid-template-columns: 1fr 450px;
+    gap: 24px;
+}
+
+.video-room[hidden] {
+    display: none;
+}
+
+/* 视频播放区 */
+.video-room-player-section {
+    position: relative;
+    background: var(--card-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    box-shadow: var(--shadow-light);
+    width: 100%;
+}
+
+.video-room-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
+.video-room-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    gap: 12px;
+}
+
+.video-room-empty[hidden] {
+    display: none !important;
+}
+
+.video-room-empty i {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+.video-room-empty p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* 侧边栏 */
+.video-room-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.video-room-section {
+    background: var(--card-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    box-shadow: var(--shadow-light);
+}
+
+.video-room-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.video-room-section h3 .count {
+    color: var(--primary-color);
+}
+
+/* 播放列表项 */
+.video-playlist-item,
+.video-voting-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-color);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.video-playlist-item:hover,
+.video-voting-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+body.dark-mode .video-playlist-item:hover,
+body.dark-mode .video-voting-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.video-playlist-item:last-child,
+.video-voting-item:last-child {
+    margin-bottom: 0;
+}
+
+.video-rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.video-cover {
+    width: 120px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.video-cover-wrap {
+    position: relative;
+    width: 120px;
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+}
+
+.video-cover-wrap .video-cover {
+    width: 100%;
+    height: 100%;
+}
+
+.video-playing-badge {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(229, 57, 53, 0.92);
+    color: #fff;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+    animation: video-playing-pulse 1.2s ease-in-out infinite;
+}
+
+.video-playing-badge i {
+    font-size: 9px;
+}
+
+.video-playlist-item.is-playing {
+    background: rgba(229, 57, 53, 0.08);
+    box-shadow: inset 3px 0 0 #e53935;
+}
+
+@keyframes video-playing-pulse {
+    0%, 100% { opacity: 0.72; transform: scale(0.98); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+.video-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.video-title {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.video-meta {
+    font-size: 11px;
+    color: var(--text-light);
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.video-requester {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* 投票统计 */
+.video-vote-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.vote-approve {
+    color: #52c41a;
+    font-weight: 500;
+}
+
+.vote-reject {
+    color: #ff4d4f;
+    font-weight: 500;
+}
+
+.vote-time {
+    color: var(--text-light);
+}
+
+/* 投票按钮 */
+.video-vote-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.btn-vote {
+    padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.btn-approve {
+    background: #52c41a;
+    color: white;
+}
+
+.btn-approve:hover {
+    background: #389e0d;
+}
+
+.btn-reject {
+    background: #ff4d4f;
+    color: white;
+}
+
+.btn-reject:hover {
+    background: #cf1322;
+}
+
+.btn-vote:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.voted-badge {
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    text-align: center;
+    font-weight: 500;
+}
+
+body.dark-mode .voted-badge {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* 输入区 */
+.video-room-input {
+    display: flex;
+    gap: 8px;
+    padding: 16px;
+    background: var(--card-color);
+    border-radius: var(--radius-md);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    box-shadow: var(--shadow-light);
+}
+
+.video-room-input input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-color);
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.video-room-input input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.video-room-input input::placeholder {
+    color: var(--text-light);
+}
+
+.video-room-input button {
+    padding: 10px 20px;
+    white-space: nowrap;
+}
+
+/* 空状态 */
+.empty-hint {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-light);
+    font-size: 13px;
+}
+
+/* 响应式布局 */
+@media (max-width: 1400px) {
+    .video-room {
+        grid-template-columns: 1fr 400px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .video-room {
+        grid-template-columns: 1fr;
+    }
+    
+    .video-room-sidebar {
+        max-height: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .video-room-container {
+        padding: 16px;
+    }
+    
+    .video-room {
+        gap: 16px;
+    }
+    
+    .video-room-sidebar {
+        gap: 12px;
+    }
+
+    .video-cover {
+        width: 80px;
+    }
+
+    .video-title {
+        font-size: 12px;
+    }
+
+    .video-meta {
+        font-size: 10px;
+    }
+
+    .btn-vote {
+        padding: 5px 12px;
+        font-size: 11px;
+    }
+}
+
+/* 暗色模式适配 */
+body.dark-mode .video-room-player {
+    background: #000;
+}
+
+body.dark-mode .video-room-input input {
+    background: #1a1a1a;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .video-room-input input:focus {
+    border-color: var(--primary-color);
+}

@@ -636,10 +636,31 @@ function initEventListeners() {
         on(tab, 'click', () => {
             setActiveItem(filterTabs, tab);
             state.currentStatus = tab.dataset.status;
-            if (tab.dataset.status === 'dailyReport') {
-                markDailyReportsSeen();
+            
+            // 控制显示/隐藏
+            const cardsContainer = document.querySelector('.cards-container');
+            const videoRoomContainer = document.getElementById('videoRoomContainer');
+            
+            if (tab.dataset.status === 'videoRoom') {
+                // 显示点播室，隐藏卡片容器
+                if (cardsContainer) cardsContainer.hidden = true;
+                if (videoRoomContainer) {
+                    videoRoomContainer.hidden = false;
+                    // 初始化点播室
+                    if (window.VideoRoomManager) {
+                        VideoRoomManager.init();
+                    }
+                }
+            } else {
+                // 显示卡片容器，隐藏点播室
+                if (cardsContainer) cardsContainer.hidden = false;
+                if (videoRoomContainer) videoRoomContainer.hidden = true;
+                
+                if (tab.dataset.status === 'dailyReport') {
+                    markDailyReportsSeen();
+                }
+                renderStreamerCards();
             }
-            renderStreamerCards();
         });
     });
 
@@ -3440,6 +3461,15 @@ function getWebhookPlaceholder(type) {
                 } else if (data.type === 'dailyReportUpdate') {
                     fetchDailyReports();
                 }
+                
+                // 处理视频点播相关消息
+                if (window.VideoRoomManager && [
+                    'videoVoting', 'videoVoteUpdate', 'videoApproved', 'videoRejected',
+                    'videoPlay', 'videoPlayEnd', 'videoFailed',
+                    'videoSkipped', 'videoDeleted'
+                ].includes(data.type)) {
+                    VideoRoomManager.handleWsMessage(data);
+                }
             });
 
             currentSocket.addEventListener('close', () => {
@@ -3613,15 +3643,16 @@ function getWebhookPlaceholder(type) {
 
         function showLoading() {
             initLoading();
-            if (!loadingAnimation) return;
-            document.getElementById('global-loading').style.display = 'flex';
-            loadingAnimation.play();
+            const loading = document.getElementById('global-loading');
+            if (!loading) return;
+            loading.hidden = false;
+            if (loadingAnimation) loadingAnimation.play();
         }
 
         function hideLoading() {
-            document.getElementById('global-loading').style.display = 'none';
-            if (!loadingAnimation) return;
-            loadingAnimation.stop();
+            const loading = document.getElementById('global-loading');
+            if (loading) loading.hidden = true;
+            if (loadingAnimation) loadingAnimation.stop();
         }
 
         let isImagePreviewOpen = false;

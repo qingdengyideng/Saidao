@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>Saidao</title>
     <meta name="description" content="Saidao live hub">
     <meta name="theme-color" content="#000000">
@@ -12,6 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/video-room.css">
     <style>
         /* Reduce animation load on low-power/mobile devices */
         html.reduced-motion #logo-container,
@@ -26,40 +28,6 @@
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.001ms !important;
             }
-        }
-
-        .saidao-inline-ad {
-            position: relative;
-            width: fit-content;
-            max-width: 100%;
-            margin: 10px 0 18px;
-        }
-
-        .saidao-inline-ad[hidden] {
-            display: none !important;
-        }
-
-        .saidao-ad-close {
-            position: absolute;
-            top: -9px;
-            right: -9px;
-            width: 22px;
-            height: 22px;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            border-radius: 50%;
-            background: rgba(32, 32, 32, 0.86);
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            cursor: pointer;
-            z-index: 3;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-        }
-
-        .saidao-ad-close:hover {
-            background: rgba(229, 57, 53, 0.94);
         }
     </style>
     <script>
@@ -82,6 +50,7 @@
     <script defer src="assets/js/api.js"></script>
     <script defer src="assets/js/chat-input-utils.js"></script>
     <script defer src="assets/js/chat-voice-utils.js"></script>
+    <script defer src="assets/js/video-room.js"></script>
     <script defer src="assets/js/app.js"></script>
 </head>
 <body>
@@ -93,7 +62,7 @@
             <span class="logo-text">抽象赛道网</span>
         </div>
 
-        <div id="global-loading" style="display:flex">
+        <div id="global-loading" hidden>
             <div id="lottie-container" style="width:120px;height:120px;"></div>
         </div>
 
@@ -128,6 +97,9 @@
                 抽象日报
                 <span class="tab-dot" id="reportTabDot" hidden>更新啦</span>
             </button>
+            <button class="filter-tab" data-status="videoRoom">
+                点播室
+            </button>
             <button class="btn refresh-btn" id="refreshBtn" aria-label="刷新当前列表">
                 <span class="refresh-icon">↻</span>
                 <span>刷新</span>
@@ -138,31 +110,41 @@
     <!-- 在页面 body 里加入一个容器 -->
     <div id="toast-container"></div>
 
-    <div class="saidao-inline-ad" id="saidaoInlineAd">
-        <button class="saidao-ad-close" type="button" id="closeSaidaoInlineAd" aria-label="关闭广告">
-            <i class="fas fa-times"></i>
-        </button>
-        <script>
-            atOptions = {
-                'key' : '04871db8914319dc32157e4b18a41c55',
-                'format' : 'iframe',
-                'height' : 50,
-                'width' : 320,
-                'params' : {}
-            };
-        </script>
-        <script async src="https://www.highperformanceformat.com/04871db8914319dc32157e4b18a41c55/invoke.js"></script>
-    </div>
-    <script>
-        document.getElementById('closeSaidaoInlineAd')?.addEventListener('click', function () {
-            document.getElementById('saidaoInlineAd')?.setAttribute('hidden', '');
-        });
-    </script>
-
     <!-- 主播卡片容器 -->
     <div class="cards-container">
         <div class="cards-grid" id="cardsGrid">
             <!-- 卡片将通过JavaScript动态生成 -->
+        </div>
+    </div>
+    
+    <!-- 点播室模块 (独立tab) -->
+    <div class="video-room-container" id="videoRoomContainer" hidden>
+        <div class="video-room">
+            <div class="video-room-player-section">
+                <video id="videoRoomPlayer" class="video-room-player" controls referrerpolicy="no-referrer" hidden></video>
+                <div class="video-room-empty" id="videoRoomEmpty">
+                    <i class="fas fa-video"></i>
+                    <p>暂无正在播放的视频</p>
+                    <p>快来点播一个吧！</p>
+                </div>
+            </div>
+            
+            <div class="video-room-sidebar">
+                <div class="video-room-section">
+                    <h3>播放列表 (<span class="count" id="playlistCount">0</span>)</h3>
+                    <div class="video-playlist" id="videoPlaylist"></div>
+                </div>
+                
+                <div class="video-room-section">
+                    <h3>投票中 (<span class="count" id="votingCount">0</span>/10)</h3>
+                    <div class="video-voting" id="videoVoting"></div>
+                </div>
+                
+                <div class="video-room-input">
+                    <input type="text" id="bvidInput" placeholder="输入BV号 (例如：BV1czKY67EDQ)" maxlength="32">
+                    <button class="btn btn-primary" id="submitBvid">提交点播</button>
+                </div>
+            </div>
         </div>
     </div>
 
