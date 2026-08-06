@@ -2277,6 +2277,7 @@ function getWebhookPlaceholder(type) {
         let isLoadingHistory = false;
         let hasMoreHistory = true;
         let historyLoadingIndicator = null;
+        let chatVideoModal = null;
 
         function isChatNearBottom(threshold = CHAT_STICKY_BOTTOM_THRESHOLD) {
             return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
@@ -2592,6 +2593,10 @@ function getWebhookPlaceholder(type) {
             const messageText = messageElement.querySelector('.message-text');
             const imageEmoji = messageText.querySelector('img');
 
+            if (messageText.querySelector('.chat-video-card')) {
+                messageText.classList.add('video-card-message');
+            }
+
             if (isPureImageMessage && imageEmoji) {
                 // 标记为图片消息
                 messageElement.classList.add('image-message');
@@ -2751,7 +2756,7 @@ function getWebhookPlaceholder(type) {
         }
 
         function setupMessageDelegation() {
-            // 头像点击 + 语音播放按钮（点击委托）
+            // 头像点击 + 语音与视频播放按钮（点击委托）
             container.addEventListener('click', function (e) {
                 const avatar = e.target.closest('.message-avatar');
                 if (avatar) {
@@ -2762,6 +2767,19 @@ function getWebhookPlaceholder(type) {
                 const playButton = e.target.closest('.voice-play-btn');
                 if (playButton) {
                     handleVoicePlayClick(playButton);
+                    return;
+                }
+
+                const videoPlayButton = e.target.closest('.chat-video-play');
+                if (videoPlayButton) {
+                    e.preventDefault();
+                    playChatVideo(videoPlayButton);
+                    return;
+                }
+
+                const videoCard = e.target.closest('.chat-video-title')?.closest('.chat-video-card');
+                if (videoCard?.dataset.sourceUrl) {
+                    window.open(videoCard.dataset.sourceUrl, '_blank', 'noopener');
                 }
             });
 
@@ -2841,6 +2859,37 @@ function getWebhookPlaceholder(type) {
                 playButton.classList.remove('playing');
                 playButton.querySelector('i')?.classList.replace('fa-pause', 'fa-play');
             }
+        }
+
+        function closeChatVideoModal() {
+            chatVideoModal?.querySelector('video')?.pause();
+            chatVideoModal?.remove();
+            chatVideoModal = null;
+        }
+
+        function playChatVideo(playButton) {
+            const videoUrl = playButton.dataset.videoUrl;
+            const title = playButton.getAttribute('aria-label') || '视频播放';
+            if (!videoUrl) return;
+
+            closeChatVideoModal();
+            chatVideoModal = document.createElement('div');
+            chatVideoModal.className = 'chat-video-modal';
+            chatVideoModal.innerHTML = `
+                <div class="chat-video-modal-panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+                    <button class="chat-video-modal-close" type="button" aria-label="关闭视频"><i class="fas fa-times"></i></button>
+                    <video class="chat-video-player" controls autoplay playsinline preload="metadata">
+                        <source src="${escapeHtml(videoUrl)}" type="video/mp4">
+                        当前浏览器不支持视频播放。
+                    </video>
+                </div>
+            `;
+            chatVideoModal.addEventListener('click', (event) => {
+                if (event.target === chatVideoModal || event.target.closest('.chat-video-modal-close')) {
+                    closeChatVideoModal();
+                }
+            });
+            document.body.appendChild(chatVideoModal);
         }
 
         setupMessageDelegation();

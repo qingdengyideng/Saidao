@@ -154,6 +154,7 @@
         // 当前播放中的语音消息
         let currentVoiceAudio = null;
         let currentVoiceButton = null;
+        let chatVideoModal = null;
 
         // 新消息提示
         let newMessageCount = 0;
@@ -476,6 +477,10 @@
 
             const messageText = messageElement.querySelector('.message-text');
             const imageEmoji = messageText?.querySelector('img');
+
+            if (messageText?.querySelector('.chat-video-card')) {
+                messageText.classList.add('video-card-message');
+            }
 
             if (isPureImage && imageEmoji) {
                 messageElement.classList.add('image-message');
@@ -1196,6 +1201,32 @@
             }
         }
 
+        function playChatVideo(playButton) {
+            const videoUrl = playButton.dataset.videoUrl;
+            const title = playButton.getAttribute('aria-label') || '视频播放';
+            if (!videoUrl) return;
+
+            chatVideoModal?.remove();
+            chatVideoModal = document.createElement('div');
+            chatVideoModal.className = 'chat-video-modal';
+            chatVideoModal.innerHTML = `
+                <div class="chat-video-modal-panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+                    <button class="chat-video-modal-close" type="button" aria-label="关闭视频"><i class="fas fa-times"></i></button>
+                    <video class="chat-video-player" controls autoplay playsinline preload="metadata">
+                    <source src="${escapeHtml(videoUrl)}" type="video/mp4">
+                    当前浏览器不支持视频播放。
+                </video>
+                </div>
+            `;
+            chatVideoModal.addEventListener('click', (event) => {
+                if (event.target === chatVideoModal || event.target.closest('.chat-video-modal-close')) {
+                    chatVideoModal.remove();
+                    chatVideoModal = null;
+                }
+            });
+            document.body.appendChild(chatVideoModal);
+        }
+
         // ====== 上下文菜单 ======
         function styleMenuItem(item) {
             item.style.padding = '8px 12px';
@@ -1542,7 +1573,7 @@
                 });
             }
 
-            // 容器事件委托：头像点击 / 语音播放 / 右键菜单 / 长按
+            // 容器事件委托：头像点击 / 语音与视频播放 / 右键菜单 / 长按
             container.addEventListener('click', (e) => {
                 const avatar = e.target.closest('.message-avatar');
                 if (avatar) {
@@ -1551,6 +1582,19 @@
                 }
                 const playButton = e.target.closest('.voice-play-btn');
                 if (playButton) handleVoicePlayClick(playButton);
+
+                const videoPlayButton = e.target.closest('.chat-video-play');
+                if (videoPlayButton) {
+                    e.preventDefault();
+                    playChatVideo(videoPlayButton);
+                    return;
+                }
+
+                const videoCard = e.target.closest('.chat-video-title')?.closest('.chat-video-card');
+                if (videoCard?.dataset.sourceUrl) {
+                    window.open(videoCard.dataset.sourceUrl, '_blank', 'noopener');
+                    return;
+                }
 
                 const quoteEl = e.target.closest('.message-quote');
                 if (quoteEl) {
