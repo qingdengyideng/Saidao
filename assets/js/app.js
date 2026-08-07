@@ -67,6 +67,8 @@ function initializeApp() {
         state.chatExpanded = true;
     }
 
+    syncChatSpaceReservation();
+
     on(window, 'resize', handleResize);
     on(window, 'orientationchange', setViewportHeightVar);
 }
@@ -82,6 +84,7 @@ function handleResize() {
             chatSidebar.style.width = '100%';
         }
         syncCardAnimationsWithChatState();
+        syncChatSpaceReservation();
     });
 }
 
@@ -1135,7 +1138,19 @@ function getWebhookPlaceholder(type) {
                 chatToggleIcon.className = 'fas fa-comment-dots';
             }
 
+            syncChatSpaceReservation();
             syncCardAnimationsWithChatState();
+        }
+
+        function syncChatSpaceReservation() {
+            const chatSidebar = byId('chatSidebar');
+            const chatOpenOnDesktop = !state.isMobile
+                && chatSidebar
+                && !chatSidebar.classList.contains('collapsed');
+            const chatWidth = chatSidebar?.getBoundingClientRect().width || state.chatWidth;
+
+            document.documentElement.classList.toggle('chat-space-active', chatOpenOnDesktop);
+            document.documentElement.style.setProperty('--chat-sidebar-width', `${chatWidth}px`);
         }
 
         // 切换表情面板
@@ -1574,6 +1589,7 @@ function getWebhookPlaceholder(type) {
                 if (newWidth >= 250 && newWidth <= 600) {
                     state.chatWidth = newWidth;
                     chatSidebar.style.width = newWidth + 'px';
+                    syncChatSpaceReservation();
                 }
             }
 
