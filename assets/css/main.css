@@ -1340,6 +1340,8 @@
             box-shadow: 0 28px 80px rgba(0, 0, 0, 0.52);
             pointer-events: auto;
             user-select: none;
+            touch-action: none;
+            will-change: left, top, width;
         }
 
         .chat-video-modal-toolbar {
@@ -1367,6 +1369,7 @@
             font-size: 12px;
             text-overflow: ellipsis;
             white-space: nowrap;
+            touch-action: none;
         }
 
         .chat-video-modal-actions {
@@ -1399,6 +1402,7 @@
             width: 18px;
             height: 18px;
             cursor: nwse-resize;
+            touch-action: none;
         }
 
         .chat-video-modal-resize-handle::after {
@@ -1431,7 +1435,7 @@
             .chat-video-modal-panel {
                 top: 10px;
                 right: 10px;
-                width: min(320px, calc(100vw - 20px));
+                width: min(80vw, calc(100vw - 20px));
                 border-radius: 10px;
             }
         }

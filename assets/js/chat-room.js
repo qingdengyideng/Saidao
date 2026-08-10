@@ -1237,17 +1237,18 @@
                 if (event.button !== 0 || document.fullscreenElement) return;
                 const rect = panel.getBoundingClientRect();
                 dragState = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
-                panel.setPointerCapture?.(event.pointerId);
+                dragHandle.setPointerCapture?.(event.pointerId);
                 event.preventDefault();
             });
             resizeHandle.addEventListener('pointerdown', (event) => {
                 if (event.button !== 0 || document.fullscreenElement) return;
                 const rect = panel.getBoundingClientRect();
                 resizeState = { width: rect.width, startX: event.clientX };
-                panel.setPointerCapture?.(event.pointerId);
+                resizeHandle.setPointerCapture?.(event.pointerId);
                 event.preventDefault();
             });
-            panel.addEventListener('pointermove', (event) => {
+            const updateWindowPosition = (event) => {
+                event.preventDefault();
                 if (dragState) {
                     const left = Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, event.clientX - dragState.offsetX));
                     const top = Math.max(8, Math.min(window.innerHeight - panel.offsetHeight - 8, event.clientY - dragState.offsetY));
@@ -1260,7 +1261,9 @@
                     const width = Math.max(240, Math.min(window.innerWidth * 0.9, resizeState.width + event.clientX - resizeState.startX));
                     panel.style.width = `${width}px`;
                 }
-            });
+            };
+            dragHandle.addEventListener('pointermove', updateWindowPosition, { passive: false });
+            resizeHandle.addEventListener('pointermove', updateWindowPosition, { passive: false });
             panel.addEventListener('pointerup', () => {
                 dragState = null;
                 resizeState = null;
