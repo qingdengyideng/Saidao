@@ -451,7 +451,7 @@
 
             messageElement.innerHTML = `
                 <div class="avatar-container">
-                    <img src="${data.avatar}" alt="${data.uname}" class="message-avatar" data-user-id="${data.uid}" loading="lazy" decoding="async">
+                    <img src="${escapeHtml(data.avatar || '')}" alt="${escapeHtml(data.uname || '')}" class="message-avatar" data-user-id="${escapeHtml(data.uid ?? '')}" loading="lazy" decoding="async">
                     ${factionHTML}
                 </div>
                 <div class="message-content">
@@ -1203,7 +1203,9 @@
 
         function playChatVideo(playButton) {
             const videoUrl = playButton.dataset.videoUrl;
-            const title = playButton.getAttribute('aria-label') || '视频播放';
+            const title = playButton.closest('.chat-video-card')?.querySelector('.chat-video-title')?.textContent?.trim()
+                || playButton.getAttribute('aria-label')
+                || '视频播放';
             if (!videoUrl) return;
 
             chatVideoModal?.remove();
@@ -1211,15 +1213,67 @@
             chatVideoModal.className = 'chat-video-modal';
             chatVideoModal.innerHTML = `
                 <div class="chat-video-modal-panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
-                    <button class="chat-video-modal-close" type="button" aria-label="关闭视频"><i class="fas fa-times"></i></button>
+                    <div class="chat-video-modal-toolbar">
+                        <span class="chat-video-modal-drag-handle"><i class="fas fa-grip-horizontal"></i>${escapeHtml(title)}</span>
+                        <span class="chat-video-modal-actions">
+                            <button class="chat-video-modal-fullscreen" type="button" aria-label="全屏播放"><i class="fas fa-expand"></i></button>
+                            <button class="chat-video-modal-close" type="button" aria-label="关闭视频"><i class="fas fa-times"></i></button>
+                        </span>
+                    </div>
                     <video class="chat-video-player" controls autoplay playsinline preload="metadata">
-                    <source src="${escapeHtml(videoUrl)}" type="video/mp4">
-                    当前浏览器不支持视频播放。
-                </video>
+                        <source src="${escapeHtml(videoUrl)}" type="video/mp4">
+                        当前浏览器不支持视频播放。
+                    </video>
+                    <span class="chat-video-modal-resize-handle" aria-hidden="true"></span>
                 </div>
             `;
+            const panel = chatVideoModal.querySelector('.chat-video-modal-panel');
+            const dragHandle = chatVideoModal.querySelector('.chat-video-modal-drag-handle');
+            const resizeHandle = chatVideoModal.querySelector('.chat-video-modal-resize-handle');
+            let dragState = null;
+            let resizeState = null;
+
+            dragHandle.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0 || document.fullscreenElement) return;
+                const rect = panel.getBoundingClientRect();
+                dragState = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+                panel.setPointerCapture?.(event.pointerId);
+                event.preventDefault();
+            });
+            resizeHandle.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0 || document.fullscreenElement) return;
+                const rect = panel.getBoundingClientRect();
+                resizeState = { width: rect.width, startX: event.clientX };
+                panel.setPointerCapture?.(event.pointerId);
+                event.preventDefault();
+            });
+            panel.addEventListener('pointermove', (event) => {
+                if (dragState) {
+                    const left = Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, event.clientX - dragState.offsetX));
+                    const top = Math.max(8, Math.min(window.innerHeight - panel.offsetHeight - 8, event.clientY - dragState.offsetY));
+                    panel.style.left = `${left}px`;
+                    panel.style.top = `${top}px`;
+                    panel.style.right = 'auto';
+                    panel.style.bottom = 'auto';
+                }
+                if (resizeState) {
+                    const width = Math.max(240, Math.min(window.innerWidth * 0.9, resizeState.width + event.clientX - resizeState.startX));
+                    panel.style.width = `${width}px`;
+                }
+            });
+            panel.addEventListener('pointerup', () => {
+                dragState = null;
+                resizeState = null;
+            });
+            chatVideoModal.querySelector('.chat-video-modal-fullscreen').addEventListener('click', () => {
+                if (document.fullscreenElement === panel) {
+                    document.exitFullscreen?.();
+                } else {
+                    panel.requestFullscreen?.().catch?.(() => panel.classList.add('is-fullscreen'));
+                }
+            });
             chatVideoModal.addEventListener('click', (event) => {
-                if (event.target === chatVideoModal || event.target.closest('.chat-video-modal-close')) {
+                if (event.target.closest('.chat-video-modal-close')) {
                     chatVideoModal.remove();
                     chatVideoModal = null;
                 }
