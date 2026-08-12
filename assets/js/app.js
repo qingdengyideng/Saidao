@@ -14,6 +14,7 @@ const setModalOpen = (id, isOpen) => byId(id)?.classList.toggle('active', isOpen
 const BLOCK_IMAGE_MESSAGES_KEY = 'blockImageMessages';
 const HOT_WORDS_COLLAPSED_KEY = 'chatHotWordsCollapsed';
 const CHAT_FILTER_RULES_KEY = 'chatFilterRulesV1';
+const CHAT_VIDEO_WINDOW_STATE_KEY = 'chatVideoWindowState';
 let chatFilterRules = createEmptyChatFilterRules();
 const blockedUserNameCache = new Map();
 const chatMessageBuffer = [];
@@ -2918,6 +2919,29 @@ function getWebhookPlaceholder(type) {
             let dragState = null;
             let resizeState = null;
 
+            try {
+                const savedState = JSON.parse(localStorage.getItem(CHAT_VIDEO_WINDOW_STATE_KEY) || 'null');
+                if (savedState && Number.isFinite(savedState.left) && Number.isFinite(savedState.top) && Number.isFinite(savedState.width)) {
+                    panel.style.width = `${Math.max(240, Math.min(window.innerWidth * 0.9, savedState.width))}px`;
+                    const height = panel.offsetHeight;
+                    panel.style.left = `${Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, savedState.left))}px`;
+                    panel.style.top = `${Math.max(8, Math.min(window.innerHeight - height - 8, savedState.top))}px`;
+                    panel.style.right = 'auto';
+                }
+            } catch {
+                localStorage.removeItem(CHAT_VIDEO_WINDOW_STATE_KEY);
+            }
+
+            const saveWindowState = () => {
+                if (document.fullscreenElement) return;
+                const rect = panel.getBoundingClientRect();
+                localStorage.setItem(CHAT_VIDEO_WINDOW_STATE_KEY, JSON.stringify({
+                    left: Math.round(rect.left),
+                    top: Math.round(rect.top),
+                    width: Math.round(rect.width)
+                }));
+            };
+
             dragHandle.addEventListener('pointerdown', (event) => {
                 if (event.button !== 0 || document.fullscreenElement) return;
                 const rect = panel.getBoundingClientRect();
@@ -2950,6 +2974,11 @@ function getWebhookPlaceholder(type) {
             dragHandle.addEventListener('pointermove', updateWindowPosition, { passive: false });
             resizeHandle.addEventListener('pointermove', updateWindowPosition, { passive: false });
             panel.addEventListener('pointerup', () => {
+                saveWindowState();
+                dragState = null;
+                resizeState = null;
+            });
+            panel.addEventListener('pointercancel', () => {
                 dragState = null;
                 resizeState = null;
             });
