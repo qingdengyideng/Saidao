@@ -33,6 +33,7 @@ let streamersData = [];
 let dailyReportsData = [];
 const emojiData = {};
 let tagEditorTarget = null;
+let activeStreamerPreview = null;
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -42,6 +43,94 @@ function escapeHtml(value) {
         '"': '&quot;',
         "'": '&#39;'
     }[char]));
+}
+
+function getStreamerStreamType(url) {
+    const path = String(url || '').split('#')[0].split('?')[0].toLowerCase();
+    if (path.endsWith('.m3u8')) return 'hls';
+    if (path.endsWith('.flv')) return 'flv';
+    return '';
+}
+
+function stopStreamerPreview() {
+    const preview = activeStreamerPreview;
+    if (!preview) return;
+
+    activeStreamerPreview = null;
+    preview.layer.classList.remove('is-previewing', 'is-preview-loading');
+    preview.hls?.destroy();
+    if (preview.flvPlayer) {
+        try {
+            preview.flvPlayer.pause();
+            preview.flvPlayer.unload();
+            preview.flvPlayer.destroy();
+        } catch (_) {
+            // The stream may already be disconnected.
+        }
+    }
+    preview.video.pause();
+    preview.video.removeAttribute('src');
+    preview.video.load();
+    preview.video.remove();
+}
+
+function startStreamerPreview(card, streamer) {
+    const streamUrl = String(streamer?.streamUrl || '').trim();
+    const streamType = getStreamerStreamType(streamUrl);
+    if (streamer?.status !== 'live' || !streamType || activeStreamerPreview?.card === card) return;
+
+    stopStreamerPreview();
+    const layer = $('.streamer-cover-layer', card);
+    if (!layer) return;
+
+    const video = document.createElement('video');
+    video.className = 'streamer-card-preview';
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.preload = 'none';
+
+    const preview = { card, layer, video, hls: null, flvPlayer: null };
+    activeStreamerPreview = preview;
+    layer.classList.add('is-previewing', 'is-preview-loading');
+    layer.appendChild(video);
+    video.addEventListener('playing', () => {
+        if (activeStreamerPreview === preview) {
+            layer.classList.remove('is-preview-loading');
+        }
+    }, { once: true });
+    video.addEventListener('error', () => {
+        if (activeStreamerPreview === preview) stopStreamerPreview();
+    });
+
+    if (streamType === 'flv') {
+        const flvLib = window.mpegts?.isSupported?.() ? window.mpegts : null;
+        if (!flvLib) return stopStreamerPreview();
+        preview.flvPlayer = flvLib.createPlayer({ type: 'flv', url: streamUrl, isLive: true }, {
+            enableWorker: true,
+            enableStashBuffer: false,
+            lazyLoad: false
+        });
+        preview.flvPlayer.attachMediaElement(video);
+        preview.flvPlayer.load();
+        video.play().catch(() => {});
+        return;
+    }
+
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+        video.play().catch(() => {});
+        return;
+    }
+
+    if (!window.Hls?.isSupported?.()) return stopStreamerPreview();
+    preview.hls = new window.Hls({ lowLatencyMode: true, backBufferLength: 30 });
+    preview.hls.loadSource(streamUrl);
+    preview.hls.attachMedia(video);
+    preview.hls.on(window.Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+    preview.hls.on(window.Hls.Events.ERROR, (_, data) => {
+        if (data.fatal && activeStreamerPreview === preview) stopStreamerPreview();
+    });
 }
 
 function initializeApp() {
@@ -72,6 +161,7 @@ function initializeApp() {
 
     on(window, 'resize', handleResize);
     on(window, 'orientationchange', setViewportHeightVar);
+    on(window, 'pagehide', stopStreamerPreview);
 }
 
 function handleResize() {
@@ -723,6 +813,18 @@ function initEventListeners() {
                 return;
             }
 
+            const cardContent = event.target.closest('.card-content');
+            if (cardContent && state.isMobile) {
+                const card = cardContent.closest('.streamer-card');
+                const streamer = streamersData.find(item => item.id === Number(card?.dataset?.id));
+                if (activeStreamerPreview?.card === card) {
+                    stopStreamerPreview();
+                } else {
+                    startStreamerPreview(card, streamer);
+                }
+                return;
+            }
+
             const coverArea = event.target.closest('.streamer-cover-area');
             if (coverArea) {
                 const card = coverArea.closest('.streamer-card');
@@ -826,6 +928,7 @@ function getWebhookPlaceholder(type) {
                 return;
             }
             const container = document.getElementById('cardsGrid');
+            stopStreamerPreview();
             container.innerHTML = '';
 
             const canEditTag = state.currentUser?.canEditSaidaoTag === true;
@@ -862,7 +965,7 @@ function getWebhookPlaceholder(type) {
                                 ? `<img src="${escapeHtml(streamer.cover)}" alt="${escapeHtml(streamer.name)}的直播封面" class="streamer-cover" onerror="this.closest('.streamer-cover-layer').classList.add('is-fallback', 'is-avatar-muted'); this.remove();">`
                                 : ''}
                             ${streamer.status === 'live'
-                                ? `<span class="streamer-live-badge">LIVE</span><span class="streamer-start-time"><i class="far fa-clock"></i>${escapeHtml(streamer.startTime || '')}</span>`
+                                ? `<span class="streamer-live-badge">LIVE</span><span class="streamer-cover-start-time"><i class="far fa-clock"></i>${escapeHtml(streamer.startTime || '')}</span>`
                                 : '<span class="streamer-offline-badge">未开播</span>'}
                             ${streamer.tag
                                 ? (canEditTag
@@ -882,7 +985,9 @@ function getWebhookPlaceholder(type) {
                                     ? `<span class="hot-indicator"><span class="hot-score-value"><i class="fas fa-fire"></i>${Math.ceil(streamer.hotScore)}</span></span>`
                                     : ''}
                             </div>
-                            <span class="streamer-channel"><i class="fas fa-satellite-dish"></i>${escapeHtml(streamer.channel || '未知渠道')}</span>
+                            <div class="streamer-meta">
+                                <span class="streamer-channel"><i class="fas fa-satellite-dish"></i>${escapeHtml(streamer.channel || '未知渠道')}</span>
+                            </div>
                         </div>
                         <div class="card-actions streamer-card-actions">
                             <div class="card-settings">
@@ -904,6 +1009,14 @@ function getWebhookPlaceholder(type) {
                 `;
 
                 container.appendChild(card);
+
+                const coverArea = $('.streamer-cover-area', card);
+                on(coverArea, 'pointerenter', () => {
+                    if (!state.isMobile) startStreamerPreview(card, streamer);
+                });
+                on(coverArea, 'pointerleave', () => {
+                    if (activeStreamerPreview?.card === card) stopStreamerPreview();
+                });
             });
         }
 
@@ -2063,9 +2176,10 @@ function getWebhookPlaceholder(type) {
                 name: item.name,
                 channel: item.channel,
                 startTime: item.startTime,
-                status: item.status === 1 ? 'live' : 'ended',
+                status: Number(item.status) === 1 ? 'live' : 'ended',
                 avatar: item.avatar,
                 url: item.url,
+                streamUrl: item.streamUrl,
                 cover: item.cover,
                 notificationEnabled: item.notShow,
                 tag: item.tag || '',

@@ -305,13 +305,14 @@
 
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 16px;
         }
 
         /* 主播卡片样式 */
         .streamer-card {
             background-color: var(--card-color);
+            height: 100%;
             border-radius: var(--radius-md);
             overflow: hidden;
             box-shadow: var(--shadow-light);
@@ -328,7 +329,7 @@
 
         .streamer-cover-area {
             position: relative;
-            aspect-ratio: 16 / 9;
+            aspect-ratio: 16 / 10;
             overflow: hidden;
             background: #242329;
             cursor: pointer;
@@ -347,12 +348,44 @@
         .streamer-cover-layer { overflow: hidden; }
 
         .streamer-cover-fallback img,
-        .streamer-cover {
+        .streamer-cover,
+        .streamer-card-preview {
             display: block;
             object-fit: cover;
         }
 
         .streamer-cover { z-index: 1; }
+
+        .streamer-card-preview {
+            position: absolute;
+            z-index: 2;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .streamer-cover-layer.is-previewing::after { display: none; }
+
+        .streamer-cover-layer.is-preview-loading::before {
+            content: '';
+            position: absolute;
+            z-index: 4;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            margin: -15px 0 0 -15px;
+            border: 3px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: streamer-preview-spin 0.72s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes streamer-preview-spin {
+            to { transform: rotate(360deg); }
+        }
 
         .streamer-cover-layer.is-fallback::after {
             content: '';
@@ -371,7 +404,7 @@
             background: linear-gradient(180deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.74));
         }
 
-        .streamer-start-time {
+        .streamer-cover-start-time {
             position: absolute;
             z-index: 3;
             right: 10px;
@@ -383,7 +416,7 @@
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
         }
 
-        .streamer-start-time i { margin-right: 4px; }
+        .streamer-cover-start-time i { margin-right: 4px; }
 
         .streamer-live-badge {
             position: absolute;
@@ -434,7 +467,7 @@
             padding: 0;
             border: 0;
             background: transparent;
-            color: var(--text-secondary);
+            color: #fff;
             font: inherit;
             font-size: 12px;
             font-weight: 700;
@@ -468,7 +501,7 @@
         }
 
         .streamer-card .card-content {
-            min-height: 72px;
+            min-height: 88px;
             padding: 13px 38px 13px 70px;
             justify-content: center;
         }
@@ -489,6 +522,7 @@
 
         .streamer-card .streamer-name-heat-row {
             display: flex;
+            flex: 1 1 100%;
             align-items: center;
             gap: 5px;
             min-width: 0;
@@ -500,9 +534,15 @@
             min-width: 0;
         }
 
-        .streamer-card .streamer-channel {
+        .streamer-card .streamer-meta {
             flex: 1 1 100%;
             max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .streamer-card .streamer-channel {
             overflow: hidden;
             color: var(--text-secondary);
             font-size: 11px;
@@ -2698,7 +2738,7 @@
         /* 响应式设计 - 重点优化移动端 */
         @media (max-width: 1200px) {
             .cards-grid {
-                grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(3, 1fr);
             }
             .chat-sidebar {
                 width: 520px;
@@ -2715,13 +2755,13 @@
             }
 
             html.chat-space-active .cards-grid {
-                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
             }
         }
 
         @media (max-width: 992px) {
             .cards-grid {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(2, 1fr);
             }
 
             .chat-sidebar {
@@ -2809,6 +2849,16 @@
             }
         }
 
+        @media (min-width: 577px) {
+            .streamer-card .streamer-name { font-size: 17px; }
+            .streamer-card .streamer-channel { font-size: 13px; line-height: 1.2; }
+            .streamer-card .hot-indicator { font-size: 13px; }
+            .streamer-card .hot-score-value { font-size: 12px; }
+            .streamer-cover-tag { font-size: 13px; }
+            .streamer-cover-start-time { font-size: 13px; }
+            .streamer-live-badge { font-size: 12px; }
+        }
+
         @media (max-width: 576px) {
             .streamer-identity-avatar {
                 left: 6px;
@@ -2819,12 +2869,12 @@
             }
 
             .streamer-card .card-content {
-                min-height: 62px;
+                min-height: 78px;
                 padding: 10px 31px 10px 56px;
             }
 
             .streamer-card .streamer-name { font-size: 13px; }
-            .streamer-start-time { right: 7px; bottom: 6px; font-size: 10px; }
+            .streamer-cover-start-time { right: 7px; bottom: 6px; font-size: 10px; }
 
             .cards-grid {
                 grid-template-columns: repeat(2, 1fr);
