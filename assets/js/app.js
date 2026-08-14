@@ -84,7 +84,6 @@ function handleResize() {
         if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
             chatSidebar.style.width = '100%';
         }
-        syncCardAnimationsWithChatState();
         syncChatSpaceReservation();
     });
 }
@@ -711,22 +710,6 @@ function initEventListeners() {
                 return;
             }
 
-            const enterBtn = event.target.closest('.enter-btn');
-            if (enterBtn) {
-                event.stopPropagation();
-                const card = enterBtn.closest('.streamer-card');
-                const url = card?.dataset?.url;
-                const streamerId = Number(card?.dataset?.id);
-                const streamer = streamersData.find(s => s.id === streamerId);
-                if (streamerId && streamer?.status === 'live') {
-                    ApiEndpoints.clickSaidao(streamerId).catch(() => {});
-                }
-                if (url) {
-                    window.open(url, '_blank');
-                }
-                return;
-            }
-
             const settingsBtn = event.target.closest('.settings-btn');
             if (settingsBtn) {
                 event.stopPropagation();
@@ -740,9 +723,9 @@ function initEventListeners() {
                 return;
             }
 
-            const avatarSection = event.target.closest('.avatar-section');
-            if (avatarSection) {
-                const card = avatarSection.closest('.streamer-card');
+            const coverArea = event.target.closest('.streamer-cover-area');
+            if (coverArea) {
+                const card = coverArea.closest('.streamer-card');
                 const url = card?.dataset?.url;
                 const streamerId = Number(card?.dataset?.id);
                 const streamer = streamersData.find(s => s.id === streamerId);
@@ -842,7 +825,6 @@ function getWebhookPlaceholder(type) {
                 renderDailyReportCards();
                 return;
             }
-            destroyAllLotties();
             const container = document.getElementById('cardsGrid');
             container.innerHTML = '';
 
@@ -865,44 +847,46 @@ function getWebhookPlaceholder(type) {
             }
 
             filteredStreamers.forEach(streamer => {
+                const useAvatarCover = streamer.status !== 'live' || !streamer.cover;
                 const card = document.createElement('div');
                 card.className = 'streamer-card';
                 card.dataset.id = streamer.id;
                 card.dataset.url = streamer.url || '';
-                card.dataset.tagEditable = canEditTag ? 'true' : 'false';
                 card.innerHTML = `
-                    <div class="${streamer.status === 'live' ? 'live-badge' : 'offline-badge'}">
-                        ${streamer.status === 'live' ? 'LIVE' : '未开播'}
-                    </div>
-                    <div class="avatar-section ${streamer.status === 'live' ? 'has-cover' : ''}">
-                        ${streamer.status === 'live'
-                                    ? `<div class="cover-container"></div>`
-                                    : ''
-                                }
-                        <div class="avatar-stack">
-                            <div class="avatar-frame">
-                                <img src="${escapeHtml(streamer.avatar)}" alt="${escapeHtml(streamer.name)}" class="streamer-avatar">
+                    <div class="streamer-cover-area">
+                        <div class="streamer-cover-layer${useAvatarCover ? ' is-fallback is-avatar-muted' : ''}">
+                            <div class="streamer-cover-fallback">
+                                <img src="${escapeHtml(streamer.avatar || '')}" alt="">
                             </div>
+                            ${!useAvatarCover
+                                ? `<img src="${escapeHtml(streamer.cover)}" alt="${escapeHtml(streamer.name)}的直播封面" class="streamer-cover" onerror="this.closest('.streamer-cover-layer').classList.add('is-fallback', 'is-avatar-muted'); this.remove();">`
+                                : ''}
+                            ${streamer.status === 'live'
+                                ? `<span class="streamer-live-badge">LIVE</span><span class="streamer-start-time"><i class="far fa-clock"></i>${escapeHtml(streamer.startTime || '')}</span>`
+                                : '<span class="streamer-offline-badge">未开播</span>'}
+                            ${streamer.tag
+                                ? (canEditTag
+                                    ? `<button type="button" class="streamer-tag streamer-cover-tag is-editable" title="点击编辑标签">${escapeHtml(streamer.tag)}</button>`
+                                    : `<span class="streamer-cover-tag">${escapeHtml(streamer.tag)}</span>`)
+                                : ''}
                         </div>
+                    </div>
+                    <div class="streamer-identity-avatar">
+                        <img src="${escapeHtml(streamer.avatar || '')}" alt="${escapeHtml(streamer.name)}">
                     </div>
                     <div class="card-content">
                         <div class="streamer-title-row">
                             <div class="streamer-name-heat-row">
                                 <h3 class="streamer-name">${escapeHtml(streamer.name)}</h3>
                                 ${streamer.status === 'live' && streamer.hotScore > 0
-                                        ? `<span class="hot-indicator"><span class="hot-score-value">🔥${Math.ceil(streamer.hotScore)}</span></span>`
-                                        : ''}
+                                    ? `<span class="hot-indicator"><span class="hot-score-value"><i class="fas fa-fire"></i>${Math.ceil(streamer.hotScore)}</span></span>`
+                                    : ''}
                             </div>
-                            ${renderStreamerTag(streamer, canEditTag)}
+                            <span class="streamer-channel"><i class="fas fa-satellite-dish"></i>${escapeHtml(streamer.channel || '未知渠道')}</span>
                         </div>
-                        <div class="streamer-info">
-                            <div><i class="fas fa-satellite-dish"></i>渠道: ${escapeHtml(streamer.channel)}</div>
-                            <div><i class="far fa-clock"></i>开播时间: ${escapeHtml(streamer.startTime)}</div>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn btn-primary enter-btn" style="padding: 7px 14px; font-size: 13px;">进入直播间</button>
+                        <div class="card-actions streamer-card-actions">
                             <div class="card-settings">
-                                <button class="settings-btn">
+                                <button class="settings-btn" aria-label="更多设置" title="更多设置">
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 <div class="settings-dropdown">
@@ -920,76 +904,7 @@ function getWebhookPlaceholder(type) {
                 `;
 
                 container.appendChild(card);
-                initLiveAnimations(card, streamer);
             });
-
-            syncCardAnimationsWithChatState();
-        }
-
-        const LOTTIE_POOL = [];
-
-        function initLiveAnimations(card, streamer) {
-            if (!card || streamer.status !== 'live') return;
-
-            const liveBadge = card.querySelector('.live-badge');
-            if (liveBadge) {
-                liveBadge.textContent = 'LIVE';
-            }
-
-            const cover = card.querySelector('.cover-container');
-            if (cover) {
-                const list = ['Background', 'Animated', 'florallanding', 'UnderwaterTurtle', 'Chinesenewyear', 'train'];
-                const name = cover.dataset.bgAnim
-                    || (cover.dataset.bgAnim = list[Math.floor(Math.random() * list.length)]);
-
-                if (name === 'Chinesenewyear'  ) {
-                    cover.style.backgroundColor = '#aa1414';
-                }
-
-                createLottie({
-                    container: cover,
-                    renderer: 'canvas',
-                    loop: true,
-                    autoplay: false,
-                    path: `/animation/${name}.json`,
-                    rendererSettings: {
-                        clearCanvas: true,
-                        progressiveLoad: true,
-                        preserveAspectRatio: 'xMidYMid slice'
-                    }
-                });
-            }
-        }
-
-        function createLottie(options) {
-            const anim = lottie.loadAnimation(options);
-            LOTTIE_POOL.push(anim);
-            return anim;
-        }
-
-        function shouldPauseCardAnimations() {
-            return state.isMobile && state.chatExpanded;
-        }
-
-        function syncCardAnimationsWithChatState() {
-            const shouldPause = shouldPauseCardAnimations();
-
-            LOTTIE_POOL.forEach((anim) => {
-                if (!anim) return;
-
-                if (shouldPause) {
-                    anim.pause?.();
-                } else {
-                    anim.play?.();
-                }
-            });
-        }
-
-        function destroyAllLotties() {
-            while (LOTTIE_POOL.length) {
-                const anim = LOTTIE_POOL.pop();
-                anim.destroy();
-            }
         }
 
 
@@ -1140,7 +1055,6 @@ function getWebhookPlaceholder(type) {
             }
 
             syncChatSpaceReservation();
-            syncCardAnimationsWithChatState();
         }
 
         function syncChatSpaceReservation() {
@@ -1723,28 +1637,6 @@ function getWebhookPlaceholder(type) {
                 streamer.tag = tag;
             }
 
-            const card = document.querySelector(`.streamer-card[data-id="${saidaoId}"]`);
-            if (card) {
-                const cardStreamer = streamer || {
-                    id: saidaoId,
-                    name: card.querySelector('.streamer-name')?.textContent || '',
-                    tag
-                };
-                const titleRow = card.querySelector('.streamer-title-row');
-                if (titleRow) {
-                    const canEditTag = state.currentUser?.canEditSaidaoTag === true;
-                    const existingIndicator = titleRow.querySelector('.hot-indicator');
-                    const hotHtml = existingIndicator ? `<span class="hot-indicator">${existingIndicator.innerHTML}</span>` : '';
-                    titleRow.innerHTML = `
-                        <div class="streamer-name-heat-row">
-                            <h3 class="streamer-name">${escapeHtml(cardStreamer.name)}</h3>
-                            ${hotHtml}
-                        </div>
-                        ${renderStreamerTag(cardStreamer, canEditTag)}
-                    `;
-                }
-            }
-
             if (tagEditorTarget && Number(tagEditorTarget.id) === saidaoId) {
                 tagEditorTarget.tag = tag;
                 const input = byId('tagEditorInput');
@@ -1761,6 +1653,27 @@ function getWebhookPlaceholder(type) {
                     `;
                 }
             }
+        }
+
+        function applySaidaoCoverUpdate(payload) {
+            let update;
+            try {
+                update = typeof payload?.content === 'string'
+                    ? JSON.parse(payload.content)
+                    : payload?.content;
+            } catch (error) {
+                console.warn('解析赛道封面更新消息失败', error);
+                return;
+            }
+
+            const uid = String(update?.uid || '');
+            if (!uid) return;
+
+            const streamer = streamersData.find(item => String(item.uid) === uid);
+            if (!streamer) return;
+
+            streamer.cover = String(update?.cover || '').trim();
+            renderStreamerCards();
         }
 
         function applyHotScoreUpdate(scores) {
@@ -2146,6 +2059,7 @@ function getWebhookPlaceholder(type) {
             const result = await ApiEndpoints.saidao();
             streamersData = result.data.map(item => ({
                 id: item.id,
+                uid: item.uid,
                 name: item.name,
                 channel: item.channel,
                 startTime: item.startTime,
@@ -2212,7 +2126,6 @@ function getWebhookPlaceholder(type) {
         }
 
         function renderDailyReportCards() {
-            destroyAllLotties();
             const container = document.getElementById('cardsGrid');
             if (!container) return;
             container.innerHTML = '';
@@ -3606,6 +3519,8 @@ function getWebhookPlaceholder(type) {
                     fetchDailyReports();
                 } else if (data.type === 'saidaoTagUpdated') {
                     applySaidaoTagUpdate(data);
+                } else if (data.type === 'saidaoCoverUpdated') {
+                    applySaidaoCoverUpdate(data);
                 } else if (data.type === 'hotScoreUpdate') {
                     applyHotScoreUpdate(data.scores);
                 } else if (data.type === 'clear') {
@@ -3655,19 +3570,6 @@ function getWebhookPlaceholder(type) {
             clearChatReconnectTimer();
             closeChatSocket({ preventReconnect: true });
             clearChatObservers();
-        });
-
-        // 页面切到后台时暂停卡片动画，减少后台 GPU/CPU 开销，但保持 WebSocket 连接
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                if (typeof LOTTIE_POOL !== 'undefined') {
-                    LOTTIE_POOL.forEach((anim) => anim?.pause?.());
-                }
-            } else {
-                if (typeof syncCardAnimationsWithChatState === 'function') {
-                    syncCardAnimationsWithChatState();
-                }
-            }
         });
 
         // 发送消息
@@ -3770,43 +3672,15 @@ function getWebhookPlaceholder(type) {
             deferredPrompt = null;
         });
 
-        if (!window.__LIMITED_MOTION__) {
-            lottie.loadAnimation({
-                container: document.getElementById('logo-container'),
-                renderer: 'canvas',
-                loop: true,
-                autoplay: true,
-                path: '/animation/SpringFestival.json'
-            });
-        }
-
-        let loadingAnimation = null;
-
-        function initLoading() {
-            if (window.__LIMITED_MOTION__) return;
-            if (loadingAnimation) return;
-
-            loadingAnimation = lottie.loadAnimation({
-                container: document.getElementById('lottie-container'),
-                renderer: 'canvas',
-                loop: true,
-                autoplay: false,
-                path: '/animation/SandyLoading.json'
-            });
-        }
-
         function showLoading() {
-            initLoading();
             const loading = document.getElementById('global-loading');
             if (!loading) return;
             loading.hidden = false;
-            if (loadingAnimation) loadingAnimation.play();
         }
 
         function hideLoading() {
             const loading = document.getElementById('global-loading');
             if (loading) loading.hidden = true;
-            if (loadingAnimation) loadingAnimation.stop();
         }
 
         let isImagePreviewOpen = false;
