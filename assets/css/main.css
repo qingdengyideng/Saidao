@@ -117,6 +117,84 @@
             color: var(--primary-dark);
         }
 
+        .brand-stack { min-width: 0; }
+
+        .notice-bar {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            max-width: 460px;
+            margin-top: 7px;
+            padding: 6px 9px;
+            overflow: hidden;
+            border: 1px solid #efca5a;
+            border-radius: var(--radius-sm);
+            background: #fff3cd;
+            color: #765400;
+            font-size: 13px;
+            line-height: 1.25;
+        }
+
+        .notice-bar .fa-bullhorn { color: #d89800; }
+
+        .notice-scroll-viewport {
+            min-width: 0;
+            flex: 1;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .notice-scroll-track {
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .notice-scroll-track.is-scrolling {
+            padding-right: 28px;
+            animation: notice-scroll 12s linear infinite;
+        }
+
+        @keyframes notice-scroll {
+            to { transform: translateX(var(--notice-scroll-distance)); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .notice-scroll-track.is-scrolling { animation: none; }
+        }
+
+        .logo-text {
+            position: relative;
+            font-size: 23px;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: linear-gradient(45deg,
+            var(--primary-color) 0%,
+            #ffeabd 60%,
+            #ff523b 100%);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientFlow 6s ease infinite;
+            padding-bottom: 4px;
+        }
+
+        .logo-text::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 21px;
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(45deg,
+            var(--primary-color) 0%,
+            #ffeabd 60%,
+            #ff523b 100%);
+            background-size: 200% 100%;
+            animation: gradientFlow 4s ease infinite;
+            opacity: 0.7;
+        }
+
         .header-controls {
             display: flex;
             align-items: center;
@@ -2699,41 +2777,6 @@
         .toast.error   { background-color: #f44336; }
         .toast.warning { background-color: #ff9800; }
         .toast.info    { background-color: #2196f3; }
-
-        .logo-text {
-            position: relative;
-            font-size: 23px;
-            font-weight: bold;
-            color: var(--primary-color);
-            background: linear-gradient(45deg,
-            var(--primary-color) 0%,
-            #ffeabd 60%,
-            #ff523b 100%);
-            background-size: 300% 300%;
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: gradientFlow 6s ease infinite;
-            padding-bottom: 4px;
-        }
-
-        /* 底部装饰条 */
-        .logo-text::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 21px;
-            width: 60%;
-            height: 2px;
-            background: linear-gradient(45deg,
-            var(--primary-color) 0%,
-            #ffeabd 60%,
-            #ff523b 100%);
-            background-size: 200% 100%;
-            animation: gradientFlow 4s ease infinite;
-            opacity: 0.7;
-        }
-
 
         /* 响应式设计 - 重点优化移动端 */
         @media (max-width: 1200px) {

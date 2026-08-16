@@ -145,7 +145,9 @@ function initializeApp() {
     initializeEmojiPreviewDelegation();
     fetchStreamers();
     fetchDailyReports();
+    fetchNotice();
     checkIsLogin();
+    showPendingAllocationCredentials();
     setupWebSocket();
     updateUIState();
 
@@ -157,7 +159,7 @@ function initializeApp() {
         state.chatExpanded = true;
     }
 
-    syncChatSpaceReservation();
+        syncChatSpaceReservation();
 
     on(window, 'resize', handleResize);
     on(window, 'orientationchange', setViewportHeightVar);
@@ -170,6 +172,7 @@ function handleResize() {
         handleResize._raf = null;
         detectDeviceType();
         setViewportHeightVar();
+        updateNoticeScroll();
         const chatSidebar = byId('chatSidebar');
         if (state.isMobile && !chatSidebar.classList.contains('collapsed')) {
             chatSidebar.style.width = '100%';
@@ -672,8 +675,12 @@ function initEventListeners() {
 
         [
             ['closeLoginModal', closeLoginModal],
-            ['closeRegisterModal', closeRegisterModal],
-            ['closeForgotModal', closeForgotPasswordModal],
+            ['closeAllocationResult', closeAllocationResult],
+            ['finishAllocation', closeAllocationResult],
+            ['closeCaptchaModal', closeCaptchaModal],
+            ['confirmCaptchaBtn', confirmAllocationCaptcha],
+            ['openChangePassword', openChangePasswordModal],
+            ['closeChangePassword', closeChangePasswordModal],
             ['closeProfileModal', closeProfileModal],
             ['closeUserDetailModal', closeUserDetailModal],
             ['closeTagEditorModal', closeTagEditor],
@@ -684,9 +691,8 @@ function initEventListeners() {
                 openChatFilterModal();
             }],
             ['tagEditorCancelBtn', closeTagEditor],
-            ['switchToRegister', switchToRegister],
-            ['switchToLogin', switchToLogin],
-            ['forgotPassword', openForgotPasswordModal],
+            ['allocateAccount', openAllocationCaptcha],
+            ['copyAllocationCredentials', copyAllocationCredentials],
             ['testWebhookBtn', handleTestWebhook],
             ['emojiPickerToggle', toggleEmojiSection],
             ['emojiToggle', sendMessage],
@@ -697,8 +703,7 @@ function initEventListeners() {
 
         [
             ['loginForm', handleLogin],
-            ['registerForm', handleRegister],
-            ['forgotPasswordForm', handleForgotPassword],
+            ['changePasswordForm', handleChangePassword],
             ['profileForm', handleProfileUpdate],
             ['tagEditorForm', handleTagEditorSubmit],
             ['avatarFileInput', handleChangeAvatar, 'change'],
@@ -1646,20 +1651,16 @@ function getWebhookPlaceholder(type) {
             closeModal('loginModal');
         }
 
-        function openRegisterModal() {
-            openModal('registerModal');
+        function openChangePasswordModal() {
+            openModal('changePasswordModal');
         }
 
-        function closeRegisterModal() {
-            closeModal('registerModal');
+        function closeChangePasswordModal() {
+            closeModal('changePasswordModal');
         }
 
-        function openForgotPasswordModal() {
-            openModal('forgotPasswordModal');
-        }
-
-        function closeForgotPasswordModal() {
-            closeModal('forgotPasswordModal');
+        function closeAllocationResult() {
+            closeModal('allocationResultModal');
         }
 
         function openProfileModal() {
@@ -1786,7 +1787,30 @@ function getWebhookPlaceholder(type) {
             if (!streamer) return;
 
             streamer.cover = String(update?.cover || '').trim();
-            renderStreamerCards();
+            updateStreamerCardCover(streamer);
+        }
+
+        function updateStreamerCardCover(streamer) {
+            const card = document.querySelector(`.streamer-card[data-id="${streamer.id}"]`);
+            const layer = card && $('.streamer-cover-layer', card);
+            if (!layer) return;
+
+            $('.streamer-cover', layer)?.remove();
+            if (streamer.status !== 'live' || !streamer.cover) {
+                layer.classList.add('is-fallback', 'is-avatar-muted');
+                return;
+            }
+
+            const cover = document.createElement('img');
+            cover.className = 'streamer-cover';
+            cover.src = streamer.cover;
+            cover.alt = `${streamer.name}的直播封面`;
+            cover.onerror = () => {
+                layer.classList.add('is-fallback', 'is-avatar-muted');
+                cover.remove();
+            };
+            $('.streamer-cover-fallback', layer)?.insertAdjacentElement('afterend', cover);
+            layer.classList.remove('is-fallback', 'is-avatar-muted');
         }
 
         function applyHotScoreUpdate(scores) {
@@ -1877,16 +1901,6 @@ function getWebhookPlaceholder(type) {
             });
         }
 
-        function switchToRegister() {
-            closeLoginModal();
-            openRegisterModal();
-        }
-
-        function switchToLogin() {
-            closeRegisterModal();
-            openLoginModal();
-        }
-
         async function checkIsLogin() {
             const result = await ApiEndpoints.currentUser();
             const data = result.data
@@ -1916,11 +1930,11 @@ function getWebhookPlaceholder(type) {
         async function handleLogin(e) {
             e.preventDefault();
 
-            const email = document.getElementById('loginEmail').value;
+            const email = document.getElementById('loginAccount').value;
             const password = document.getElementById('loginPassword').value;
 
             if (!email || !password) {
-                Toast.show('请输入邮箱和密码', 'warning');
+                Toast.show('请输入账号或邮箱和密码', 'warning');
                 return;
             }
 
@@ -1932,44 +1946,81 @@ function getWebhookPlaceholder(type) {
             window.location.reload();
 
         }
+        let allocationCaptchaId = '';
 
+        async function openAllocationCaptcha() {
+            const result = await ApiEndpoints.getCaptcha();
+            if (result.code !== '0') return;
 
-        async function handleRegister(e) {
-            e.preventDefault();
+            allocationCaptchaId = result.data.captchaId;
+            byId('captchaCode').value = '';
+            byId('captchaImage').src = result.data.base64Image;
+            openModal('captchaModal');
+        }
 
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const verificationCode = document.getElementById('verificationCode').value;
+        function closeCaptchaModal() {
+            closeModal('captchaModal');
+        }
 
-            if (password !== confirmPassword) {
-                Toast.show('两次输入的密码不一致', 'error');
+        async function confirmAllocationCaptcha() {
+            const captchaValue = byId('captchaCode').value.trim();
+            if (!captchaValue) {
+                Toast.show('请输入验证码', 'warning');
                 return;
             }
 
-            const result = await ApiEndpoints.register({ email, password, confirmPassword, verificationCode });
-            const { token, user } = result.data;
-
+            const captchaId = allocationCaptchaId;
+            const result = await ApiEndpoints.allocate({ captchaId, captchaValue });
+            closeCaptchaModal();
+            const { account, password, token } = result.data;
             localStorage.setItem(TOKEN_KEY, token);
-            Toast.show('注册成功', 'success')
+            sessionStorage.setItem('allocationCredentials', JSON.stringify({ account, password }));
             window.location.reload();
-
         }
 
-        async function handleForgotPassword(e) {
-            e.preventDefault();
+        function showPendingAllocationCredentials() {
+            const value = sessionStorage.getItem('allocationCredentials');
+            if (!value) return;
 
-            const email = document.getElementById('forgotEmail').value;
-            const code = document.getElementById('forgotCode').value;
-            const newPassword = document.getElementById('newPassword').value;
-
-            const result = await ApiEndpoints.forgotPassword({ email, code, newPassword });
-            if (result.code === '0') {
-                Toast.show('密码重置成功', 'success');
-                closeForgotPasswordModal();
-                openLoginModal();
+            sessionStorage.removeItem('allocationCredentials');
+            try {
+                const { account, password } = JSON.parse(value);
+                byId('allocatedAccount').textContent = account;
+                byId('allocatedPassword').textContent = password;
+                openModal('allocationResultModal');
+            } catch (_) {
+                sessionStorage.removeItem('allocationCredentials');
             }
+        }
 
+        async function copyAllocationCredentials() {
+            const credentials = `账号：${byId('allocatedAccount').textContent}\n密码：${byId('allocatedPassword').textContent}`;
+            try {
+                await navigator.clipboard.writeText(credentials);
+                Toast.show('账号密码已复制', 'success');
+            } catch (_) {
+                Toast.show('复制失败，请手动保存', 'error');
+            }
+        }
+
+        async function handleChangePassword(event) {
+            event.preventDefault();
+            const oldPassword = byId('oldPassword').value;
+            const newPassword = byId('changedPassword').value;
+            const confirmPassword = byId('changedConfirmPassword').value;
+            if (newPassword.length < 6) {
+                Toast.show('新密码至少6位', 'warning');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                Toast.show('两次输入的密码不一致', 'error');
+                return;
+            }
+            const result = await ApiEndpoints.changePassword({ oldPassword, newPassword, confirmPassword });
+            if (result.code === '0') {
+                closeChangePasswordModal();
+                Toast.show('密码已修改', 'success');
+            }
         }
 
         async function handleProfileUpdate(e) {
@@ -2086,85 +2137,27 @@ function getWebhookPlaceholder(type) {
             fileInput.value = '';
         }
 
-        async function sendVerificationCode() {
-            const email = document.getElementById('registerEmail').value;
-            if (!email) {
-                alert('请输入邮箱地址');
-                return;
+        async function fetchNotice() {
+            try {
+                const result = await ApiEndpoints.notice();
+                const notice = String(result.data || '').trim();
+                const noticeText = byId('noticeText');
+                noticeText.textContent = notice;
+                byId('noticeBar').hidden = !notice;
+                requestAnimationFrame(updateNoticeScroll);
+            } catch (_) {
+                byId('noticeBar').hidden = true;
             }
-
-            const result = await ApiEndpoints.sendVerificationCode({ email, scene: 'register'});
-            if (result.code === '0') {
-                Toast.show('验证码发送成功', 'success');
-            }
-
-            const btn = document.getElementById('sendCodeBtn');
-            btn.disabled = true;
-            btn.textContent = '60秒后重试';
-
-            let count = 60;
-            const timer = setInterval(() => {
-                count--;
-                btn.textContent = count + '秒后重试';
-
-                if (count <= 0) {
-                    clearInterval(timer);
-                    btn.disabled = false;
-                    btn.textContent = '发送验证码';
-                }
-            }, 1000);
-
-            console.log('发送验证码到:', email);
         }
 
-        // 倒计时函数
-        async function startCountdown(elementId) {
-            const btn = document.getElementById(elementId);
-            btn.disabled = true;
-            btn.textContent = '60秒后重试';
+        function updateNoticeScroll() {
+            const noticeText = byId('noticeText');
+            const viewport = noticeText?.parentElement;
+            if (!viewport) return;
 
-            let count = 60;
-            const timer = setInterval(() => {
-                count--;
-                btn.textContent = count + '秒后重试';
-
-                if (count <= 0) {
-                    clearInterval(timer);
-                    btn.disabled = false;
-                    btn.textContent = '发送验证码';
-                }
-            }, 1000);
-        }
-
-        async function sendForgotCode() {
-            const email = document.getElementById('forgotEmail').value;
-            if (!email) {
-                Toast.show('请输入邮箱地址', 'error');
-                return;
-            }
-
-            const result = await ApiEndpoints.sendVerificationCode({ email, scene: 'forgot_password'});
-            if (result.code === '0') {
-                Toast.show('验证码发送成功', 'success');
-            }
-
-            const btn = document.getElementById('sendForgotCodeBtn');
-            btn.disabled = true;
-            btn.textContent = '60秒后重试';
-
-            let count = 60;
-            const timer = setInterval(() => {
-                count--;
-                btn.textContent = count + '秒后重试';
-
-                if (count <= 0) {
-                    clearInterval(timer);
-                    btn.disabled = false;
-                    btn.textContent = '发送验证码';
-                }
-            }, 1000);
-
-            console.log('发送找回密码验证码到:', email);
+            const shouldScroll = noticeText.scrollWidth > viewport.clientWidth;
+            noticeText.classList.toggle('is-scrolling', shouldScroll);
+            noticeText.style.setProperty('--notice-scroll-distance', `${-(noticeText.scrollWidth + 28)}px`);
         }
 
         async function fetchStreamers() {
@@ -4001,99 +3994,6 @@ function getWebhookPlaceholder(type) {
                 return v.toString(16);
             });
         }
-
-        let captchaId = '';
-        let currentScene = ''; // 'register' 或 'forgot'
-        let currentEmail = '';
-        const sceneBtnMap = {
-            forgot_password: 'sendForgotCodeBtn',
-            register: 'sendCodeBtn'
-        };
-
-        // 显示图形验证码模态框
-        async function showCaptchaModal(scene, email) {
-            currentScene = scene;
-            currentEmail = email;
-
-            // 获取验证码
-            const result = await ApiEndpoints.getCaptcha({ type: 'digit' });
-            if (result.code === '0') {
-                document.getElementById('captchaCode').value = '';
-                captchaId = result.data.captchaId;
-                document.getElementById('captchaImage').src = result.data.base64Image;
-                document.getElementById('captchaModal').style.display = 'block';
-            } else {
-                Toast.show('获取验证码失败', 'error');
-            }
-        }
-
-        // 隐藏验证码模态框
-        function hideCaptchaModal() {
-            document.getElementById('captchaModal').style.display = 'none';
-        }
-
-        // 确认验证码
-        async function confirmCaptcha() {
-            const captchaValue = document.getElementById('captchaCode').value.trim();
-            if (!captchaValue) {
-                Toast.show('请输入验证码', 'error');
-                return;
-            }
-
-            hideCaptchaModal();
-
-            // 发送验证码
-            const result = await ApiEndpoints.sendVerificationCode({
-                email: currentEmail,
-                scene: currentScene,
-                captchaId: captchaId,
-                captchaValue: captchaValue
-            });
-
-            if (result.code === '0') {
-                await startCountdown(sceneBtnMap[currentScene])
-                Toast.show('验证码发送成功', 'success');
-            } else {
-                Toast.show(result.message || '发送失败', 'error');
-            }
-
-        }
-
-        // 注册发送验证码按钮点击
-        document.getElementById('sendCodeBtn').onclick = async function() {
-            const email = document.getElementById('registerEmail').value.trim();
-            if (!email) {
-                Toast.show('请输入邮箱地址', 'error');
-                return;
-            }
-            await showCaptchaModal('register', email);
-        };
-
-        // 忘记密码发送验证码按钮点击
-        document.getElementById('sendForgotCodeBtn').onclick = async function() {
-            const email = document.getElementById('forgotEmail').value.trim();
-            if (!email) {
-                Toast.show('请输入邮箱地址', 'error');
-                return;
-            }
-            await showCaptchaModal('forgot_password', email);
-        };
-
-        // 验证码图片点击刷新
-        document.getElementById('captchaImage').onclick = async function() {
-            const result = await ApiEndpoints.getCaptcha({ type: 'digit' });
-            if (result.code === '0') {
-                captchaId = result.data.captchaId;
-                document.getElementById('captchaImage').src = result.data.base64Image;
-                document.getElementById('captchaCode').value = '';
-            }
-        };
-
-        // 确认按钮点击
-        document.getElementById('confirmCaptchaBtn').onclick = confirmCaptcha;
-
-        // 关闭按钮点击
-        // document.getElementById('closeCaptchaModal').onclick = hideCaptchaModal;
 
         // 应用深色模式
         function applyDarkMode() {

@@ -51,8 +51,16 @@
 <div class="container">
     <!-- 头部 -->
     <header>
-        <div class="logo">
-            <span class="logo-text">抽象赛道网</span>
+        <div class="brand-stack">
+            <div class="logo">
+                <span class="logo-text">抽象赛道网</span>
+            </div>
+            <div class="notice-bar" id="noticeBar" hidden role="status">
+                <i class="fas fa-bullhorn" aria-hidden="true"></i>
+                <div class="notice-scroll-viewport">
+                    <span class="notice-scroll-track" id="noticeText"></span>
+                </div>
+            </div>
         </div>
 
         <div id="global-loading" hidden>
@@ -252,17 +260,12 @@
         <div class="modal-body">
             <form id="loginForm">
                 <div class="form-group">
-                    <label class="form-label" for="loginEmail">邮箱</label>
-                    <input type="email" class="form-input" id="loginEmail" placeholder="请输入邮箱" required>
+                    <label class="form-label" for="loginAccount">账号或邮箱</label>
+                    <input type="text" class="form-input" id="loginAccount" placeholder="请输入账号或邮箱" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="loginPassword">密码</label>
                     <input type="password" class="form-input" id="loginPassword" placeholder="请输入密码" required>
-                </div>
-                <div class="form-group">
-                    <button type="button" class="btn btn-secondary" id="forgotPassword" style="font-size: 13px; padding: 7px 14px;">
-                        忘记密码？
-                    </button>
                 </div>
                 <div class="form-group">
                     <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
@@ -270,9 +273,9 @@
                     </button>
                 </div>
                 <div class="form-group" style="text-align: center;">
-                    <p style="color: var(--text-light); margin-bottom: 8px; font-size: 14px;">还没有账号？</p>
-                    <button type="button" class="btn btn-secondary" id="switchToRegister" style="width: 100%; padding: 12px;">
-                        注册新账号
+                    <p style="color: var(--text-light); margin-bottom: 8px; font-size: 14px;">还没有账号？系统将自动分配账号与6位初始密码。</p>
+                    <button type="button" class="btn btn-secondary" id="allocateAccount" style="width: 100%; padding: 12px;">
+                        分配账号
                     </button>
                 </div>
             </form>
@@ -281,101 +284,46 @@
 </div>
 
 <!-- 图形验证码模态框 -->
-<div id="captchaModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px;">
-        <div style="text-align: center;">
-            <img id="captchaImage" src="" style="height: 80px; cursor: pointer;">
-            <div style="margin: 15px 0;">
-                <input type="text" id="captchaCode" placeholder="输入验证码" style="padding: 8px; width: 200px;">
+<div class="modal" id="captchaModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">安全验证</h3>
+            <button class="modal-close" id="closeCaptchaModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="text-align: center;">
+                <img id="captchaImage" src="" alt="图形验证码" style="height: 80px; cursor: pointer;">
             </div>
-            <button id="confirmCaptchaBtn" class="btn btn-primary" style="padding: 8px 20px;">确认</button>
+            <div class="form-group">
+                <label class="form-label" for="captchaCode">验证码</label>
+                <input type="text" class="form-input" id="captchaCode" placeholder="请输入图形验证码" required>
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-primary" id="confirmCaptchaBtn" style="width: 100%; padding: 12px;">确认并分配账号</button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- 注册模态框 -->
-<div class="modal" id="registerModal">
+<!-- 账号分配结果模态框 -->
+<div class="modal" id="allocationResultModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">注册</h3>
-            <button class="modal-close" id="closeRegisterModal">
+            <h3 class="modal-title">账号已分配</h3>
+            <button class="modal-close" id="closeAllocationResult">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="modal-body">
-            <form id="registerForm">
-                <div class="form-group">
-                    <label class="form-label" for="registerEmail">邮箱</label>
-                    <input type="email" class="form-input" id="registerEmail" placeholder="请输入邮箱" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="registerPassword">密码</label>
-                    <input type="password" class="form-input" id="registerPassword" placeholder="请输入密码（至少6位）" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="confirmPassword">确认密码</label>
-                    <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入密码" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="verificationCode">验证码</label>
-                    <div class="input-with-button">
-                        <input type="text" class="form-input" id="verificationCode" placeholder="请输入验证码" required>
-                        <button type="button" class="btn btn-secondary" id="sendCodeBtn" style="white-space: nowrap; font-size: 13px;">
-                            发送验证码
-                        </button>
-                    </div>
-                    <p class="form-hint">验证码将发送到您的邮箱</p>
-                </div>
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
-                        注册
-                    </button>
-                </div>
-                <div class="form-group" style="text-align: center;">
-                    <p style="color: var(--text-light); margin-bottom: 8px; font-size: 14px;">已有账号？</p>
-                    <button type="button" class="btn btn-secondary" id="switchToLogin" style="width: 100%; padding: 12px;">
-                        返回登录
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- 忘记密码模态框 -->
-<div class="modal" id="forgotPasswordModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title">找回密码</h3>
-            <button class="modal-close" id="closeForgotModal">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <form id="forgotPasswordForm">
-                <div class="form-group">
-                    <label class="form-label" for="forgotEmail">邮箱</label>
-                    <input type="email" class="form-input" id="forgotEmail" placeholder="请输入绑定的邮箱" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="forgotCode">验证码</label>
-                    <div class="input-with-button">
-                        <input type="text" class="form-input" id="forgotCode" placeholder="请输入验证码" required>
-                        <button type="button" class="btn btn-secondary" id="sendForgotCodeBtn" style="white-space: nowrap; font-size: 13px;">
-                            发送验证码
-                        </button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="newPassword">新密码</label>
-                    <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码（至少6位）" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
-                        重置密码
-                    </button>
-                </div>
-            </form>
+            <p class="form-hint" style="margin-bottom: 16px;">账号体系已改为自动分配。请保存以下凭据，登录后可修改密码。</p>
+            <div class="form-group"><label class="form-label">账号</label><div class="form-input" id="allocatedAccount"></div></div>
+            <div class="form-group"><label class="form-label">初始密码</label><div class="form-input" id="allocatedPassword"></div></div>
+            <div class="form-group">
+                <button type="button" class="btn btn-secondary" id="copyAllocationCredentials" style="width: 100%; padding: 12px;"><i class="fas fa-copy"></i> 复制账号密码</button>
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-primary" id="finishAllocation" style="width: 100%; padding: 12px;">进入主页</button>
+            </div>
         </div>
     </div>
 </div>
@@ -502,13 +450,35 @@
                     <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
                         保存更改
                     </button>
-                    
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-secondary" id="openChangePassword" style="width: 100%; padding: 12px;">
+                        修改密码
+                    </button>
                 </div>
                 <div class="form-group" style="text-align: center;">
                     <button type="button" class="btn btn-secondary" id="logoutBtn" style="width: 100%; padding: 12px; color: #e25822;">
                         <i class="fas fa-sign-out-alt"></i> 退出登录
                     </button>
                 </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 修改密码模态框 -->
+<div class="modal" id="changePasswordModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">修改密码</h3>
+            <button class="modal-close" id="closeChangePassword"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="changePasswordForm">
+                <div class="form-group"><label class="form-label" for="oldPassword">旧密码</label><input type="password" class="form-input" id="oldPassword" required></div>
+                <div class="form-group"><label class="form-label" for="changedPassword">新密码</label><input type="password" class="form-input" id="changedPassword" minlength="6" placeholder="至少6位" required></div>
+                <div class="form-group"><label class="form-label" for="changedConfirmPassword">确认新密码</label><input type="password" class="form-input" id="changedConfirmPassword" minlength="6" required></div>
+                <div class="form-group"><button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">保存密码</button></div>
             </form>
         </div>
     </div>
