@@ -1383,7 +1383,7 @@
 
         .chat-message {
             display: flex;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             align-items: flex-start;
         }
 
@@ -1431,7 +1431,7 @@
         .message-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
         }
 
         .message-footer {
@@ -1439,7 +1439,7 @@
             justify-content: left;
             font-size: 12px;
             color: var(--text-secondary);
-            margin-top: 4px;
+            margin-top: 2px;
         }
 
         .message-user {
@@ -1458,29 +1458,20 @@
             display: inline-block;
             max-width: 520px;
             padding: 8px 12px;
-            border-radius: 16px;
+            border-radius: 11px;
             font-size: 15px;
             line-height: 1.5;
             color: var(--text-primary);
             background-color: var(--msg-bg-color);
-            border: 1px solid var(--primary-color);
+            border: none;
+            box-shadow: 0 1px 2px rgba(99, 90, 85, 0.08);
             white-space: pre-wrap;
             word-break: break-word;
         }
 
 
         .chat-message:not(.own) .message-text::before {
-            content: "";
-            position: absolute;
-            left: -3px;
-            top: 8px;
-            width: 6px;
-            height: 8px;
-            background: var(--msg-bg-color);
-            border-left: 1px solid var(--primary-color);
-            border-bottom: 1px solid var(--primary-color);
-
-            transform: rotate(49deg);
+            display: none;
         }
 
         .message-text.image-only {
