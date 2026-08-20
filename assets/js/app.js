@@ -237,7 +237,7 @@ function isImageMessagesBlocked() {
 }
 
 function createEmptyChatFilterRules() {
-    return { blockedUserIds: [], blockedNicknames: [], keywordPatterns: [] };
+    return { blockedUserIds: [], blockedNicknames: [], blockedIpGeos: [], keywordPatterns: [] };
 }
 
 function normalizeChatFilterRules(value) {
@@ -246,6 +246,7 @@ function normalizeChatFilterRules(value) {
     return {
         blockedUserIds: uniqueLines(value?.blockedUserIds).filter((id) => /^\d+$/.test(id) && id !== '0'),
         blockedNicknames: uniqueLines(value?.blockedNicknames),
+        blockedIpGeos: uniqueLines(value?.blockedIpGeos),
         keywordPatterns: uniqueLines(value?.keywordPatterns)
     };
 }
@@ -269,6 +270,7 @@ function shouldFilterChatMessage(data) {
     const uid = String(data.uid ?? '0');
     if (uid !== '0' && chatFilterRules.blockedUserIds.includes(uid)) return true;
     if (uid === '0' && chatFilterRules.blockedNicknames.includes(String(data.uname || '').trim())) return true;
+    if (chatFilterRules.blockedIpGeos.includes(String(data.ipGeo || '').trim())) return true;
     const text = getChatMessageText(data.content);
     return chatFilterRules.keywordPatterns.some((pattern) => {
         try {
@@ -355,7 +357,8 @@ async function renderBlockedUsersList() {
     }));
     const users = [
         ...chatFilterRules.blockedUserIds.map((id, index) => ({ type: 'id', value: id, label: userNames[index] })),
-        ...chatFilterRules.blockedNicknames.map((name) => ({ type: 'nickname', value: name, label: name }))
+        ...chatFilterRules.blockedNicknames.map((name) => ({ type: 'nickname', value: name, label: name })),
+        ...chatFilterRules.blockedIpGeos.map((geo) => ({ type: 'ipGeo', value: geo, label: `IP属地：${geo}` }))
     ];
     if (!users.length) {
         list.textContent = '暂无屏蔽用户';
@@ -373,7 +376,8 @@ async function renderBlockedUsersList() {
         remove.addEventListener('click', async () => {
             const rules = { ...chatFilterRules };
             if (user.type === 'id') rules.blockedUserIds = rules.blockedUserIds.filter((id) => id !== user.value);
-            else rules.blockedNicknames = rules.blockedNicknames.filter((name) => name !== user.value);
+            else if (user.type === 'nickname') rules.blockedNicknames = rules.blockedNicknames.filter((name) => name !== user.value);
+            else rules.blockedIpGeos = rules.blockedIpGeos.filter((geo) => geo !== user.value);
             try {
                 await saveChatFilterRules(rules);
                 openChatFilterModal();
@@ -3089,6 +3093,28 @@ function getWebhookPlaceholder(type) {
             });
             menu.appendChild(blockItem);
 
+            const ipGeo = String(messageData.ipGeo || '').trim();
+            if (ipGeo && !chatFilterRules.blockedIpGeos.includes(ipGeo)) {
+                const blockIpGeoItem = document.createElement('div');
+                blockIpGeoItem.className = 'context-menu-item';
+                blockIpGeoItem.textContent = `屏蔽 IP 属地：${ipGeo}`;
+                styleMenuItem(blockIpGeoItem);
+                blockIpGeoItem.addEventListener('click', async () => {
+                    try {
+                        await saveChatFilterRules({
+                            ...chatFilterRules,
+                            blockedIpGeos: [...chatFilterRules.blockedIpGeos, ipGeo]
+                        });
+                        Toast.show(`已屏蔽 IP 属地：${ipGeo}`, 'success');
+                    } catch (error) {
+                        Toast.show(error.message || '保存屏蔽设置失败', 'error');
+                    } finally {
+                        closeMessageContextMenu();
+                    }
+                });
+                menu.appendChild(blockIpGeoItem);
+            }
+
             const extraMenuItems = [];
             const canBan = state.currentUser?.canChatBan === true
                 && Number(messageData.uid) !== Number(state.currentUser?.id);
@@ -3575,8 +3601,9 @@ function getWebhookPlaceholder(type) {
 
             const token = localStorage.getItem(TOKEN_KEY);
             const fp = await getFingerprint();
+            const captchaTicket = await window.SlidingCaptcha.getTicket(fp);
 
-            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${fp}`);
+            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token || '')}&fp=${encodeURIComponent(fp)}&captchaTicket=${encodeURIComponent(captchaTicket)}`);
             socket = currentSocket;
 
             currentSocket.addEventListener('open', () => {

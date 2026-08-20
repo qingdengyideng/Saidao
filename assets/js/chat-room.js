@@ -22,7 +22,7 @@
  *   room.disconnect();
  */
 (function (global) {
-    const { WS_BASE_URL, TOKEN_KEY } = global.SaidaoConfig || {};
+        const { WS_BASE_URL, TOKEN_KEY } = global.SaidaoConfig || {};
 
     const CHAT_STICKY_BOTTOM_THRESHOLD = 700;
     const CHAT_BOTTOM_SCROLL_EPSILON = 200;
@@ -1545,8 +1545,9 @@
 
             const token = localStorage.getItem(TOKEN_KEY) || '';
             const fp = await getFingerprint();
+            const captchaTicket = await global.SlidingCaptcha.getTicket(fp);
 
-            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${encodeURIComponent(fp)}`);
+            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${encodeURIComponent(fp)}&captchaTicket=${encodeURIComponent(captchaTicket)}`);
             socket = currentSocket;
 
             currentSocket.addEventListener('open', () => {
