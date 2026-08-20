@@ -1464,7 +1464,12 @@ function getWebhookPlaceholder(type) {
                 if (currentQuote) {
                     newMessage.reply = currentQuote;
                 }
-                socket.send(JSON.stringify(newMessage));
+                
+                if (!pendingMessage) {
+                    pendingMessage = newMessage;
+                    socket.send(JSON.stringify(newMessage));
+                }
+                
                 clearQuote();
                 clearVoiceDraft();
             } catch (error) {
@@ -1546,7 +1551,11 @@ function getWebhookPlaceholder(type) {
                     content: `[${emoji.name}]`,
                 };
 
-                socket.send(JSON.stringify(newMessage));
+                if (!pendingMessage) {
+                    pendingMessage = newMessage;
+                    socket.send(JSON.stringify(newMessage));
+                }
+                
                 closeEmojiSection();
                 return;
             }
@@ -3601,9 +3610,8 @@ function getWebhookPlaceholder(type) {
 
             const token = localStorage.getItem(TOKEN_KEY);
             const fp = await getFingerprint();
-            const captchaTicket = await window.SlidingCaptcha.getTicket(fp);
 
-            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token || '')}&fp=${encodeURIComponent(fp)}&captchaTicket=${encodeURIComponent(captchaTicket)}`);
+            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token || '')}&fp=${encodeURIComponent(fp)}`);
             socket = currentSocket;
 
             currentSocket.addEventListener('open', () => {
@@ -3614,6 +3622,16 @@ function getWebhookPlaceholder(type) {
             currentSocket.addEventListener('message', (event) => {
                 if (socket !== currentSocket) return;
                 const data = JSON.parse(event.data);
+
+                if (data.type === 'captchaRequired') {
+                    handleCaptchaRequired();
+                    return;
+                }
+
+                // 消息发送成功，清空 pendingMessage
+                if (data.type === 'user' && pendingMessage) {
+                    pendingMessage = null;
+                }
 
                 if (data.type === 'user') {
                     // 添加消息到聊天室
@@ -3707,6 +3725,37 @@ function getWebhookPlaceholder(type) {
         });
 
         // 发送消息
+        let pendingMessage = null;
+
+        async function handleCaptchaRequired() {
+            if (!pendingMessage) {
+                console.warn('[Captcha] pendingMessage 为空，跳过');
+                return;
+            }
+            
+            console.log('[Captcha] 开始处理验证码，pendingMessage:', pendingMessage);
+            
+            try {
+                const fp = await getFingerprint();
+                console.log('[Captcha] fp:', fp);
+                
+                const ticket = await window.SlidingCaptcha.getTicket(fp);
+                console.log('[Captcha] 获取到 ticket:', ticket);
+                
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    const retryMessage = { ...pendingMessage, captchaTicket: ticket };
+                    console.log('[Captcha] 重新发送消息:', retryMessage);
+                    socket.send(JSON.stringify(retryMessage));
+                } else {
+                    console.error('[Captcha] socket 未连接');
+                }
+            } catch (error) {
+                console.error('[Captcha] 验证码处理失败:', error);
+                Toast.show('验证码验证失败，请重试', 'error');
+                pendingMessage = null;
+            }
+        }
+
         function sendMessage() {
             if (voiceDraft) {
                 sendVoiceDraft();
@@ -3731,13 +3780,18 @@ function getWebhookPlaceholder(type) {
                 newMessage.reply = currentQuote;
             }
 
-            socket.send(JSON.stringify(newMessage));
-
-            chatInput.value = '';
-            syncChatInputHeight(chatInput);
-            syncChatComposerState();
-            clearQuote();
-            closeEmojiSection();
+            // 保存待发送消息，等待验证或成功后清理
+            if (!pendingMessage) {
+                pendingMessage = newMessage;
+                socket.send(JSON.stringify(newMessage));
+                
+                // 清空输入框
+                chatInput.value = '';
+                syncChatInputHeight(chatInput);
+                syncChatComposerState();
+                clearQuote();
+                closeEmojiSection();
+            }
         }
 
 

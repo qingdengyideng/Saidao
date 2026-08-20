@@ -728,6 +728,26 @@
         }
 
         // ====== 发送文本 ======
+        let pendingMessage = null;
+
+        async function handleCaptchaRequired() {
+            if (!pendingMessage) return;
+            
+            try {
+                const fp = await getFingerprint();
+                const ticket = await global.SlidingCaptcha.getTicket(fp);
+                
+                if (socket && socket.readyState === global.WebSocket.OPEN) {
+                    const retryMessage = { ...pendingMessage, captchaTicket: ticket };
+                    socket.send(JSON.stringify(retryMessage));
+                }
+            } catch (error) {
+                console.error('[ChatRoom] 验证码处理失败:', error);
+                Toast.show('验证码验证失败，请重试', 'error');
+                pendingMessage = null;
+            }
+        }
+
         function sendMessage() {
             if (voiceDraft) {
                 sendVoiceDraft();
@@ -746,13 +766,17 @@
             const newMessage = { type: 'chat', content: message };
             if (currentQuote) newMessage.reply = currentQuote;
 
-            socket.send(JSON.stringify(newMessage));
-
-            chatInput.value = '';
-            syncChatInputHeight(chatInput);
-            syncChatComposerState();
-            clearQuote();
-            closeEmojiSection();
+            // 保存待发送消息，等待验证或成功后清理
+            if (!pendingMessage) {
+                pendingMessage = newMessage;
+                socket.send(JSON.stringify(newMessage));
+                
+                chatInput.value = '';
+                syncChatInputHeight(chatInput);
+                syncChatComposerState();
+                clearQuote();
+                closeEmojiSection();
+            }
         }
 
         // ====== 表情 ======
@@ -853,7 +877,12 @@
                     return;
                 }
                 const newMessage = { type: 'chat', content: `[${emoji.name}]` };
-                socket.send(JSON.stringify(newMessage));
+                
+                if (!pendingMessage) {
+                    pendingMessage = newMessage;
+                    socket.send(JSON.stringify(newMessage));
+                }
+                
                 closeEmojiSection();
                 return;
             }
@@ -1094,7 +1123,12 @@
                     Toast.show('聊天室连接中，请稍后再试', 'error');
                     return;
                 }
-                socket.send(JSON.stringify(newMessage));
+                
+                if (!pendingMessage) {
+                    pendingMessage = newMessage;
+                    socket.send(JSON.stringify(newMessage));
+                }
+                
                 clearQuote();
                 clearVoiceDraft();
             } catch (error) {
@@ -1545,9 +1579,8 @@
 
             const token = localStorage.getItem(TOKEN_KEY) || '';
             const fp = await getFingerprint();
-            const captchaTicket = await global.SlidingCaptcha.getTicket(fp);
 
-            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${encodeURIComponent(fp)}&captchaTicket=${encodeURIComponent(captchaTicket)}`);
+            const currentSocket = new WebSocket(`${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}&fp=${encodeURIComponent(fp)}`);
             socket = currentSocket;
 
             currentSocket.addEventListener('open', () => {
@@ -1560,6 +1593,16 @@
                 if (socket !== currentSocket) return;
                 let data;
                 try { data = JSON.parse(event.data); } catch (e) { return; }
+
+                if (data.type === 'captchaRequired') {
+                    handleCaptchaRequired();
+                    return;
+                }
+
+                // 消息发送成功，清空 pendingMessage
+                if (data.type === 'user' && pendingMessage) {
+                    pendingMessage = null;
+                }
 
                 if (data.type === 'user') {
                     addMessageToChat(data);
