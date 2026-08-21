@@ -15,6 +15,8 @@ const BLOCK_IMAGE_MESSAGES_KEY = 'blockImageMessages';
 const HOT_WORDS_COLLAPSED_KEY = 'chatHotWordsCollapsed';
 const CHAT_FILTER_RULES_KEY = 'chatFilterRulesV1';
 const CHAT_VIDEO_WINDOW_STATE_KEY = 'chatVideoWindowState';
+const BLOCK_GAME_LIVE_KEY = 'blockGameLive';
+const AI_LABEL_HINT = 'AI标签由模型识别直播画面自动生成，可能存在误判。';
 let chatFilterRules = createEmptyChatFilterRules();
 const blockedUserNameCache = new Map();
 const chatMessageBuffer = [];
@@ -138,6 +140,7 @@ function initializeApp() {
     detectDeviceType();
     setViewportHeightVar();
     applyStoredChatImageFilter();
+    syncGameFilterUi();
     setHotWordsCollapsed(isHotWordsCollapsed());
     loadChatFilterRules();
     initEventListeners();
@@ -326,6 +329,7 @@ async function saveChatFilterRules(rules) {
 
 async function openChatFilterModal() {
     byId('blockedKeywordPatterns').value = chatFilterRules.keywordPatterns.join('\n');
+    syncGameFilterUi();
     setModalOpen('chatFilterModal', true);
     await renderBlockedUsersList();
 }
@@ -666,6 +670,14 @@ function initEventListeners() {
         fetchStreamers();
     });
     on(byId('blockImageMessages'), 'change', handleBlockImageMessagesChange);
+    on(byId('blockGameLive'), 'change', handleBlockGameLiveChange);
+    on(byId('blockGameLiveHelp'), 'click', showGameFilterHint);
+    on(byId('blockGameLiveHelp'), 'keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            showGameFilterHint();
+        }
+    });
     on(byId('openChatFilterModal'), 'click', openChatFilterModal);
     on(byId('chatHotWordsToggle'), 'click', (event) => {
         event.preventDefault();
@@ -809,6 +821,13 @@ function initEventListeners() {
                 return;
             }
 
+            const aiHelp = event.target.closest('.streamer-ai-help');
+            if (aiHelp) {
+                event.stopPropagation();
+                Toast.show(aiHelp.dataset.hint || AI_LABEL_HINT, 'info', 6000);
+                return;
+            }
+
             const settingsBtn = event.target.closest('.settings-btn');
             if (settingsBtn) {
                 event.stopPropagation();
@@ -900,6 +919,80 @@ function getWebhookPlaceholder(type) {
     return `请输入${channelLabelMap[type] || 'Webhook'} Webhook地址`;
 }
 
+function normalizeContentAnalysis(analysis) {
+    if (!analysis || typeof analysis !== 'object') {
+        return null;
+    }
+    return {
+        isGame: analysis.is_game === true,
+        gameName: analysis.game_name || null,
+        liveType: analysis.live_type || 'unknown',
+        isOutdoor: analysis.is_outdoor === true,
+        isVirtual: analysis.is_virtual === true,
+        screenOrientation: analysis.screen_orientation || 'unknown',
+        streamerStatus: analysis.streamer_status || 'unknown',
+        overallConfidence: Number(analysis.overall_confidence) || 0,
+        gameConfidence: Number(analysis.game_confidence) || 0,
+        liveTypeLabel: analysis.live_type_label || '未知',
+        streamerStatusLabel: analysis.streamer_status_label || '未知',
+        screenOrientationLabel: analysis.screen_orientation_label || '未知',
+        aiLabel: analysis.ai_label || 'AI标签：未知'
+    };
+}
+
+function shouldBlockGameLive() {
+    return localStorage.getItem(BLOCK_GAME_LIVE_KEY) === 'true';
+}
+
+// 仅对直播中的卡片生效，未开播的卡片不受 AI 判定影响
+function isGameLiveStreamer(streamer) {
+    return streamer?.status === 'live' && streamer?.contentAnalysis?.isGame === true;
+}
+
+// 被判定为游戏直播的数量，未开播的不计入
+function countGameLiveStreamers() {
+    return streamersData.filter(isGameLiveStreamer).length;
+}
+
+// 开关状态与右侧数量都从内存数据实时推导，避免与列表不一致
+function syncGameFilterUi() {
+    const checkbox = byId('blockGameLive');
+    if (checkbox) {
+        checkbox.checked = shouldBlockGameLive();
+    }
+
+    const counter = byId('gameFilterCount');
+    if (!counter) return;
+
+    const count = countGameLiveStreamers();
+    const active = shouldBlockGameLive() && count > 0;
+    counter.textContent = active ? `已屏蔽 ${count}` : '';
+    counter.hidden = !active;
+}
+
+function handleBlockGameLiveChange(event) {
+    localStorage.setItem(BLOCK_GAME_LIVE_KEY, String(event.target.checked));
+    renderStreamerCards();
+}
+
+function showGameFilterHint() {
+    Toast.show(AI_LABEL_HINT, 'info', 6000);
+}
+
+function renderAiLabel(contentAnalysis) {
+    if (!contentAnalysis || !contentAnalysis.aiLabel) {
+        return '';
+    }
+    const isGame = contentAnalysis.isGame === true;
+    const hint = isGame 
+        ? '如需屏蔽游戏直播，可在聊天室的「屏蔽设置」中开启「屏蔽游戏直播」开关。'
+        : AI_LABEL_HINT;
+    const helpIcon = isGame 
+        ? `<i class="fas fa-circle-question streamer-ai-help" data-hint="${escapeHtml(hint)}" title="点击查看说明"></i>`
+        : '';
+    return `<span class="streamer-ai-label" title="${escapeHtml(hint)}">${escapeHtml(contentAnalysis.aiLabel)}${helpIcon}</span>`;
+}
+
         function renderStreamerTag(streamer, canEditTag) {
             const tag = String(streamer.tag || '').trim();
             if (!tag && !canEditTag) {
@@ -932,6 +1025,9 @@ function getWebhookPlaceholder(type) {
 
         // 渲染主播卡片
         function renderStreamerCards() {
+            // 数量与开关状态跟随最新数据，日报 tab 也要保持同步
+            syncGameFilterUi();
+
             if (state.currentStatus === 'dailyReport') {
                 renderDailyReportCards();
                 return;
@@ -941,9 +1037,11 @@ function getWebhookPlaceholder(type) {
             container.innerHTML = '';
 
             const canEditTag = state.currentUser?.canEditSaidaoTag === true;
-            const filteredStreamers = state.currentStatus === 'live'
+            const blockGameLive = shouldBlockGameLive();
+            const filteredStreamers = (state.currentStatus === 'live'
                 ? streamersData.filter(s => s.status === 'live' && !s.notificationEnabled)
-                : streamersData;
+                : streamersData
+            ).filter(s => !(blockGameLive && isGameLiveStreamer(s)));
 
             if (filteredStreamers.length === 0) {
                 container.innerHTML = `
@@ -983,10 +1081,10 @@ function getWebhookPlaceholder(type) {
                                 : ''}
                         </div>
                     </div>
-                    <div class="streamer-identity-avatar">
-                        <img src="${escapeHtml(streamer.avatar || '')}" alt="${escapeHtml(streamer.name)}">
-                    </div>
                     <div class="card-content">
+                        <div class="streamer-identity-avatar">
+                            <img src="${escapeHtml(streamer.avatar || '')}" alt="${escapeHtml(streamer.name)}">
+                        </div>
                         <div class="streamer-title-row">
                             <div class="streamer-name-heat-row">
                                 <h3 class="streamer-name">${escapeHtml(streamer.name)}</h3>
@@ -998,6 +1096,7 @@ function getWebhookPlaceholder(type) {
                                 <span class="streamer-channel"><i class="fas fa-satellite-dish"></i>${escapeHtml(streamer.channel || '未知渠道')}</span>
                             </div>
                         </div>
+                        <div class="streamer-ai-row"></div>
                         <div class="card-actions streamer-card-actions">
                             <div class="card-settings">
                                 <button class="settings-btn" aria-label="更多设置" title="更多设置">
@@ -1018,6 +1117,17 @@ function getWebhookPlaceholder(type) {
                 `;
 
                 container.appendChild(card);
+
+                // 填充 AI 标签并标记内容区，有标签时增加底部 padding 腾出空间
+                const aiRow = $('.streamer-ai-row', card);
+                const cardContent = $('.card-content', card);
+                if (aiRow) {
+                    const aiHtml = renderAiLabel(streamer.contentAnalysis);
+                    aiRow.innerHTML = aiHtml;
+                    if (cardContent && aiHtml) {
+                        cardContent.classList.add('has-ai-label');
+                    }
+                }
 
                 const coverArea = $('.streamer-cover-area', card);
                 on(coverArea, 'pointerenter', () => {
@@ -1826,6 +1936,34 @@ function getWebhookPlaceholder(type) {
             layer.classList.remove('is-fallback', 'is-avatar-muted');
         }
 
+        function applySaidaoContentAnalysisUpdate(payload) {
+            const uid = String(payload?.uid || '');
+            const analysis = payload?.contentAnalysis;
+            if (!uid || !analysis) return;
+
+            const streamer = streamersData.find(item => String(item.uid) === uid);
+            if (!streamer) return;
+
+            const wasGameLive = isGameLiveStreamer(streamer);
+            streamer.contentAnalysis = normalizeContentAnalysis(analysis);
+            const isGameLive = isGameLiveStreamer(streamer);
+
+            // 屏蔽结果发生翻转时，卡片需要整体增删，走全量重渲染
+            if (shouldBlockGameLive() && wasGameLive !== isGameLive) {
+                renderStreamerCards();
+                return;
+            }
+
+            const card = document.querySelector(`.streamer-card[data-id="${streamer.id}"]`);
+            const aiRow = card && $('.streamer-ai-row', card);
+            const cardContent = card && $('.card-content', card);
+            if (aiRow && cardContent) {
+                const aiHtml = renderAiLabel(streamer.contentAnalysis);
+                aiRow.innerHTML = aiHtml;
+                cardContent.classList.toggle('has-ai-label', Boolean(aiHtml));
+            }
+        }
+
         function applyHotScoreUpdate(scores) {
             if (!scores || !scores.length) return;
 
@@ -2189,7 +2327,8 @@ function getWebhookPlaceholder(type) {
                 cover: item.cover,
                 notificationEnabled: item.notShow,
                 tag: item.tag || '',
-                hotScore: item.hotScore || 0
+                hotScore: item.hotScore || 0,
+                contentAnalysis: normalizeContentAnalysis(item.contentAnalysis)
             }));
 
             renderStreamerCards();
@@ -3673,6 +3812,8 @@ function getWebhookPlaceholder(type) {
                     applySaidaoTagUpdate(data);
                 } else if (data.type === 'saidaoCoverUpdated') {
                     applySaidaoCoverUpdate(data);
+                } else if (data.type === 'saidaoContentAnalysisUpdated') {
+                    applySaidaoContentAnalysisUpdate(data);
                 } else if (data.type === 'hotScoreUpdate') {
                     applyHotScoreUpdate(data.scores);
                 } else if (data.type === 'clear') {
