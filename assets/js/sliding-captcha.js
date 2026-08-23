@@ -22,7 +22,9 @@
     async function readResponse(response) {
         const result = await response.json();
         if (!response.ok || result.code !== '0') {
-            throw new Error(result.message || '滑动验证失败');
+            const error = new Error(result.message || '滑动验证失败');
+            error.isBanned = String(result.message || '').includes('禁言');
+            throw error;
         }
         return result.data;
     }
@@ -99,7 +101,7 @@
         let startX = 0;
         let currentX = 0;
 
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const move = (event) => {
                 if (!dragging) return;
                 currentX = Math.max(0, Math.min(maxDisplayX, event.clientX - startX));
@@ -126,6 +128,10 @@
                     status.textContent = error.message || '验证失败，请重试';
                     root.classList.add('is-failed');
                     setTimeout(() => root.remove(), 500);
+                    if (error.isBanned) {
+                        reject(error);
+                        return;
+                    }
                     resolve(await runCaptcha(fp));
                 }
             };

@@ -3869,7 +3869,7 @@ function renderAiLabel(contentAnalysis) {
         let pendingMessage = null;
 
         async function handleCaptchaRequired() {
-            if (!pendingMessage) {
+            if (!window.SlidingCaptcha) {
                 console.warn('[Captcha] pendingMessage 为空，跳过');
                 return;
             }
@@ -3883,6 +3883,11 @@ function renderAiLabel(contentAnalysis) {
                 const ticket = await window.SlidingCaptcha.getTicket(fp);
                 console.log('[Captcha] 获取到 ticket:', ticket);
                 
+                if (!pendingMessage) {
+                    closeChatSocket({ preventReconnect: true });
+                    setupWebSocket();
+                    return;
+                }
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     const retryMessage = { ...pendingMessage, captchaTicket: ticket };
                     console.log('[Captcha] 重新发送消息:', retryMessage);
