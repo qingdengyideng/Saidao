@@ -2293,11 +2293,15 @@ function renderAiLabel(contentAnalysis) {
                 const result = await ApiEndpoints.notice();
                 const notice = String(result.data || '').trim();
                 const noticeText = byId('noticeText');
+                const noticeBar = byId('noticeBar');
+                const noticeIcon = byId('noticeIcon');
                 noticeText.textContent = notice;
-                byId('noticeBar').hidden = !notice;
+                noticeBar.hidden = !notice;
+                noticeIcon.hidden = !notice;
                 requestAnimationFrame(updateNoticeScroll);
             } catch (_) {
                 byId('noticeBar').hidden = true;
+                byId('noticeIcon').hidden = true;
             }
         }
 
@@ -2458,11 +2462,9 @@ function renderAiLabel(contentAnalysis) {
         const CHAT_HISTORY_TOP_THRESHOLD = 80;
         const CHAT_MESSAGE_LIMIT = 1000;
         const renderedMessageIds = new Set();
-        const observedChatNodes = new Set();
         let chatFollowMode = true;
         let chatScrollRaf = null;
         let chatScrollListenerRaf = null;
-        let chatResizeObserver = null;
         let isLoadingHistory = false;
         let hasMoreHistory = true;
         let historyLoadingIndicator = null;
@@ -2549,45 +2551,6 @@ function renderAiLabel(contentAnalysis) {
             });
         }
 
-        function observeChatNode(node) {
-            if (!chatResizeObserver || !node) {
-                return;
-            }
-
-            chatResizeObserver.observe(node);
-            observedChatNodes.add(node);
-        }
-
-        function unobserveChatNode(node) {
-            if (!chatResizeObserver || !node) {
-                return;
-            }
-
-            if (observedChatNodes.has(node)) {
-                chatResizeObserver.unobserve(node);
-                observedChatNodes.delete(node);
-            }
-        }
-
-        function clearChatObservers() {
-            if (!chatResizeObserver) {
-                return;
-            }
-
-            observedChatNodes.forEach((node) => {
-                chatResizeObserver.unobserve(node);
-            });
-            observedChatNodes.clear();
-        }
-
-        if (window.ResizeObserver) {
-            chatResizeObserver = new ResizeObserver(() => {
-                if (chatFollowMode) {
-                    scheduleChatScrollToBottom();
-                }
-            });
-        }
-
         function getChatMessageNodes() {
             return Array.from(container.querySelectorAll('.chat-message'));
         }
@@ -2606,7 +2569,6 @@ function renderAiLabel(contentAnalysis) {
         function removeChatMessage(messageElement) {
             if (!messageElement) return;
 
-            unobserveChatNode(messageElement);
             forgetRenderedMessage(messageElement);
             messageElement.remove();
         }
@@ -2621,7 +2583,6 @@ function renderAiLabel(contentAnalysis) {
 
         function resetChatMessages() {
             container.querySelectorAll('.chat-message').forEach((messageElement) => {
-                unobserveChatNode(messageElement);
                 messageElement.remove();
             });
             renderedMessageIds.clear();
@@ -2639,7 +2600,6 @@ function renderAiLabel(contentAnalysis) {
         rerenderChatFromBuffer = function rerenderChatFromBufferImpl() {
             const wasFollowing = chatFollowMode;
             container.querySelectorAll('.chat-message').forEach((messageElement) => {
-                unobserveChatNode(messageElement);
                 messageElement.remove();
             });
             renderedMessageIds.clear();
@@ -2664,18 +2624,9 @@ function renderAiLabel(contentAnalysis) {
                 return null;
             }
 
-            // 已删除的消息渲染为占位提示（历史消息中带 deleted 标记）
+            // 历史消息中的已删除内容不再渲染占位提示
             if (data.deleted === true) {
-                const position = options.position || 'append';
-                const placeholder = buildDeletedPlaceholderElement(data.messageId);
-                if (position === 'prepend') {
-                    container.insertBefore(placeholder, options.beforeNode || getFirstChatMessageNode());
-                } else {
-                    container.appendChild(placeholder);
-                }
-                observeChatNode(placeholder);
-                trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
-                return placeholder;
+                return null;
             }
 
             const suppressAlert = options.suppressAlert ?? false;
@@ -2763,7 +2714,7 @@ function renderAiLabel(contentAnalysis) {
                     <div class="message-footer">
                         ${ipGeo}
                     </div>
-                    <div class="message-text${data.messageKind === 'voice' ? ' voice-bubble' : ''}">${messageBodyHTML}</div>
+                    <div class="message-text${data.messageKind === 'voice' ? ' voice-bubble' : ''}" title="点击打开消息菜单">${messageBodyHTML}</div>
                     ${quoteHTML}
                 </div>
             `;
@@ -2775,7 +2726,6 @@ function renderAiLabel(contentAnalysis) {
             } else {
                 container.appendChild(messageElement);
             }
-            observeChatNode(messageElement);
             trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
 
             // 判断是否是纯图片消息（chat-emoji vip）
@@ -2926,26 +2876,16 @@ function renderAiLabel(contentAnalysis) {
         let currentContextMenu = null;
         let currentContextMenuCloseHandler = null;
 
-        // 通过容器事件委托统一处理消息交互（头像点击 / 语音播放 / 右键 / 长按）
+        // 通过容器事件委托统一处理消息交互
         // 只在 chatBody 上绑定固定几个监听器，替代每条消息逐个 addEventListener
-        let longPressTimer = null;
-        let longPressStart = null;
 
         function getMessageDataFromNode(node) {
             const messageEl = node?.closest?.('.chat-message');
             return messageEl?._messageData || null;
         }
 
-        function clearLongPressTimer() {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-            longPressStart = null;
-        }
-
         function setupMessageDelegation() {
-            // 头像点击 + 语音与视频播放按钮（点击委托）
+            // 消息、头像、语音与视频播放按钮（点击委托）
             container.addEventListener('click', function (e) {
                 const avatar = e.target.closest('.message-avatar');
                 if (avatar) {
@@ -2969,44 +2909,18 @@ function renderAiLabel(contentAnalysis) {
                 const videoCard = e.target.closest('.chat-video-title')?.closest('.chat-video-card');
                 if (videoCard?.dataset.sourceUrl) {
                     window.open(videoCard.dataset.sourceUrl, '_blank', 'noopener');
+                    return;
                 }
+
+                const bubble = e.target.closest('.message-text');
+                if (!bubble || e.target.closest('.message-quote, .chat-video-card, .voice-play-btn, img')) return;
+
+                const selection = window.getSelection?.();
+                if (selection && !selection.isCollapsed) return;
+
+                const data = getMessageDataFromNode(bubble);
+                if (data) showMessageContextMenu(e, data);
             });
-
-            // PC 右键菜单
-            container.addEventListener('contextmenu', function (e) {
-                const data = getMessageDataFromNode(e.target);
-                if (!data) return;
-                e.preventDefault();
-                showMessageContextMenu(e, data);
-            });
-
-            // 移动端长按菜单
-            container.addEventListener('touchstart', function (e) {
-                const messageEl = e.target.closest('.chat-message');
-                if (!messageEl || !messageEl._messageData) return;
-                const touch = e.touches && e.touches[0];
-                if (!touch) return;
-                clearLongPressTimer();
-                longPressStart = { x: touch.clientX, y: touch.clientY };
-                const data = messageEl._messageData;
-                longPressTimer = setTimeout(() => {
-                    showMessageContextMenu(touch, data);
-                }, 500);
-            }, { passive: true });
-
-            container.addEventListener('touchmove', function (e) {
-                if (!longPressStart) return;
-                const touch = e.touches && e.touches[0];
-                if (!touch) return;
-                const dx = Math.abs(touch.clientX - longPressStart.x);
-                const dy = Math.abs(touch.clientY - longPressStart.y);
-                if (dx > 10 || dy > 10) {
-                    clearLongPressTimer();
-                }
-            }, { passive: true });
-
-            container.addEventListener('touchend', clearLongPressTimer);
-            container.addEventListener('touchcancel', clearLongPressTimer);
         }
 
         // 处理语音播放按钮点击（从节点上读取语音状态，无需逐条绑定）
@@ -3534,30 +3448,14 @@ function renderAiLabel(contentAnalysis) {
             }
         }
 
-        // 构造“该消息已被删除”占位元素
-        function buildDeletedPlaceholderElement(messageId) {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'chat-message message-deleted-placeholder';
-            placeholder.innerHTML = '<div class="message-deleted-text">该消息已被删除</div>';
-            if (messageId) {
-                placeholder.dataset.messageId = messageId;
-            }
-            return placeholder;
-        }
-
-        // 将已存在的消息节点就地替换为“已删除”占位
+        // 将已存在的消息节点直接移除
         function markChatMessageDeleted(messageId) {
             if (!messageId) return;
             const node = container.querySelector(
                 `.chat-message[data-message-id="${messageId}"]`
             );
             if (!node) return;
-            if (node.classList.contains('message-deleted-placeholder')) return;
-
-            const placeholder = buildDeletedPlaceholderElement(messageId);
-            unobserveChatNode(node);
-            node.replaceWith(placeholder);
-            observeChatNode(placeholder);
+            node.remove();
         }
 
         function addSystemMessageToChat(data, options = {}) {
@@ -3598,7 +3496,6 @@ function renderAiLabel(contentAnalysis) {
             } else {
                 container.appendChild(messageElement);
             }
-            observeChatNode(messageElement);
             trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
 
             if (shouldStickToBottom) {
@@ -3862,7 +3759,6 @@ function renderAiLabel(contentAnalysis) {
         window.addEventListener('beforeunload', () => {
             clearChatReconnectTimer();
             closeChatSocket({ preventReconnect: true });
-            clearChatObservers();
         });
 
         // 发送消息
