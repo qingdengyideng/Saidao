@@ -20,7 +20,7 @@ const AI_LABEL_HINT = 'AI标签由模型识别直播画面自动生成，可能�
 let chatFilterRules = createEmptyChatFilterRules();
 const blockedUserNameCache = new Map();
 const chatMessageBuffer = [];
-const CHAT_MESSAGE_BUFFER_LIMIT = 1000;
+const CHAT_MESSAGE_BUFFER_LIMIT = 500;
 let hotWordSearchState = {
     word: '',
     cursor: null
