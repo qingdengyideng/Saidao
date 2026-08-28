@@ -2295,13 +2295,16 @@ function renderAiLabel(contentAnalysis) {
                 const noticeText = byId('noticeText');
                 const noticeBar = byId('noticeBar');
                 const noticeIcon = byId('noticeIcon');
+                if (!noticeText || !noticeBar || !noticeIcon) return;
                 noticeText.textContent = notice;
                 noticeBar.hidden = !notice;
                 noticeIcon.hidden = !notice;
                 requestAnimationFrame(updateNoticeScroll);
             } catch (_) {
-                byId('noticeBar').hidden = true;
-                byId('noticeIcon').hidden = true;
+                const noticeBar = byId('noticeBar');
+                const noticeIcon = byId('noticeIcon');
+                if (noticeBar) noticeBar.hidden = true;
+                if (noticeIcon) noticeIcon.hidden = true;
             }
         }
 
