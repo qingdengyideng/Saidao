@@ -135,6 +135,9 @@
             line-height: 1.25;
         }
 
+        .notice-bar[hidden],
+        .notice-bar #noticeIcon[hidden] { display: none; }
+
         .notice-bar .fa-bullhorn { color: #d89800; }
 
         .notice-scroll-viewport {
@@ -145,7 +148,8 @@
         }
 
         .notice-scroll-track {
-            display: inline-block;
+            display: block;
+            width: max-content;
             white-space: nowrap;
         }
 
@@ -155,7 +159,7 @@
         }
 
         @keyframes notice-scroll {
-            to { transform: translateX(var(--notice-scroll-distance)); }
+            to { transform: translateX(calc(-100% - 28px)); }
         }
 
         @media (prefers-reduced-motion: reduce) {

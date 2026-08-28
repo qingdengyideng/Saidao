@@ -2308,11 +2308,14 @@ function renderAiLabel(contentAnalysis) {
         function updateNoticeScroll() {
             const noticeText = byId('noticeText');
             const viewport = noticeText?.parentElement;
-            if (!viewport) return;
+            if (!viewport || byId('noticeBar')?.hidden || !noticeText.textContent.trim()) {
+                noticeText?.classList.remove('is-scrolling');
+                return;
+            }
 
-            const shouldScroll = noticeText.scrollWidth > viewport.clientWidth;
+            noticeText.classList.remove('is-scrolling');
+            const shouldScroll = noticeText.offsetWidth > viewport.clientWidth;
             noticeText.classList.toggle('is-scrolling', shouldScroll);
-            noticeText.style.setProperty('--notice-scroll-distance', `${-(noticeText.scrollWidth + 28)}px`);
         }
 
         async function fetchStreamers() {
