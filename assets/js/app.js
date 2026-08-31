@@ -32,10 +32,7 @@ function detectDeviceType() {
 }
 
 function isTouchDevice() {
-    return Boolean(
-        window.matchMedia?.('(hover: none) and (pointer: coarse)').matches
-        || navigator.maxTouchPoints > 0
-    );
+    return Boolean(window.matchMedia?.('(hover: none) and (pointer: coarse)').matches);
 }
 
 let streamersData = [];
@@ -43,6 +40,7 @@ let dailyReportsData = [];
 const emojiData = {};
 let tagEditorTarget = null;
 let activeStreamerPreview = null;
+let lastCardPointerType = 'mouse';
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -806,6 +804,12 @@ function initEventListeners() {
     });
 
     if (cardsGrid) {
+        on(cardsGrid, 'pointerdown', (event) => {
+            lastCardPointerType = event.pointerType || 'mouse';
+        });
+        on(cardsGrid, 'touchstart', () => {
+            lastCardPointerType = 'touch';
+        }, { passive: true });
         on(cardsGrid, 'click', (event) => {
             const reportCard = event.target.closest('.report-card');
             if (reportCard) {
@@ -849,7 +853,7 @@ function initEventListeners() {
             }
 
             const cardContent = event.target.closest('.card-content');
-            if (cardContent && isTouchDevice()) {
+            if (cardContent && (isTouchDevice() || lastCardPointerType === 'touch')) {
                 const card = cardContent.closest('.streamer-card');
                 const streamer = streamersData.find(item => item.id === Number(card?.dataset?.id));
                 if (activeStreamerPreview?.card === card) {
@@ -872,6 +876,12 @@ function initEventListeners() {
                 if (url) {
                     window.open(url, '_blank');
                 }
+            }
+        });
+
+        on(document, 'click', (event) => {
+            if (activeStreamerPreview && !event.target.closest('.card-content')) {
+                stopStreamerPreview();
             }
         });
 
