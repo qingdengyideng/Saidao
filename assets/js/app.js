@@ -31,6 +31,13 @@ function detectDeviceType() {
     state.isMobile = window.innerWidth <= 768;
 }
 
+function isTouchDevice() {
+    return Boolean(
+        window.matchMedia?.('(hover: none) and (pointer: coarse)').matches
+        || navigator.maxTouchPoints > 0
+    );
+}
+
 let streamersData = [];
 let dailyReportsData = [];
 const emojiData = {};
@@ -842,7 +849,7 @@ function initEventListeners() {
             }
 
             const cardContent = event.target.closest('.card-content');
-            if (cardContent && state.isMobile) {
+            if (cardContent && isTouchDevice()) {
                 const card = cardContent.closest('.streamer-card');
                 const streamer = streamersData.find(item => item.id === Number(card?.dataset?.id));
                 if (activeStreamerPreview?.card === card) {
@@ -1131,7 +1138,7 @@ function renderAiLabel(contentAnalysis) {
 
                 const coverArea = $('.streamer-cover-area', card);
                 on(coverArea, 'pointerenter', () => {
-                    if (!state.isMobile) startStreamerPreview(card, streamer);
+                    if (!isTouchDevice()) startStreamerPreview(card, streamer);
                 });
                 on(coverArea, 'pointerleave', () => {
                     if (activeStreamerPreview?.card === card) stopStreamerPreview();

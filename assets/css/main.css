@@ -3,7 +3,7 @@
             --primary-color: #7A6F69;
             --primary-dark: #635A55;
             --primary-light: #8C827C;
-            --bg-color: #F5F3F1;
+            --bg-color: #FFFFFF;
             --card-color: #FFFFFF;
             --text-primary: #333333;
             --text-secondary: #666666;
@@ -15,8 +15,8 @@
             --live-color: #E53935;
             --offline-color: #8C8C8C;
             --chat-bg: #FFFFFF;
-            --chat-border: #D6D2CE;
-            --msg-bg-color: #ffffff;
+            --chat-border: #f2f2f2;
+            --msg-bg-color: #f2f2f2;
             --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.04);
             --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.06);
             --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.08);
