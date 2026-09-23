@@ -1,0 +1,284 @@
+/* 1. Tailwind v4 必须在前 */
+@import "tailwindcss";
+/* 2. HeroUI v3 样式必须在后 */
+@import "@heroui/styles";
+
+/* 3. 兼容别名（HeroUI 默认主题无 --muted-foreground，映射到 --muted；
+   用于代码中 text-muted-foreground 等 Tailwind 类，随主题自动切换） */
+:root {
+  --muted-foreground: var(--muted);
+}
+
+/* 4. 全局基础 */
+* {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* 数字表格化（在线人数/投票数） */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* NoticeBar 跑马条：文案重复 N 份后位移 -50%（即刚好一份），实现无缝循环；
+   时长由组件按恒定速度写入 --marquee-duration（见 components/layout/NoticeBar.tsx） */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  height: 100%;
+  will-change: transform;
+  animation: marquee-scroll var(--marquee-duration, 20s) linear infinite;
+}
+
+/* 悬停/键盘聚焦时暂停，便于阅读 */
+.marquee-shell:hover .marquee-track,
+.marquee-shell:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+/* 右缘渐隐：文案滚出时不会硬切 */
+.marquee-fade {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
+
+/* 跳链（无障碍） */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  z-index: 100;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: white;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* 弹幕滚动（车道制，与旧站一致） */
+.danmaku-item {
+  position: absolute;
+  left: 100%;
+  white-space: nowrap;
+  will-change: transform;
+  animation: danmaku-move linear forwards;
+  font-size: 20px;
+  line-height: 1.4;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 760px) {
+  .danmaku-item {
+    font-size: 16px;
+  }
+}
+
+@keyframes danmaku-move {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-1 * var(--danmaku-distance, 200%)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .danmaku-item {
+    animation: none;
+  }
+}
+
+/* 页面加载淡入动效（赞助页等轻量页面使用） */
+@keyframes sponsor-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sponsor-fade-in {
+  animation: sponsor-fade-in 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-fade-in {
+    animation: none;
+  }
+}
+
+/* 播放器专用样式 */
+/* LIVE 信号动画（与旧站 player.css .live-signal 一致） */
+@keyframes player-live-wave {
+  to {
+    transform: scaleY(0.45);
+  }
+}
+
+.player-live-signal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 10px;
+  height: 10px;
+}
+
+.player-live-signal i {
+  width: 2px;
+  height: 4px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.player-live-signal i:nth-child(2) {
+  height: 8px;
+}
+
+.player-live-signal i:nth-child(3) {
+  height: 6px;
+}
+
+.player-live-badge[data-state="live"] .player-live-signal i {
+  animation: player-live-wave 1s ease-in-out infinite alternate;
+}
+
+.player-live-badge[data-state="live"] .player-live-signal i:nth-child(2) {
+  animation-delay: 0.35s;
+}
+
+.player-live-badge[data-state="live"] .player-live-signal i:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+/* 状态覆盖层 loading spinner */
+@keyframes player-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.player-loading-spinner {
+  position: relative;
+  width: 52px;
+  height: 52px;
+}
+
+.player-loading-spinner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent);
+  border-right-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  border-radius: 50%;
+  animation: player-loading-spin 0.85s linear infinite;
+}
+
+/* 鼠标移开自动隐藏操作层（仅 hover-capable 设备） */
+@media (hover: hover) and (pointer: fine) {
+  .player-shell .player-stage-header,
+  .player-shell .player-controls-bar,
+  .player-shell .player-gradient-overlay {
+    transition: opacity 0.2s ease;
+  }
+
+  .player-shell:not(:hover):not(:has(:focus-visible))
+    :is(.player-stage-header, .player-controls-bar),
+  .player-shell:not(:hover):not(:has(:focus-visible)) .player-gradient-overlay {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-live-signal i {
+    animation: none;
+  }
+  .player-loading-spinner::before {
+    animation-duration: 1.5s;
+  }
+}
+
+/* 播放器 CSS 假全屏兜底（src/lib/media/fullscreen.ts 降级链第 4 级，仅移动端） */
+.viewport-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--black);
+}
+
+/* react-viewer 深色适配（默认样式偏浅色，跟随项目 data-theme="dark" 选择器） */
+.dark .react-viewer-mask,
+[data-theme="dark"] .react-viewer-mask {
+  background-color: var(--backdrop);
+}
+
+.dark .react-viewer-btn,
+[data-theme="dark"] .react-viewer-btn {
+  background-color: color-mix(in oklch, var(--foreground) 20%, transparent);
+  color: var(--foreground);
+}
+
+.dark .react-viewer-btn:hover,
+[data-theme="dark"] .react-viewer-btn:hover {
+  background-color: color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+.dark .react-viewer-attribute,
+[data-theme="dark"] .react-viewer-attribute {
+  color: var(--muted);
+}
+
+.dark .react-viewer-navbar,
+[data-theme="dark"] .react-viewer-navbar {
+  background-color: color-mix(in oklch, var(--foreground) 20%, transparent);
+}
+
+.dark .react-viewer-list > li > img,
+[data-theme="dark"] .react-viewer-list > li > img {
+  opacity: 0.5;
+}
+
+.dark .react-viewer-icon,
+[data-theme="dark"] .react-viewer-icon {
+  color: var(--foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dark .react-viewer-transition,
+  [data-theme="dark"] .react-viewer-transition,
+  .dark .react-viewer-image-transition,
+  [data-theme="dark"] .react-viewer-image-transition,
+  .dark .react-viewer-list-transition,
+  [data-theme="dark"] .react-viewer-list-transition {
+    transition: none;
+  }
+}

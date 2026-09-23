@@ -1,0 +1,56 @@
+# ===== 依赖目录 =====
+node_modules/
+
+# ===== 构建产物 =====
+.next/
+out/
+dist/
+build/
+output/
+*.tsbuildinfo
+
+# ===== Next.js 缓存 =====
+.cache/
+.turbo/
+.vercel/
+
+# ===== 环境变量 =====
+.env
+.env.local
+.env.*.local
+
+# ===== 日志文件 =====
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# ===== 测试覆盖率 =====
+coverage/
+.nyc_output/
+
+# ===== 编辑器/IDE =====
+.codex/
+.trae/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 临时文件 =====
+*.tmp
+*.temp
+*.bak
+
+# ===== 本地调试/探测产物 =====
+docs/logs/.tmp_probe/
+.pnpm-store/
+pnpm-workspace.yaml.bak

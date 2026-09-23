@@ -1,0 +1,1297 @@
+openapi: 3.0.3
+info:
+  title: Saidao（赛道）前端接口规范
+  description: |
+    基于前端项目 `assets/js/api.js` 全部 endpoint 及实际调用（`.tmp_probe`）整理。
+    统一响应包裹为 `{ code, message, data }`，`code="0"` 表示成功。
+    例外：`GET /saidao/player/{uid}` 直接返回播放器对象，无包裹。
+  version: 1.0.0
+servers:
+  - url: https://api.saidao.cc
+    description: 主 REST API
+  - url: https://n8n.saidao.cc
+    description: N8N Webhook 服务
+
+tags:
+  - name: user
+  - name: captcha
+  - name: saidao
+  - name: player
+  - name: message
+  - name: emoji
+  - name: polls
+  - name: dailyReport
+  - name: videoRequest
+  - name: upload
+  - name: webhook
+  - name: websocket
+
+paths:
+  /user/login:
+    post:
+      tags: [user]
+      operationId: login
+      summary: 登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                captchaId: { type: string, description: 触发风控时必填 }
+                captchaCode: { type: string }
+      responses:
+        "200":
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/LoginResult"
+        "400": { $ref: "#/components/responses/BizError" }
+
+  /user/:
+    get:
+      tags: [user]
+      operationId: currentUser
+      summary: 当前登录用户
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 成功（未登录时 data 为 null）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+
+  /user/allocate:
+    post:
+      tags: [user]
+      operationId: allocate
+      summary: 注册/分配账号
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, captchaId, captchaCode]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                captchaId: { type: string }
+                captchaCode: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+        "400": { $ref: "#/components/responses/BizError" }
+
+  /user/changePassword:
+    post:
+      tags: [user]
+      operationId: changePassword
+      summary: 修改密码
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /user/update:
+    post:
+      tags: [user]
+      operationId: profileUpdate
+      summary: 更新资料
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdateRequest"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /user/sendVerificationCode:
+    post:
+      tags: [user]
+      operationId: sendVerificationCode
+      summary: 发送验证码
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "400": { $ref: "#/components/responses/BizError" }
+
+  /user/captcha:
+    get:
+      tags: [user]
+      operationId: getCaptcha
+      summary: 获取图形验证码
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/CaptchaImage"
+
+  /user/{id}:
+    get:
+      tags: [user]
+      operationId: showUserDetail
+      summary: 查询用户详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserDetail"
+
+  /user/chatFilterConfig:
+    get:
+      tags: [user]
+      operationId: getChatFilterConfig
+      summary: 获取聊天过滤配置
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ChatFilterConfig"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [user]
+      operationId: updateChatFilterConfig
+      summary: 更新聊天过滤配置
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatFilterConfig"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /user/chatBan:
+    post:
+      tags: [user]
+      operationId: chatBan
+      summary: 禁言用户（需 canChatBan 权限）
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, banned]
+              properties:
+                userId: { type: integer }
+                banned: { type: boolean }
+                reason: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /captcha/slider:
+    get:
+      tags: [captcha]
+      operationId: getSliderCaptcha
+      summary: 获取滑动验证码
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/SliderCaptcha"
+
+  /captcha/slider/verify:
+    post:
+      tags: [captcha]
+      operationId: verifySliderCaptcha
+      summary: 校验滑动验证码，返回 ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, x]
+              properties:
+                challengeId: { type: string }
+                x: { type: number, description: 滑块水平位移(px) }
+      responses:
+        "200":
+          description: 成功，data 为 ticket 字符串
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data: { type: string, description: "captchaTicket，如 'bypass'" }
+
+  /saidao/:
+    get:
+      tags: [saidao]
+      operationId: saidaoList
+      summary: 赛道列表
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Saidao"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /saidao/options:
+    post:
+      tags: [saidao]
+      operationId: updateOptions
+      summary: 更新赛道选项（管理权限）
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: integer }
+                notShow: { type: boolean }
+                hotLevel: { type: string }
+                status: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /saidao/tag:
+    post:
+      tags: [saidao]
+      operationId: updateSaidaoTag
+      summary: 更新赛道标签（需 canEditSaidaoTag 权限）
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, tag]
+              properties:
+                id: { type: integer }
+                tag: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /saidao/click:
+    post:
+      tags: [saidao]
+      operationId: clickSaidao
+      summary: 点击计数
+      parameters:
+        - name: saidaoId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+
+  /saidao/player/{uid}:
+    get:
+      tags: [player]
+      operationId: playerInfo
+      summary: 播放器信息（⚠️ 无 ApiResponse 包裹）
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerInfo"
+
+  /message/delete:
+    post:
+      tags: [message]
+      operationId: messageDelete
+      summary: 删除消息
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messageId]
+              properties:
+                messageId: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /message/history:
+    get:
+      tags: [message]
+      operationId: messageHistory
+      summary: 按消息 ID 查历史
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: messageId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ChatMessage"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /message/history/window:
+    get:
+      tags: [message]
+      operationId: messageHistoryWindow
+      summary: 窗口式历史（游标分页）
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: beforeCursor, in: query, schema: { type: string } }
+        - { name: afterCursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          messages:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/ChatMessage"
+                          beforeCursor: { type: string }
+                          afterCursor: { type: string }
+                          hasMore: { type: boolean }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /message/moments:
+    get:
+      tags: [message]
+      operationId: chatMoments
+      summary: 聊天时间线
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ChatMoments"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /emoji/{group}:
+    get:
+      tags: [emoji]
+      operationId: queryEmojis
+      summary: 查询表情（vip / animation）
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: group
+          in: path
+          required: true
+          schema: { type: string, enum: [vip, animation] }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Emoji"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /emoji/upload:
+    post:
+      tags: [emoji]
+      operationId: uploadEmojis
+      summary: 上传表情（≤2MB）
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          url: { type: string }
+                          name: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /chat/polls:
+    get:
+      tags: [polls]
+      operationId: chatPolls
+      summary: 投票列表
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ChatPolls"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [polls]
+      operationId: createChatPoll
+      summary: 创建投票（注册时间 > 3 天）
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChatPollRequest"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Poll"
+        "400": { $ref: "#/components/responses/BizError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /chat/polls/status:
+    get:
+      tags: [polls]
+      operationId: chatPollStatus
+      summary: 投票状态
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          serverTime: { type: string, format: date-time }
+                          endsAt: { type: string, format: date-time }
+                          activeEndsAt: { type: string, format: date-time }
+
+  /chat/polls/{id}/ballots:
+    post:
+      tags: [polls]
+      operationId: voteChatPoll
+      summary: 投票
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [optionIds]
+              properties:
+                optionIds:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /dailyReport/list:
+    get:
+      tags: [dailyReport]
+      operationId: dailyReportList
+      summary: 日报列表
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/DailyReport"
+
+  /notice:
+    get:
+      tags: [dailyReport]
+      operationId: notice
+      summary: 公告（data 为纯字符串）
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data: { type: string, description: 公告文本 }
+
+  /videoRequest/submit:
+    post:
+      tags: [videoRequest]
+      operationId: videoRequestSubmit
+      summary: 提交点播
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bvid]
+              properties:
+                bvid: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "400": { $ref: "#/components/responses/BizError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /videoRequest/vote:
+    post:
+      tags: [videoRequest]
+      operationId: videoRequestVote
+      summary: 点播投票
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [videoRequestId, voteType]
+              properties:
+                videoRequestId: { type: integer }
+                voteType: { type: string, enum: [approve, reject] }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /videoRequest/list:
+    get:
+      tags: [videoRequest]
+      operationId: videoRequestList
+      summary: 点播列表
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          playlist:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/VideoRequestItem"
+                          voting:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/VideoRequestItem"
+                          current:
+                            $ref: "#/components/schemas/VideoRequestItem"
+                          currentTime:
+                            type: number
+                            nullable: true
+
+  /videoRequest/skip:
+    post:
+      tags: [videoRequest]
+      operationId: videoRequestSkip
+      summary: 跳过当前点播
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /videoRequest/delete:
+    post:
+      tags: [videoRequest]
+      operationId: videoRequestDelete
+      summary: 删除点播
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: videoRequestId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/image/upload:
+    post:
+      tags: [upload]
+      operationId: uploadImages
+      summary: 上传图片
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          url: { type: string }
+        "400": { $ref: "#/components/responses/BizError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/voice/upload:
+    post:
+      tags: [upload]
+      operationId: uploadVoice
+      summary: 上传语音
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 音频 Blob，文件名形如 voice-{ts}.webm
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          url: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /webhook/testWebhook:
+    post:
+      tags: [webhook]
+      operationId: testWebhook
+      summary: 测试 Webhook（N8N 域）
+      servers:
+        - url: https://n8n.saidao.cc
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhookType: { type: string }
+                webhookUrl: { type: string }
+                testMessage: { type: string }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: JWT token，前端以原文放入 Authorization 头（无 Bearer 前缀），此处按惯例标记为 bearer。
+
+  responses:
+    Unauthorized:
+      description: 未登录
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ApiResponse"
+              - type: object
+                properties:
+                  code: { type: string, example: "1" }
+                  message: { type: string, example: "请先登录" }
+                  data: { nullable: true }
+    BizError:
+      description: 业务错误
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ApiResponse"
+              - type: object
+                properties:
+                  code: { type: string, example: "1" }
+                  message: { type: string, example: "用户不存在" }
+                  data: { nullable: true }
+
+  schemas:
+    ApiResponse:
+      type: object
+      description: 统一响应包裹（除 GET /saidao/player/{uid} 外）
+      required: [code, message, data]
+      properties:
+        code: { type: string, description: "0=成功，1=失败" }
+        message: { type: string }
+        data: { nullable: true }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        avatar: { type: string }
+        bio: { type: string }
+        faction: { type: string }
+        canChatBan: { type: boolean }
+        canEditSaidaoTag: { type: boolean }
+        webhookType: { type: string }
+        webhookUrl: { type: string }
+
+    LoginResult:
+      type: object
+      properties:
+        token: { type: string, description: JWT }
+        user:
+          $ref: "#/components/schemas/User"
+
+    UserDetail:
+      type: object
+      description: 用户详情（比 User 少权限位，多 registerDate）
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        avatar: { type: string }
+        bio: { type: string }
+        faction: { type: string }
+        registerDate: { type: string }
+
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        avatar: { type: string }
+        bio: { type: string }
+        faction: { type: string }
+        webhookType: { type: string }
+        webhookUrl: { type: string }
+
+    CaptchaImage:
+      type: object
+      properties:
+        captchaId: { type: string }
+        base64Image: { type: string, description: dataURL 格式 PNG }
+        expireTime: { type: integer, description: 有效期(秒) }
+
+    SliderCaptcha:
+      type: object
+      description: 滑动验证码（probe 环境可能返回空对象，字段以实际为准）
+      properties:
+        challengeId: { type: string }
+        background: { type: string, description: 背景图 dataURL }
+        piece: { type: string, description: 拼图块 dataURL }
+        pieceY: { type: number }
+        width: { type: number }
+        height: { type: number }
+
+    ChatFilterConfig:
+      type: object
+      properties:
+        blockedUserIds:
+          type: array
+          items: { type: integer }
+        blockedNicknames:
+          type: array
+          items: { type: string }
+        keywordPatterns:
+          type: array
+          items: { type: string }
+
+    Saidao:
+      type: object
+      properties:
+        id: { type: integer }
+        uid: { type: string }
+        name: { type: string }
+        channel: { type: string }
+        startTime: { type: string }
+        status: { type: integer }
+        avatar: { type: string }
+        cover: { type: string }
+        url: { type: string }
+        streamUrl: { type: string, nullable: true }
+        notShow: { type: boolean }
+        tag: { type: string }
+        hotScore: { type: number }
+        hotLevel: { type: string, nullable: true }
+        contentAnalysis:
+          $ref: "#/components/schemas/ContentAnalysis"
+
+    ContentAnalysis:
+      type: object
+      properties:
+        is_game: { type: boolean }
+        game_name: { type: string, nullable: true }
+        live_type: { type: string }
+        is_outdoor: { type: boolean }
+        is_virtual: { type: boolean }
+        screen_orientation: { type: string }
+        streamer_status: { type: string }
+        overall_confidence: { type: number }
+        game_confidence: { type: number }
+        live_type_label: { type: string }
+        streamer_status_label: { type: string }
+        screen_orientation_label: { type: string }
+        ai_label: { type: string }
+
+    PlayerInfo:
+      type: object
+      description: 播放器信息（非 ApiResponse 包裹）
+      properties:
+        m3u8: { type: string, description: HLS 地址，未开播可能为字符串 "null" }
+        channel: { type: string }
+        userId: { type: string }
+        value: { type: string, description: 原始 JSON 串 }
+        uid: { type: string }
+        live_url: { type: string }
+        orig: { type: string }
+        token: { type: string }
+        avatar: { type: string }
+        mid: { type: string }
+        status: { type: string }
+        roomid: { type: string }
+        uname: { type: string }
+        cover: { type: string }
+
+    ChatMessage:
+      type: object
+      description: 聊天消息通用结构
+      properties:
+        uid: { type: integer, description: 发送者 ID，0=匿名/访客 }
+        type: { type: string, description: user / status }
+        ipGeo: { type: string }
+        uname: { type: string }
+        avatar: { type: string }
+        content: { type: string, description: 正文；表情为 <img .../> HTML }
+        deleted: { type: boolean }
+        faction: { type: string }
+        mentions:
+          type: array
+          items: { type: string }
+        messageId: { type: string }
+        timestamp: { type: string, description: HH:mm:ss }
+        createdAt: { type: string, format: date-time, description: 完整 ISO 8601（window/WS 携带） }
+        replyTo:
+          type: object
+          properties:
+            uid: { type: integer }
+            uname: { type: string }
+            content: { type: string }
+            messageId: { type: string }
+        linkPreview:
+          type: object
+          properties:
+            url: { type: string }
+            title: { type: string }
+
+    ChatMoments:
+      type: object
+      properties:
+        status: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        formatVersion: { type: integer }
+        segments:
+          type: array
+          items:
+            type: object
+            properties:
+              start: { type: string, format: date-time }
+              end: { type: string, format: date-time }
+              title: { type: string }
+              summary: { type: string }
+              anchorId: { type: string }
+              stats:
+                type: object
+                properties:
+                  messageCount: { type: integer }
+                  quoteCount: { type: integer }
+                  mentionCount: { type: integer }
+                  imageCount: { type: integer }
+                  emojiCount: { type: integer }
+                  videoCount: { type: integer }
+
+    Emoji:
+      type: object
+      properties:
+        name: { type: string }
+        url: { type: string }
+        clickSend: { type: boolean }
+
+    ChatPolls:
+      type: object
+      properties:
+        canCreate: { type: boolean }
+        serverTime: { type: string, format: date-time }
+        current:
+          allOf:
+            - $ref: "#/components/schemas/Poll"
+          nullable: true
+        recent:
+          type: array
+          items:
+            $ref: "#/components/schemas/Poll"
+
+    Poll:
+      type: object
+      properties:
+        id: { type: integer }
+        question: { type: string }
+        options:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        active: { type: boolean }
+        totalVoters: { type: integer }
+        counts:
+          type: array
+          items: { type: integer }
+        myOptions:
+          type: array
+          items: { type: integer }
+        multiple: { type: boolean }
+        creatorId: { type: integer }
+        creatorName: { type: string }
+        resultsVisible: { type: boolean }
+
+    CreateChatPollRequest:
+      type: object
+      required: [question, options]
+      properties:
+        question: { type: string }
+        options:
+          type: array
+          items: { type: string }
+          minItems: 2
+        durationSeconds: { type: integer }
+        multiple: { type: boolean }
+        resultsVisible: { type: boolean }
+
+    DailyReport:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        link: { type: string }
+        cover: { type: string }
+        update_time: { type: integer, description: Unix 秒 }
+
+    VideoRequestItem:
+      type: object
+      properties:
+        id: { type: integer }
+        bvid: { type: string }
+        title: { type: string }
+        coverUrl: { type: string }
+        uploaderName: { type: string }
+        duration: { type: number }
+        voteApprove: { type: integer }
+        voteReject: { type: integer }
+
+    # ---- WebSocket 消息（非 REST，仅文档化） ----
+    WsChatMessageIn:
+      type: object
+      description: 聊天室上行消息（chat / voice）
+      properties:
+        type: { type: string, enum: [chat, voice] }
+        content: { type: string }
+        reply:
+          type: object
+          properties:
+            messageId: { type: string }
+            uname: { type: string }
+        audioUrl: { type: string }
+        duration: { type: number }
+        waveform:
+          type: array
+          items: { type: number }
+        captchaTicket: { type: string }
+
+    WsChatMessageOut:
+      type: object
+      description: 聊天室下行消息，按 type 分发
+      properties:
+        type:
+          type: string
+          enum: [user, system, status, history, link_preview, onlineCount, hotWords, saidaoTagUpdated, hotScoreUpdate, clear, error, captchaRequired]
+        count: { type: integer, description: onlineCount 时的人数 }
+        scores: { description: hotScoreUpdate 时的热度分 }
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+          description: history 时的消息数组
+        url: { type: string, description: link_preview 时 }
+        title: { type: string, description: link_preview 时 }
+        content: { type: string, description: system/status 时 }
+
+    WsPlayerDanmaku:
+      type: object
+      description: 播放器弹幕下行消息
+      properties:
+        comments:
+          type: array
+          items:
+            type: object
+            properties:
+              user: { type: string }
+              text: { type: string }
