@@ -14,6 +14,19 @@
         // Retain recent results across history reloads and events arriving before their message.
         const previews = new Map();
 
+        function updateScroll(title) {
+            const text = title.firstElementChild;
+            const distance = Math.max(0, text.offsetWidth - title.clientWidth);
+            text.style.setProperty('--link-preview-distance', `${-distance}px`);
+            text.classList.toggle('is-scrolling', title.clientWidth > 0 && distance > 1);
+        }
+
+        // One observer per chat container; removed messages are never retained.
+        const resizeObserver = new ResizeObserver(() => {
+            container.querySelectorAll('.message-link-preview-title').forEach(updateScroll);
+        });
+        resizeObserver.observe(container);
+
         function apply(data, messageElement) {
             const preview = previews.get(String(data.messageId)) || normalize(data.linkPreview);
             if (!preview) return;
@@ -47,6 +60,7 @@
             }
             hint.querySelector('.message-link-preview-title-text').textContent = `· ${preview.title}`;
             hint.querySelector('.message-link-preview-title').title = preview.title;
+            updateScroll(hint.querySelector('.message-link-preview-title'));
         }
 
         function receive(data) {

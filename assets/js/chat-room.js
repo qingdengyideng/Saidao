@@ -834,36 +834,16 @@
                 const nodes = [];
                 result.data.forEach((emoji) => {
                     let node;
-                    if (group === 'animation') {
-                        node = document.createElement('video');
-                        node.src = emoji.url;
-                        node.className = 'emoji-item';
-                        node.playsInline = true;
+                    node = document.createElement('img');
+                    node.loading = 'lazy';
+                    node.decoding = 'async';
+                    node.src = emoji.url;
+                    node.className = `emoji-item ${group}`;
+                    if (group !== 'vip') {
                         node.alt = emoji.name;
-                        node.autoplay = false;
-                        node.muted = true;
                         node.title = emoji.name;
-                        node.addEventListener('mouseenter', () => {
-                            if (node.paused) {
-                                node.currentTime = 0;
-                                node.play().catch(() => {});
-                            }
-                        });
-                        node.addEventListener('mouseleave', () => {
-                            node.pause();
-                            node.currentTime = 0;
-                        });
-                        node.addEventListener('click', () => insertEmoji(emoji));
-                    } else {
-                        node = document.createElement('img');
-                        node.src = emoji.url;
-                        node.className = `emoji-item ${group}`;
-                        if (group !== 'vip') {
-                            node.alt = emoji.name;
-                            node.title = emoji.name;
-                        }
-                        node.addEventListener('click', () => insertEmoji(emoji));
                     }
+                    node.addEventListener('click', () => insertEmoji(emoji));
                     emojiContainer.appendChild(node);
                     nodes.push(node);
                 });

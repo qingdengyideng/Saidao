@@ -1373,6 +1373,38 @@
             background-color: var(--bg-color);
         }
 
+        /* 透明轨道跟随聊天背景，滑块随主题切换。 */
+        .chat-body {
+            --scroll-thumb: #b5aea9;
+            --scroll-thumb-hover: #918780;
+            scrollbar-width: thin;
+            scrollbar-color: var(--scroll-thumb) transparent;
+        }
+
+        [data-theme="dark"] .chat-body {
+            --scroll-thumb: #707070;
+            --scroll-thumb-hover: #919191;
+            color-scheme: dark;
+        }
+
+        .chat-body::-webkit-scrollbar { width: 8px; height: 8px; }
+        .chat-body::-webkit-scrollbar-track,
+        .chat-body::-webkit-scrollbar-corner { background: transparent; }
+        .chat-body::-webkit-scrollbar-thumb {
+            min-height: 36px;
+            border: 2px solid transparent;
+            border-radius: 999px;
+            background: var(--scroll-thumb);
+            background-clip: padding-box;
+        }
+        .chat-body::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-thumb-hover); }
+        .chat-body::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+
+        /* Chromium 使用自定义圆角样式，Firefox 保留标准细滚动条。 */
+        @supports selector(::-webkit-scrollbar) {
+            .chat-body { scrollbar-width: auto; scrollbar-color: auto; }
+        }
+
         .chat-history-loading {
             position: absolute;
             top: 8px;
@@ -1588,10 +1620,11 @@
 
         .message-link-preview-title-text {
             display: block;
-            position: relative;
             width: max-content;
-            min-width: 100%;
-            animation: link-preview-scroll 12s linear infinite alternate;
+        }
+
+        .message-link-preview-title-text.is-scrolling {
+            animation: link-preview-scroll 12s linear infinite;
         }
 
         .message-link-preview:hover .message-link-preview-title-text {
@@ -1599,13 +1632,13 @@
         }
 
         @keyframes link-preview-scroll {
-            0%, 15% { left: 0; transform: translateX(0); }
-            85%, 100% { left: 100%; transform: translateX(-100%); }
+            0%, 15% { transform: translateX(0); }
+            85%, 100% { transform: translateX(var(--link-preview-distance)); }
         }
 
         @media (prefers-reduced-motion: reduce) {
             .message-link-preview-title { overflow-x: auto; text-overflow: clip; }
-            .message-link-preview-title-text { animation: none; }
+            .message-link-preview-title-text.is-scrolling { animation: none; }
         }
 
         .message-link-preview-separator {

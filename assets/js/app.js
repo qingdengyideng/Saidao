@@ -268,19 +268,20 @@ function readStoredChatFilterRules() {
     }
 }
 
-function getChatMessageText(content) {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = content || '';
-    return wrapper.innerText || wrapper.textContent || '';
+function parseChatContent(content) {
+    const template = document.createElement('template');
+    template.innerHTML = content || '';
+    return template.content;
 }
 
-function shouldFilterChatMessage(data) {
+function shouldFilterChatMessage(data, content) {
     if (!data || data.type && data.type !== 'user') return false;
     const uid = String(data.uid ?? '0');
     if (uid !== '0' && chatFilterRules.blockedUserIds.includes(uid)) return true;
     if (uid === '0' && chatFilterRules.blockedNicknames.includes(String(data.uname || '').trim())) return true;
     if (chatFilterRules.blockedIpGeos.includes(String(data.ipGeo || '').trim())) return true;
-    const text = getChatMessageText(data.content);
+    if (!chatFilterRules.keywordPatterns.length) return false;
+    const text = (content || parseChatContent(data.content)).textContent || '';
     return chatFilterRules.keywordPatterns.some((pattern) => {
         try {
             return new RegExp(pattern, 'i').test(text);
@@ -451,10 +452,7 @@ function handleBlockImageMessagesChange(event) {
     });
 }
 
-function isPureImageMessageContent(content) {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = content || '';
-
+function isPureImageMessageContent(wrapper) {
     const meaningfulNodes = Array.from(wrapper.childNodes).filter((node) => {
         if (node.nodeType === Node.TEXT_NODE) {
             return node.textContent.trim() !== '';
@@ -667,6 +665,7 @@ function initEventListeners() {
 
     on(byId('loginBtn'), 'click', openLoginModal);
     on(byId('userAvatar'), 'click', openProfileModal);
+    on(byId('detailAvatar'), 'click', (event) => showImagePreview(event.currentTarget.src));
     on(byId('sponsorBtn'), 'click', () => {
         window.location.href = 'sponsor.html';
     });
@@ -1222,41 +1221,16 @@ function renderAiLabel(contentAnalysis) {
             const nodes = [];
 
             result.data.forEach(emoji => {
-                let node;
-
-                if (group === 'animation') {
-                    node = document.createElement('video');
-                    node.src = emoji.url;
-                    node.className = 'emoji-item';
-                    node.playsInline = true;
+                const node = document.createElement('img');
+                node.loading = 'lazy';
+                node.decoding = 'async';
+                node.src = emoji.url;
+                node.className = `emoji-item ${group}`;
+                if (group !== 'vip') {
                     node.alt = emoji.name;
-                    node.autoplay = false;
-                    node.muted = true;
                     node.title = emoji.name;
-
-                    node.addEventListener('mouseenter', () => {
-                        if (node.paused) {
-                            node.currentTime = 0;
-                            node.play().catch(() => {});
-                        }
-                    });
-
-                    node.addEventListener('mouseleave', () => {
-                        node.pause();
-                        node.currentTime = 0;
-                    });
-
-                    node.addEventListener('click', () => insertEmoji(emoji));
-                } else {
-                    node = document.createElement('img');
-                    node.src = emoji.url;
-                    node.className = `emoji-item ${group}`;
-                    if (group !== 'vip') {
-                        node.alt = emoji.name;
-                        node.title = emoji.name;
-                    }
-                    node.addEventListener('click', () => insertEmoji(emoji));
                 }
+                node.addEventListener('click', () => insertEmoji(emoji));
 
                 container.appendChild(node);
                 nodes.push(node);
@@ -1744,7 +1718,6 @@ function renderAiLabel(contentAnalysis) {
             byId('detailUserId').textContent = `用户ID: ${userDetail.id}`;
             byId('detailRegistrationTime').textContent = `注册时间: ${new Date(userDetail.registerDate).toLocaleDateString()}`;
 
-            on(byId('detailAvatar'), 'click', () => showImagePreview(userDetail.avatar));
 
             setModalOpen('userDetailModal', true);
         }
@@ -2519,7 +2492,7 @@ function renderAiLabel(contentAnalysis) {
         const CHAT_STICKY_BOTTOM_THRESHOLD = 700;
         const CHAT_BOTTOM_SCROLL_EPSILON = 200;
         const CHAT_HISTORY_TOP_THRESHOLD = 80;
-        const CHAT_MESSAGE_LIMIT = 1000;
+        const CHAT_MESSAGE_LIMIT = 500;
         const renderedMessageIds = new Set();
         let chatFollowMode = true;
         let chatScrollRaf = null;
@@ -2808,14 +2781,14 @@ function renderAiLabel(contentAnalysis) {
         };
 
         function addMessageToChat(data, options = {}) {
-            linkPreviews.apply(data);
             if (!options.skipBuffer) {
                 bufferChatMessage(data, options.position || 'append');
             }
-            if (shouldFilterChatMessage(data)) {
+            const content = parseChatContent(data.content);
+            if (shouldFilterChatMessage(data, content)) {
                 return null;
             }
-            const isPureImageMessage = isPureImageMessageContent(data.content);
+            const isPureImageMessage = isPureImageMessageContent(content);
 
             if (!trackRenderedMessage(data.messageId)) {
                 return null;
@@ -2838,15 +2811,24 @@ function renderAiLabel(contentAnalysis) {
                 quoteHTML = window.ChatQuoteUtils.createReply(data.replyTo, isImageMessagesBlocked()).outerHTML;
             }
 
-            // 处理消息内容中的@高亮 (假设 content 中 @用户名 已被后端处理或保持原样)
-            let processedContent = data.content;
-            // 简易前端高亮：将 @用户名 替换为带样式的span
-            // 更佳实践应由后端在 content 中标记，或下发 mentions 数组由前端渲染时处理
-            if (data.mentions && data.mentions.length > 0) {
-                // 这里示例一个简单的文本替换，实际应根据 mentions 和用户列表进行更精确的匹配和替换
-                processedContent = processedContent.replace(/@(\S+)/g, '<span class="mention" style="color: #020df4; font-weight: 500;">@$1</span>');
+            // 只处理正文文本节点，避免改写图片、链接的属性。
+            if (data.mentions?.length) {
+                const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+                const texts = [];
+                while (walker.nextNode()) texts.push(walker.currentNode);
+                texts.forEach(node => {
+                    const parts = node.textContent.split(/(@\S+)/g);
+                    if (parts.length === 1) return;
+                    node.replaceWith(...parts.map((part, index) => {
+                        if (index % 2 === 0) return document.createTextNode(part);
+                        const mention = document.createElement('span');
+                        mention.className = 'mention';
+                        mention.style.cssText = 'color: #020df4; font-weight: 500;';
+                        mention.textContent = part;
+                        return mention;
+                    }));
+                });
             }
-
 
             // 根据 faction 值生成标签HTML
             let factionHTML = '';
@@ -2866,7 +2848,7 @@ function renderAiLabel(contentAnalysis) {
 
             const messageBodyHTML = data.messageKind === 'voice'
                 ? renderVoiceMessage(data)
-                : processedContent;
+                : '';
 
             messageElement.innerHTML = `
                 <div class="avatar-container">
@@ -2886,6 +2868,12 @@ function renderAiLabel(contentAnalysis) {
                 </div>
             `;
 
+            const messageText = messageElement.querySelector('.message-text');
+            if (data.messageKind !== 'voice') messageText.append(content);
+            messageText.querySelectorAll('img').forEach(image => {
+                image.loading = 'lazy';
+                image.decoding = 'async';
+            });
             const battleBadge = window.BattleUi?.createBadge(data.battle);
             if (battleBadge) messageElement.querySelector('.message-text').prepend(battleBadge);
 
@@ -2899,7 +2887,6 @@ function renderAiLabel(contentAnalysis) {
             trimChatMessages(position === 'prepend' ? 'bottom' : 'top');
 
             // 判断是否是纯图片消息（chat-emoji vip）
-            const messageText = messageElement.querySelector('.message-text');
             ChatInputUtils.normalizeCommonEmojiLineBreaks(messageText);
             const imageEmoji = messageText.querySelector('img');
 
@@ -3851,9 +3838,9 @@ function renderAiLabel(contentAnalysis) {
 
                 if (data.type === 'user') {
                     // 添加消息到聊天室
-                    if (!captureReplayMessage(data)) addMessageToChat(data);
-                    if (chatOnly && window.parent !== window && !data.deleted &&
-                        data.messageKind !== 'voice' && !shouldFilterChatMessage(data)) {
+                    const rendered = captureReplayMessage(data) ? null : addMessageToChat(data);
+                    if (chatOnly && window.parent !== window && rendered && !data.deleted &&
+                        data.messageKind !== 'voice') {
                         const content = document.createElement('template');
                         content.innerHTML = data.content || '';
                         if (!content.content.querySelector('img, video, audio, iframe, .chat-video-card')) {
