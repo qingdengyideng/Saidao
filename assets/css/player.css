@@ -318,7 +318,7 @@ kbd { padding: 1px 4px; border: 1px solid #ffffff24; border-radius: 3px; font: i
 .mobile-youtube body .layout > .comment-panel {
   display: flex; position: absolute; z-index: 8;
   left: 0; right: 0; bottom: calc(8px + env(safe-area-inset-bottom));
-  height: min(38%, 330px); border: 0; background: transparent;
+  height: min(25%, 250px); border: 0; background: transparent;
   box-shadow: none;
 }
 .mobile-youtube .video,

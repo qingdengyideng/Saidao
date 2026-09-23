@@ -160,6 +160,15 @@ function initializeApp() {
     showPendingAllocationCredentials();
     setupWebSocket();
     updateUIState();
+    if (mobileChat) {
+        window.scrollTo(0, 0);
+        window.addEventListener('focusin', (event) => {
+            if (event.target.matches('input, textarea')) {
+                window.scrollTo(0, 0);
+                setTimeout(() => window.scrollTo(0, 0), 80);
+            }
+        });
+    }
 
     const chatSidebar = byId('chatSidebar');
     chatSidebar.style.width = `${state.chatWidth}px`;

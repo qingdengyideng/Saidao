@@ -702,7 +702,7 @@
     commentPanel.classList.toggle("has-youtube-chat", enabled);
     if (!youtubeChatFrame) return;
     youtubeChatFrame.hidden = !enabled;
-    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260923-mobile6`;
+    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260923-mobile7`;
     if (!enabled) youtubeChatFrame.removeAttribute("src");
   };
 
@@ -736,11 +736,21 @@
   }
   const syncMobileViewport = () => {
     if (!mobilePlayer) return;
-    document.documentElement.style.setProperty("--player-visible-height", `${window.visualViewport?.height || window.innerHeight}px`);
+    // Keep the page frame fixed when iOS opens the keyboard inside the chat iframe.
+    document.documentElement.style.setProperty("--player-visible-height", `${window.innerHeight}px`);
   };
   window.visualViewport?.addEventListener("resize", syncMobileViewport);
   window.addEventListener("resize", syncMobileViewport);
   syncMobileViewport();
+  window.addEventListener("focusin", (event) => {
+    if (!mobilePlayer || !event.target.closest?.("input, textarea")) return;
+    window.scrollTo(0, 0);
+    setTimeout(() => window.scrollTo(0, 0), 80);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!mobilePlayer || !isYoutubeChannel || document.visibilityState !== "visible" || video.paused) return;
+    video.play().catch(() => {});
+  });
 
   const connectWs = () => {
     if (isPageClosing || isYoutubeChannel) {
