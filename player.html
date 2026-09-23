@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#202027" />
   <title>Saidao 直播</title>
-  <link id="playerStyles" rel="stylesheet" href="assets/css/player.css?v=20260923-scrollbar" />
-  <script defer src="assets/vendor/xgplayer/xgplayer.bundle.js?v=20260922-1"></script>
-  <script defer src="assets/js/player.js?v=20260922-1"></script>
+  <link id="playerStyles" rel="stylesheet" href="assets/css/player.css?v=20260923-mobile6" />
+  <script defer src="assets/vendor/xgplayer/xgplayer.bundle.js?v=20260923-mobile6"></script>
+  <script defer src="assets/js/player.js?v=20260923-mobile6"></script>
 </head>
 <body>
   <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -55,9 +55,12 @@
               </div>
             </div>
           </div>
-          <button class="origin-btn" id="originBtn" type="button" title="打开主播源站">
-            <span>去源站</span><svg class="icon" aria-hidden="true"><use href="#icon-external" /></svg>
-          </button>
+          <div class="stage-actions">
+            <span class="streamer-online" id="streamerOnline" hidden></span>
+            <button class="origin-btn" id="originBtn" type="button" title="打开主播源站">
+              <span>去源站</span><svg class="icon" aria-hidden="true"><use href="#icon-external" /></svg>
+            </button>
+          </div>
         </header>
 
         <div class="status-overlay is-loading" id="statusOverlay" role="status" aria-live="polite" aria-busy="true">

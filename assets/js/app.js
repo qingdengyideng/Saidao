@@ -1,5 +1,6 @@
 ﻿const state = window.SaidaoState;
 const chatOnly = new URLSearchParams(location.search).get("chatOnly") === "1";
+const mobileChat = chatOnly && new URLSearchParams(location.search).get("chatView") === "mobile";
 const { WS_BASE_URL } = window.SaidaoConfig;
 const ApiEndpoints = window.ApiEndpoints;
 
@@ -2785,6 +2786,8 @@ function renderAiLabel(contentAnalysis) {
                 bufferChatMessage(data, options.position || 'append');
             }
             const content = parseChatContent(data.content);
+            if (mobileChat && (data.type !== 'user' || data.messageKind === 'voice' ||
+                content.querySelector('img, video, audio, iframe, .chat-video-card') || !content.textContent.trim())) return null;
             if (shouldFilterChatMessage(data, content)) {
                 return null;
             }
@@ -2869,7 +2872,8 @@ function renderAiLabel(contentAnalysis) {
             `;
 
             const messageText = messageElement.querySelector('.message-text');
-            if (data.messageKind !== 'voice') messageText.append(content);
+            if (mobileChat) messageText.textContent = content.textContent;
+            else if (data.messageKind !== 'voice') messageText.append(content);
             messageText.querySelectorAll('img').forEach(image => {
                 image.loading = 'lazy';
                 image.decoding = 'async';
@@ -3622,6 +3626,7 @@ function renderAiLabel(contentAnalysis) {
         }
 
         function addSystemMessageToChat(data, options = {}) {
+            if (mobileChat) return null;
             if (data.messageId && !trackRenderedMessage(data.messageId)) {
                 return null;
             }
@@ -3884,6 +3889,9 @@ function renderAiLabel(contentAnalysis) {
                 } else if (data.type === 'onlineCount') {
                     const onlineCount = document.getElementById('onlineCount');
                     onlineCount.textContent = `${data.count}人在线`;
+                    if (chatOnly && window.parent !== window) {
+                        window.parent.postMessage({ type: 'saidao-chat-online', count: data.count }, location.origin);
+                    }
                 } else if (data.type === 'hotWords') {
                     renderHotWords(data.words);
                 } else if (data.type === 'status') {

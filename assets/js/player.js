@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   const DEFAULT_UID = "1159606549";
   const infoBase = "https://api.saidao.cc/saidao/player/";
   const wsBase = "wss://api.saidao.cc/player/ws";
@@ -23,6 +23,7 @@
   const playerShell = document.getElementById("playerShell");
   const playerArea = document.getElementById("playerArea");
   const originBtn = document.getElementById("originBtn");
+  const streamerOnline = document.getElementById("streamerOnline");
   const tapPlayBtn = document.getElementById("tapPlayBtn");
   const refreshBtn = document.getElementById("refreshBtn");
   const volumeSlider = document.getElementById("volumeSlider");
@@ -191,6 +192,11 @@
     streamerName.textContent = name;
     streamerInitial.textContent = Array.from(name)[0];
     streamerRoom.textContent = `房间 ${data.roomid || data.uid || uid}`;
+    const online = data.onlineCount ?? data.online ?? data.viewerCount ?? data.viewers;
+    if (streamerOnline) {
+      streamerOnline.hidden = online === undefined || online === null || online === "";
+      streamerOnline.textContent = streamerOnline.hidden ? "" : `${online}人在线`;
+    }
     if (data.avatar) {
       streamerAvatar.src = data.avatar;
       streamerAvatar.hidden = false;
@@ -377,6 +383,13 @@
     streamEnded = false;
 
     const streamType = getStreamType(url);
+    // Mobile native HLS can keep audio decoding under OS background media controls.
+    if (mobilePlayer && isYoutubeChannel && streamType === "hls" &&
+        video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url;
+      video.load();
+      return true;
+    }
 
     const xg = window.SaidaoXgPlayer;
     const xgPlugin = streamType === "hls" ? xg?.HlsPlugin
@@ -660,6 +673,14 @@
   const handleChatDanmaku = (event) => {
     if (isPageClosing || !isYoutubeChannel || event.origin !== window.location.origin ||
         !youtubeChatFrame?.contentWindow || event.source !== youtubeChatFrame.contentWindow) return;
+    if (event.data?.type === "saidao-chat-online") {
+      if (streamerOnline && event.data.count !== undefined) {
+        streamerOnline.hidden = false;
+        streamerOnline.textContent = `${event.data.count}人在线`;
+      }
+      return;
+    }
+    if (mobilePlayer) return;
     if (event.data?.type === "saidao-chat-close") {
       setPipCommentsVisible(false);
       return;
@@ -671,13 +692,55 @@
   window.addEventListener("message", handleChatDanmaku);
 
   const setYoutubeChat = (enabled) => {
-    enabled = enabled && !mobilePlayer;
+    document.documentElement.classList.toggle("mobile-youtube", enabled && mobilePlayer);
+    if (mobilePlayer) commentPanel.hidden = !enabled;
+    if (mobilePlayer) {
+      danmakuEnabled = false;
+      clearDanmaku();
+      danmakuLayer.classList.add("is-hidden");
+    }
     commentPanel.classList.toggle("has-youtube-chat", enabled);
     if (!youtubeChatFrame) return;
     youtubeChatFrame.hidden = !enabled;
-    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1&v=20260922-1`;
+    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260923-mobile6`;
     if (!enabled) youtubeChatFrame.removeAttribute("src");
   };
+
+  const setupBackgroundPlayback = () => {
+    if (!mobilePlayer || !isYoutubeChannel || !navigator.mediaSession) return;
+    const session = navigator.mediaSession;
+    if (window.MediaMetadata) session.metadata = new window.MediaMetadata({
+      title: document.title, artist: "Saidao 直播",
+    });
+    // No visibilitychange pause: switching apps should leave playback running.
+    for (const [action, handler] of Object.entries({
+      play: () => { if (streamEnded) refreshStream(); else tryAutoplay(); },
+      pause: () => video.pause(),
+    })) {
+      try { session.setActionHandler(action, handler); } catch (_) { /* Unsupported OS action. */ }
+    }
+    session.playbackState = video.paused ? "paused" : "playing";
+  };
+  video.addEventListener("touchend", () => {
+    if (!mobilePlayer || !isYoutubeChannel || video.paused || !video.muted) return;
+    audioUnlocked = true;
+    setMuted(false);
+    video.play().catch(() => {});
+  }, { passive: true });
+  for (const event of ["playing", "pause", "ended"]) {
+    video.addEventListener(event, () => {
+      if (mobilePlayer && isYoutubeChannel && navigator.mediaSession) {
+        navigator.mediaSession.playbackState = event === "playing" ? "playing" : "paused";
+      }
+    });
+  }
+  const syncMobileViewport = () => {
+    if (!mobilePlayer) return;
+    document.documentElement.style.setProperty("--player-visible-height", `${window.visualViewport?.height || window.innerHeight}px`);
+  };
+  window.visualViewport?.addEventListener("resize", syncMobileViewport);
+  window.addEventListener("resize", syncMobileViewport);
+  syncMobileViewport();
 
   const connectWs = () => {
     if (isPageClosing || isYoutubeChannel) {
@@ -786,7 +849,7 @@
   };
 
   const setPipCommentsVisible = (visible) => {
-    if (!pipWindow && (!isYoutubeChannel || mobilePlayer)) return;
+    if (!pipWindow && !isYoutubeChannel) return;
     if (!visible && !commentPanel.hidden) savedCommentScrollTop = commentList.scrollTop;
     commentPanel.hidden = !visible;
     playerLayout.classList.toggle("chat-panel-hidden", !visible);
@@ -907,6 +970,8 @@
       if (directStreamUrl) {
         originUrl = directStreamUrl;
         updateStreamer({ uname: params.get("name"), uid });
+        setYoutubeChat(isYoutubeChannel);
+        setupBackgroundPlayback();
         if (attachStream(directStreamUrl)) tryAutoplay();
         connectWs();
         return;
@@ -926,6 +991,7 @@
       updateStreamer(data);
       isYoutubeChannel = String(data.channel).toLowerCase() === "youtube";
       setYoutubeChat(isYoutubeChannel);
+      setupBackgroundPlayback();
       originUrl = data.orig || "";
 
       if (mobilePlayer && data.channel !== "youtube") {

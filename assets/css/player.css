@@ -51,6 +51,8 @@ button:disabled { cursor: default; opacity: .4; }
 .origin-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-left: auto; padding: 9px 12px; border: 1px solid #ffffff12; border-radius: 6px; background: #ffffff12; font-size: 12px; white-space: nowrap; pointer-events: auto; transition: background .15s; }
 .origin-btn .icon { width: 14px; height: 14px; }
 .origin-btn:hover { background: #ffffff26; }
+.stage-actions { display: flex; align-items: center; gap: 7px; margin-left: auto; pointer-events: auto; }
+.streamer-online { display: inline-flex; align-items: center; min-height: 32px; padding: 0 11px; border: 1px solid #ffffff18; border-radius: 18px; background: #17172166; color: #fff; font-size: 12px; white-space: nowrap; backdrop-filter: blur(12px); }
 
 .danmaku-layer { position: absolute; z-index: 3; inset: 96px 0 76px; max-height: 48%; overflow: hidden; pointer-events: none; }
 .danmaku-layer.is-hidden { display: none; }
@@ -307,3 +309,37 @@ kbd { padding: 1px 4px; border: 1px solid #ffffff24; border-radius: 3px; font: i
   grid-template-columns: minmax(0, 1fr) clamp(360px, 45vw, 540px);
 }
 .layout.chat-panel-hidden { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+
+/* Mobile YouTube: live picture with a transparent chat overlay. */
+.mobile-youtube body .layout {
+  position: relative; height: var(--player-visible-height, 100dvh);
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+}
+.mobile-youtube body .layout > .comment-panel {
+  display: flex; position: absolute; z-index: 8;
+  left: 0; right: 0; bottom: calc(8px + env(safe-area-inset-bottom));
+  height: min(38%, 330px); border: 0; background: transparent;
+  box-shadow: none;
+}
+.mobile-youtube .video,
+.mobile-youtube .media-host .video { object-fit: cover; }
+.mobile-youtube .player-shell::after { background: linear-gradient(180deg, #090a0e18, transparent 24%, transparent 78%, #08080c88); }
+.mobile-youtube .youtube-chat-frame { background: transparent; color-scheme: dark; }
+.mobile-youtube .stage-header { min-height: 72px; gap: 12px; padding: max(12px, env(safe-area-inset-top)) 14px 10px; }
+.mobile-youtube .streamer { padding: 5px 10px 5px 5px; border-radius: 28px; background: #17172166; backdrop-filter: blur(12px); }
+.mobile-youtube .streamer-avatar { width: 34px; height: 34px; }
+.mobile-youtube .streamer-details h1 { font-size: 14px; margin-bottom: 4px; max-width: 42vw; }
+.mobile-youtube .streamer-room, .mobile-youtube .streamer-meta .live-signal { display: none; }
+.mobile-youtube .origin-btn { margin-left: auto; background: #17172166; border-radius: 22px; font-size: 12px; }
+.mobile-youtube .stage-actions { gap: 6px; }
+.mobile-youtube .player-controls { min-height: 52px; background: transparent; }
+.mobile-youtube body:not(.pip-window) .player-controls { display: none !important; }
+.mobile-youtube .stream-status, .mobile-youtube .control-divider { display: none; }
+.mobile-youtube body .pip-comments-toggle { display: inline-flex; }
+.mobile-youtube body:not(.pip-window) .pip-comments-toggle { display: inline-flex !important; }
+.mobile-youtube .control-text, .mobile-youtube .control-btn { border-radius: 24px; background: #17172166; }
+.mobile-youtube .danmaku-layer { bottom: 48%; }
+.mobile-youtube .danmaku-layer { display: none !important; }
+@media (orientation: landscape) {
+  .mobile-youtube body .layout > .comment-panel { right: auto; width: min(48vw, 420px); height: 48%; }
+}
