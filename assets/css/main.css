@@ -3754,7 +3754,7 @@ html.chat-only.chat-mobile #chatSidebar {
 }
 html.chat-mobile body { padding: 0; min-height: 0; }
 html.chat-mobile .chat-header { display: none !important; }
-html.chat-mobile #chatSidebar { padding: 0 12px 4px; }
+html.chat-mobile #chatSidebar { padding: 0 62px 4px 12px; }
 html.chat-mobile #chatSidebar > :is(.chat-hotwords, .chat-replay, .quote-preview),
 html.chat-mobile :is(.chat-filter-row, .emoji-section, .emoji-picker-toggle, .voice-toggle, .voice-draft,
     .avatar-container, .message-time, .message-footer, .message-quote, .message-link-preview, .battle-badge) { display: none !important; }
@@ -3795,4 +3795,5 @@ html.chat-mobile .chat-send-toggle {
 }
 html.chat-mobile .chat-send-toggle:disabled { opacity: .5; }
 html.chat-mobile .chat-send-toggle:not(:disabled) { background: #ff335fbb; }
+
 

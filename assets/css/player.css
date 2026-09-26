@@ -332,8 +332,14 @@ kbd { padding: 1px 4px; border: 1px solid #ffffff24; border-radius: 3px; font: i
 .mobile-youtube .streamer-room, .mobile-youtube .streamer-meta .live-signal { display: none; }
 .mobile-youtube .origin-btn { margin-left: auto; background: #17172166; border-radius: 22px; font-size: 12px; }
 .mobile-youtube .stage-actions { gap: 6px; }
+
 .mobile-youtube .player-controls { min-height: 52px; background: transparent; }
 .mobile-youtube body:not(.pip-window) .player-controls { display: none !important; }
+.mobile-youtube body:not(.pip-window) .player-controls:has(.pip-control:not([hidden])) { display: block !important; }
+.mobile-youtube body:not(.pip-window) .player-controls:has(.pip-control:not([hidden])) > * { display: none; }
+.mobile-youtube body:not(.pip-window) .player-controls:has(.pip-control:not([hidden])) .controls-end { display: block; position: static; }
+.mobile-youtube body:not(.pip-window) .player-controls:has(.pip-control:not([hidden])) .pip-control { display: inline-flex; position: fixed; z-index: 20; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); width: 38px; height: 38px; border-radius: 50%; background: #17172133; backdrop-filter: blur(12px); }
+.mobile-youtube body:not(.pip-window) .player-controls:has(.pip-control:not([hidden])) .pip-control > span { display: none; }
 .mobile-youtube .stream-status, .mobile-youtube .control-divider { display: none; }
 .mobile-youtube body .pip-comments-toggle { display: inline-flex; }
 .mobile-youtube body:not(.pip-window) .pip-comments-toggle { display: inline-flex !important; }
@@ -343,3 +349,5 @@ kbd { padding: 1px 4px; border: 1px solid #ffffff24; border-radius: 3px; font: i
 @media (orientation: landscape) {
   .mobile-youtube body .layout > .comment-panel { right: auto; width: min(48vw, 420px); height: 48%; }
 }
+
+

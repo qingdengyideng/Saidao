@@ -2881,6 +2881,12 @@ function renderAiLabel(contentAnalysis) {
             `;
 
             const messageText = messageElement.querySelector('.message-text');
+            if (data.playerCommentColor) {
+                messageText.style.color = data.playerCommentColor;
+            }
+            if (data.playerPlatform) {
+                messageElement.querySelector('.message-footer').textContent = `该评论来自：${data.playerPlatform.toUpperCase()}  `;
+            }
             if (mobileChat) messageText.textContent = content.textContent;
             else if (data.messageKind !== 'voice') messageText.append(content);
             messageText.querySelectorAll('img').forEach(image => {
@@ -3819,6 +3825,27 @@ function renderAiLabel(contentAnalysis) {
                 }
             });
         }, { passive: true });
+
+        // 只接收同源播放器父窗口的直播评论，不发送到 /ws/chat。
+        if (chatOnly && window.parent !== window) {
+            window.addEventListener('message', (event) => {
+                if (event.origin !== location.origin || event.source !== window.parent ||
+                    event.data?.type !== 'saidao-player-comment') return;
+                const item = event.data;
+                if (typeof item.text !== 'string' || !item.text.trim()) return;
+                const data = {
+                    type: 'user',
+                    uname: escapeHtml(String(item.user || 'YouTube观众').slice(0, 100)),
+                    content: escapeHtml(item.text.slice(0, 2000)),
+                    playerPlatform: String(item.platform || ''),
+                    avatar: typeof item.avatar === 'string' && item.avatar.trim() ? item.avatar.trim() : 'assets/images/saidao_logo_0915-no-bg.png',
+                    timestamp: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+                    playerCommentColor: ['#248e87', '#5288ca', '#ba892e', '#cd687f'].includes(item.color) ? item.color : '#248e87'
+                };
+                if (!captureReplayMessage(data)) addMessageToChat(data);
+            });
+            window.parent.postMessage({ type: 'saidao-chat-ready' }, location.origin);
+        }
 
         async function setupWebSocket() {
             clearChatReconnectTimer();

@@ -66,6 +66,9 @@
   const STREAM_RETRY_MS = 10000;
   const MAX_PENDING_COMMENTS = 500;
   const pendingComments = [];
+  let youtubeChatReady = false;
+  // 与时间线的四组主题色保持一致。
+  const commentColors = ["#248e87", "#5288ca", "#ba892e", "#cd687f"];
   let wsClient = null;
   let reconnectTimer = null;
   let isPageClosing = false;
@@ -104,8 +107,10 @@
   };
 
   const mobilePlayer = isMobile();
+  const iosSafariPip = mobilePlayer && /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+    (typeof video.webkitSetPresentationMode === "function" || typeof video.requestPictureInPicture === "function");
   document.documentElement.classList.toggle("mobile-player", mobilePlayer);
-  pipBtn.hidden = mobilePlayer;
+  pipBtn.hidden = mobilePlayer && !iosSafariPip;
   commentPanel.hidden = mobilePlayer;
 
   const cancelFirstFrameRequest = () => {
@@ -602,6 +607,7 @@
 
     const node = danmakuLayer.ownerDocument.createElement("div");
     node.className = "danmaku-item";
+    if (item.color) node.style.color = item.color;
     if (item.plainText) node.textContent = item.text || "";
     else node.innerHTML = item.text || "";
     node.style.visibility = "hidden";
@@ -673,6 +679,10 @@
   const handleChatDanmaku = (event) => {
     if (isPageClosing || !isYoutubeChannel || event.origin !== window.location.origin ||
         !youtubeChatFrame?.contentWindow || event.source !== youtubeChatFrame.contentWindow) return;
+    if (event.data?.type === "saidao-chat-ready") {
+      youtubeChatReady = true;
+      return;
+    }
     if (event.data?.type === "saidao-chat-online") {
       if (streamerOnline && event.data.count !== undefined) {
         streamerOnline.hidden = false;
@@ -702,8 +712,11 @@
     commentPanel.classList.toggle("has-youtube-chat", enabled);
     if (!youtubeChatFrame) return;
     youtubeChatFrame.hidden = !enabled;
-    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260923-mobile7`;
-    if (!enabled) youtubeChatFrame.removeAttribute("src");
+    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260926-youtube-comments5`;
+    if (!enabled) {
+      youtubeChatReady = false;
+      youtubeChatFrame.removeAttribute("src");
+    }
   };
 
   const setupBackgroundPlayback = () => {
@@ -727,6 +740,9 @@
     setMuted(false);
     video.play().catch(() => {});
   }, { passive: true });
+  video.addEventListener("webkitpresentationmodechanged", () => {
+    if (iosSafariPip) pipBtn.setAttribute("aria-pressed", String(video.webkitPresentationMode === "picture-in-picture"));
+  });
   for (const event of ["playing", "pause", "ended"]) {
     video.addEventListener(event, () => {
       if (mobilePlayer && isYoutubeChannel && navigator.mediaSession) {
@@ -753,7 +769,7 @@
   });
 
   const connectWs = () => {
-    if (isPageClosing || isYoutubeChannel) {
+    if (isPageClosing) {
       clearReconnectTimer();
       closeWs({ preventReconnect: true });
       return;
@@ -880,7 +896,23 @@
   };
 
   const openPip = async () => {
-    if (mobilePlayer || pipOpening || isPageClosing) return;
+    if (pipOpening || isPageClosing) return;
+    if (iosSafariPip) {
+      try {
+        if (video.webkitPresentationMode === "picture-in-picture") {
+          video.webkitSetPresentationMode("inline");
+        } else if (typeof video.webkitSetPresentationMode === "function") {
+          video.webkitSetPresentationMode("picture-in-picture");
+        } else {
+          await video.requestPictureInPicture();
+        }
+        pipBtn.setAttribute("aria-pressed", String(video.webkitPresentationMode === "picture-in-picture"));
+      } catch (_) {
+        showPipMessage("请先开始播放，再开启小窗");
+      }
+      return;
+    }
+    if (mobilePlayer) return;
     if (pipWindow) {
       pipWindow.close();
       return;
@@ -1040,8 +1072,10 @@
     refreshBtn.classList.add("is-refreshing");
     streamEnded = true;
     stopStream();
-    clearReconnectTimer();
-    closeWs({ preventReconnect: true });
+    if (!isYoutubeChannel) {
+      clearReconnectTimer();
+      closeWs({ preventReconnect: true });
+    }
     commentSub.textContent = "连接中…";
     pendingComments.length = 0;
     clearDanmaku();
@@ -1059,7 +1093,7 @@
 
   const flushPendingComments = () => {
     const now = Date.now();
-    if (pendingComments.length === 0) {
+    if (pendingComments.length === 0 || (isYoutubeChannel && !youtubeChatReady)) {
       return;
     }
     while (pendingComments.length > 0 && pendingComments[0].at <= now) {
@@ -1067,8 +1101,17 @@
       if (!next) {
         break;
       }
-      appendComment(next.item);
-      addDanmaku(next.item);
+      if (isYoutubeChannel) {
+        if (!next.item || typeof next.item.text !== "string" || !next.item.text.trim()) continue;
+        const user = String(next.item.user || "YouTube观众").slice(0, 100);
+        const hash = Array.from(user).reduce((value, char) => (value * 31 + char.codePointAt(0)) >>> 0, 0);
+        const item = { user, avatar: typeof next.item.avatar === "string" ? next.item.avatar : "", platform: String(next.item.platform || ""), text: next.item.text.slice(0, 2000), color: commentColors[hash % commentColors.length] };
+        youtubeChatFrame.contentWindow.postMessage({ type: "saidao-player-comment", ...item }, window.location.origin);
+        addDanmaku({ text: item.text, color: item.color, plainText: true });
+      } else {
+        appendComment(next.item);
+        addDanmaku(next.item);
+      }
     }
   };
 
@@ -1349,3 +1392,5 @@
 
   refreshStream();
 })();
+
+
