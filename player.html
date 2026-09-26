@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#202027" />
   <title>Saidao 直播</title>
-  <link id="playerStyles" rel="stylesheet" href="assets/css/player.css?v=20260923-mobile7" />
+  <link id="playerStyles" rel="stylesheet" href="assets/css/player.css?v=20260926-ios-pip-bottom" />
   <script defer src="assets/vendor/xgplayer/xgplayer.bundle.js?v=20260923-mobile7"></script>
-  <script defer src="assets/js/player.js?v=20260926-youtube-comments5"></script>
+  <script defer src="assets/js/player.js?v=20260926-ios-pip-bottom"></script>
 </head>
 <body>
   <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -60,6 +60,16 @@
             <button class="origin-btn" id="originBtn" type="button" title="打开主播源站">
               <span>去源站</span><svg class="icon" aria-hidden="true"><use href="#icon-external" /></svg>
             </button>
+            <div class="player-settings" id="playerSettings" hidden>
+              <button class="player-settings-btn" id="playerSettingsBtn" type="button" aria-label="播放设置" aria-expanded="false" aria-controls="playerSettingsMenu">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+              </button>
+              <div class="player-settings-menu" id="playerSettingsMenu" hidden>
+                <button class="source-comments-toggle" id="mobileSourceCommentsToggleBtn" type="button" role="switch" aria-checked="false">
+                  <span>源站评论</span><span class="switch-track" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -94,6 +104,9 @@
             <span class="stream-status" id="streamSub">正在连接直播</span>
           </div>
           <div class="controls-end">
+            <button class="control-text source-comments-toggle" id="sourceCommentsToggleBtn" type="button" role="switch" aria-checked="false" hidden>
+              <span>源站评论</span><span class="switch-track" aria-hidden="true"></span>
+            </button>
             <button class="control-text pip-comments-toggle" id="pipCommentsBtn" type="button" title="关闭评论栏" aria-label="关闭评论栏" aria-pressed="true" aria-controls="commentPanel">
               <svg class="icon" aria-hidden="true"><use href="#icon-chat" /></svg>
             </button>

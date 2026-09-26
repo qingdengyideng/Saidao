@@ -2881,11 +2881,9 @@ function renderAiLabel(contentAnalysis) {
             `;
 
             const messageText = messageElement.querySelector('.message-text');
-            if (data.playerCommentColor) {
-                messageText.style.color = data.playerCommentColor;
-            }
+            if (data.playerCommentColor) messageText.style.color = data.playerCommentColor;
             if (data.playerPlatform) {
-                messageElement.querySelector('.message-footer').textContent = `该评论来自：${data.playerPlatform.toUpperCase()}  `;
+                messageElement.querySelector('.message-footer').textContent = `来自：${data.playerPlatform.toUpperCase()}`;
             }
             if (mobileChat) messageText.textContent = content.textContent;
             else if (data.messageKind !== 'voice') messageText.append(content);
@@ -3826,7 +3824,7 @@ function renderAiLabel(contentAnalysis) {
             });
         }, { passive: true });
 
-        // 只接收同源播放器父窗口的直播评论，不发送到 /ws/chat。
+        // 源站评论只在当前嵌入页显示，不发送到公共聊天室。
         if (chatOnly && window.parent !== window) {
             window.addEventListener('message', (event) => {
                 if (event.origin !== location.origin || event.source !== window.parent ||

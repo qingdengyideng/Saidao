@@ -20,6 +20,11 @@
   const pipCommentsCloseBtn = document.getElementById("pipCommentsCloseBtn");
   const commentPanel = document.getElementById("commentPanel");
   const youtubeChatFrame = document.getElementById("youtubeChatFrame");
+  const sourceCommentsToggleBtn = document.getElementById("sourceCommentsToggleBtn");
+  const mobileSourceCommentsToggleBtn = document.getElementById("mobileSourceCommentsToggleBtn");
+  const playerSettings = document.getElementById("playerSettings");
+  const playerSettingsBtn = document.getElementById("playerSettingsBtn");
+  const playerSettingsMenu = document.getElementById("playerSettingsMenu");
   const playerShell = document.getElementById("playerShell");
   const playerArea = document.getElementById("playerArea");
   const originBtn = document.getElementById("originBtn");
@@ -66,6 +71,9 @@
   const STREAM_RETRY_MS = 10000;
   const MAX_PENDING_COMMENTS = 500;
   const pendingComments = [];
+  const SOURCE_COMMENTS_KEY = "playerSourceCommentsEnabled";
+  let sourceCommentsEnabled = false;
+  try { sourceCommentsEnabled = localStorage.getItem(SOURCE_COMMENTS_KEY) === "true"; } catch (_) { /* Storage may be unavailable. */ }
   let youtubeChatReady = false;
   // 与时间线的四组主题色保持一致。
   const commentColors = ["#248e87", "#5288ca", "#ba892e", "#cd687f"];
@@ -107,10 +115,20 @@
   };
 
   const mobilePlayer = isMobile();
-  const iosSafariPip = mobilePlayer && /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+  const iosSafariPip = mobilePlayer && (/iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) &&
     (typeof video.webkitSetPresentationMode === "function" || typeof video.requestPictureInPicture === "function");
   document.documentElement.classList.toggle("mobile-player", mobilePlayer);
   pipBtn.hidden = mobilePlayer && !iosSafariPip;
+  if (iosSafariPip) commentPanel.appendChild(pipBtn);
+  sourceCommentsToggleBtn.hidden = true;
+  playerSettings.hidden = true;
+  playerSettingsMenu.hidden = true;
+  if (mobilePlayer) {
+    danmakuEnabled = false;
+    danmakuToggleBtn.hidden = true;
+    danmakuLayer.classList.add("is-hidden");
+  }
   commentPanel.hidden = mobilePlayer;
 
   const cancelFirstFrameRequest = () => {
@@ -588,7 +606,7 @@
   };
 
   const addDanmaku = (item) => {
-    if (!danmakuEnabled || danmakuLayer.children.length >= 60) {
+    if (mobilePlayer || !danmakuEnabled || danmakuLayer.children.length >= 60) {
       return;
     }
 
@@ -608,6 +626,7 @@
     const node = danmakuLayer.ownerDocument.createElement("div");
     node.className = "danmaku-item";
     if (item.color) node.style.color = item.color;
+    if (item.playerComment) node.dataset.playerComment = "true";
     if (item.plainText) node.textContent = item.text || "";
     else node.innerHTML = item.text || "";
     node.style.visibility = "hidden";
@@ -676,6 +695,32 @@
     }
   };
 
+  const setSettingsOpen = (open) => {
+    playerSettingsMenu.hidden = !open;
+    playerSettingsBtn.setAttribute("aria-expanded", String(open));
+  };
+
+  const syncSourceCommentsToggle = () => {
+    for (const button of [sourceCommentsToggleBtn, mobileSourceCommentsToggleBtn]) {
+      button.setAttribute("aria-checked", String(sourceCommentsEnabled));
+    }
+  };
+
+  const toggleSourceComments = () => {
+    if (!isYoutubeChannel || isPageClosing) return;
+    sourceCommentsEnabled = !sourceCommentsEnabled;
+    try { localStorage.setItem(SOURCE_COMMENTS_KEY, String(sourceCommentsEnabled)); } catch (_) { /* The switch still works for this page. */ }
+    syncSourceCommentsToggle();
+    if (sourceCommentsEnabled) {
+      connectWs();
+    } else {
+      clearReconnectTimer();
+      closeWs({ preventReconnect: true });
+      pendingComments.length = 0;
+      danmakuLayer.querySelectorAll("[data-player-comment]").forEach(node => node.remove());
+    }
+  };
+
   const handleChatDanmaku = (event) => {
     if (isPageClosing || !isYoutubeChannel || event.origin !== window.location.origin ||
         !youtubeChatFrame?.contentWindow || event.source !== youtubeChatFrame.contentWindow) return;
@@ -709,13 +754,24 @@
       clearDanmaku();
       danmakuLayer.classList.add("is-hidden");
     }
+    sourceCommentsToggleBtn.hidden = !enabled || mobilePlayer;
+    playerSettings.hidden = !enabled || !mobilePlayer;
+    if (playerSettings.hidden) setSettingsOpen(false);
+    syncSourceCommentsToggle();
+    if (enabled && !sourceCommentsEnabled) {
+      clearReconnectTimer();
+      closeWs({ preventReconnect: true });
+      pendingComments.length = 0;
+    }
     commentPanel.classList.toggle("has-youtube-chat", enabled);
     if (!youtubeChatFrame) return;
     youtubeChatFrame.hidden = !enabled;
-    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260926-youtube-comments5`;
+    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260926-source-comments-toggle`;
     if (!enabled) {
       youtubeChatReady = false;
       youtubeChatFrame.removeAttribute("src");
+    } else if (sourceCommentsEnabled) {
+      connectWs();
     }
   };
 
@@ -740,9 +796,17 @@
     setMuted(false);
     video.play().catch(() => {});
   }, { passive: true });
-  video.addEventListener("webkitpresentationmodechanged", () => {
-    if (iosSafariPip) pipBtn.setAttribute("aria-pressed", String(video.webkitPresentationMode === "picture-in-picture"));
-  });
+  const syncNativePipButton = () => {
+    if (!iosSafariPip) return;
+    const active = document.pictureInPictureElement === video || video.webkitPresentationMode === "picture-in-picture";
+    pipBtn.setAttribute("aria-pressed", String(active));
+    pipLabel.textContent = active ? "返回" : "小屏";
+    pipBtn.title = active ? "返回页面播放" : "小屏播放";
+    pipBtn.setAttribute("aria-label", pipBtn.title);
+  };
+  for (const event of ["webkitpresentationmodechanged", "enterpictureinpicture", "leavepictureinpicture"]) {
+    video.addEventListener(event, syncNativePipButton);
+  }
   for (const event of ["playing", "pause", "ended"]) {
     video.addEventListener(event, () => {
       if (mobilePlayer && isYoutubeChannel && navigator.mediaSession) {
@@ -769,7 +833,7 @@
   });
 
   const connectWs = () => {
-    if (isPageClosing) {
+    if (isPageClosing || (isYoutubeChannel ? !sourceCommentsEnabled : mobilePlayer)) {
       clearReconnectTimer();
       closeWs({ preventReconnect: true });
       return;
@@ -807,11 +871,10 @@
     };
 
     client.onclose = () => {
-      if (wsClient === client) {
-        wsClient = null;
-      }
+      if (wsClient !== client) return;
+      wsClient = null;
 
-      if (client.__skipReconnect || isPageClosing) {
+      if (client.__skipReconnect || isPageClosing || (isYoutubeChannel ? !sourceCommentsEnabled : mobilePlayer)) {
         return;
       }
 
@@ -898,17 +961,27 @@
   const openPip = async () => {
     if (pipOpening || isPageClosing) return;
     if (iosSafariPip) {
+      pipMessage.hidden = true;
       try {
-        if (video.webkitPresentationMode === "picture-in-picture") {
+        if (document.pictureInPictureElement === video) {
+          await document.exitPictureInPicture();
+        } else if (video.webkitPresentationMode === "picture-in-picture") {
           video.webkitSetPresentationMode("inline");
-        } else if (typeof video.webkitSetPresentationMode === "function") {
+        } else if (video.readyState < 1) {
+          showPipMessage("请先开始播放，再开启小窗");
+          return;
+        } else if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") {
+          await video.requestPictureInPicture();
+        } else if (typeof video.webkitSetPresentationMode === "function" &&
+            (!video.webkitSupportsPresentationMode || video.webkitSupportsPresentationMode("picture-in-picture"))) {
           video.webkitSetPresentationMode("picture-in-picture");
         } else {
-          await video.requestPictureInPicture();
+          showPipMessage("当前浏览器或视频暂不支持小窗播放");
+          return;
         }
-        pipBtn.setAttribute("aria-pressed", String(video.webkitPresentationMode === "picture-in-picture"));
+        syncNativePipButton();
       } catch (_) {
-        showPipMessage("请先开始播放，再开启小窗");
+        showPipMessage("小窗未能打开，请先播放视频后重试");
       }
       return;
     }
@@ -1093,7 +1166,7 @@
 
   const flushPendingComments = () => {
     const now = Date.now();
-    if (pendingComments.length === 0 || (isYoutubeChannel && !youtubeChatReady)) {
+    if (pendingComments.length === 0 || (isYoutubeChannel ? (!sourceCommentsEnabled || !youtubeChatReady) : mobilePlayer)) {
       return;
     }
     while (pendingComments.length > 0 && pendingComments[0].at <= now) {
@@ -1105,9 +1178,9 @@
         if (!next.item || typeof next.item.text !== "string" || !next.item.text.trim()) continue;
         const user = String(next.item.user || "YouTube观众").slice(0, 100);
         const hash = Array.from(user).reduce((value, char) => (value * 31 + char.codePointAt(0)) >>> 0, 0);
-        const item = { user, avatar: typeof next.item.avatar === "string" ? next.item.avatar : "", platform: String(next.item.platform || ""), text: next.item.text.slice(0, 2000), color: commentColors[hash % commentColors.length] };
+        const item = { user, avatar: typeof next.item.avatar === "string" ? next.item.avatar.trim() : "", platform: String(next.item.platform || ""), text: next.item.text.slice(0, 2000), color: commentColors[hash % commentColors.length] };
         youtubeChatFrame.contentWindow.postMessage({ type: "saidao-player-comment", ...item }, window.location.origin);
-        addDanmaku({ text: item.text, color: item.color, plainText: true });
+        addDanmaku({ text: item.text, color: item.color, plainText: true, playerComment: true });
       } else {
         appendComment(next.item);
         addDanmaku(next.item);
@@ -1192,6 +1265,7 @@
   refreshBtn.addEventListener("click", refreshStream);
 
   danmakuToggleBtn.addEventListener("click", () => {
+    if (mobilePlayer) return;
     danmakuEnabled = !danmakuEnabled;
     syncDanmakuState();
   });
@@ -1213,6 +1287,9 @@
     setMuted(value === 0);
   });
 
+  sourceCommentsToggleBtn.addEventListener("click", toggleSourceComments);
+  mobileSourceCommentsToggleBtn.addEventListener("click", toggleSourceComments);
+  playerSettingsBtn.addEventListener("click", () => setSettingsOpen(playerSettingsMenu.hidden));
   pipBtn.addEventListener("click", openPip);
   pipReturnBtn.addEventListener("click", () => pipWindow?.close());
   pipCommentsBtn.addEventListener("click", () => setPipCommentsVisible(commentPanel.hidden));
@@ -1272,6 +1349,11 @@
   });
 
   const handlePlayerKeydown = (event) => {
+    if (event.key === "Escape" && !playerSettingsMenu.hidden) {
+      setSettingsOpen(false);
+      playerSettingsBtn.focus();
+      return;
+    }
     if (event.key === "Escape" && playerLayout.classList.contains("viewport-fullscreen")) {
       playerLayout.classList.remove("viewport-fullscreen");
       syncFullscreenState();
@@ -1284,6 +1366,7 @@
   };
 
   const handlePlayerClick = (event) => {
+    if (!playerSettingsMenu.hidden && !playerSettings.contains(event.target)) setSettingsOpen(false);
     if (event.target.closest("button, input, a") || streamEnded) {
       return;
     }
