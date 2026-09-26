@@ -724,6 +724,10 @@
   const handleChatDanmaku = (event) => {
     if (isPageClosing || !isYoutubeChannel || event.origin !== window.location.origin ||
         !youtubeChatFrame?.contentWindow || event.source !== youtubeChatFrame.contentWindow) return;
+    if (event.data?.type === "saidao-chat-filters-changed") {
+      clearDanmaku();
+      return;
+    }
     if (event.data?.type === "saidao-chat-ready") {
       youtubeChatReady = true;
       return;
@@ -741,8 +745,11 @@
       return;
     }
     if (event.data?.type !== "saidao-chat-danmaku" || typeof event.data.text !== "string") return;
-    const text = event.data.text.trim().slice(0, 512);
-    if (text) addDanmaku({ text, plainText: true });
+    const playerComment = event.data.playerComment === true;
+    if (playerComment && !sourceCommentsEnabled) return;
+    const text = event.data.text.trim().slice(0, playerComment ? 2000 : 512);
+    const color = playerComment && commentColors.includes(event.data.color) ? event.data.color : undefined;
+    if (text) addDanmaku({ text, color, plainText: true, playerComment });
   };
   window.addEventListener("message", handleChatDanmaku);
 
@@ -766,7 +773,7 @@
     commentPanel.classList.toggle("has-youtube-chat", enabled);
     if (!youtubeChatFrame) return;
     youtubeChatFrame.hidden = !enabled;
-    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260926-source-comments-toggle`;
+    if (enabled && !youtubeChatFrame.src) youtubeChatFrame.src = `${String(location.pathname || "").replace(/[^/]*$/, "")}index.html?chatOnly=1${mobilePlayer ? "&chatView=mobile" : ""}&v=20260927-source-comment-filters`;
     if (!enabled) {
       youtubeChatReady = false;
       youtubeChatFrame.removeAttribute("src");
@@ -1176,11 +1183,10 @@
       }
       if (isYoutubeChannel) {
         if (!next.item || typeof next.item.text !== "string" || !next.item.text.trim()) continue;
-        const user = String(next.item.user || "YouTube观众").slice(0, 100);
+        const user = String(next.item.user || "YouTube观众");
         const hash = Array.from(user).reduce((value, char) => (value * 31 + char.codePointAt(0)) >>> 0, 0);
         const item = { user, avatar: typeof next.item.avatar === "string" ? next.item.avatar.trim() : "", platform: String(next.item.platform || ""), text: next.item.text.slice(0, 2000), color: commentColors[hash % commentColors.length] };
         youtubeChatFrame.contentWindow.postMessage({ type: "saidao-player-comment", ...item }, window.location.origin);
-        addDanmaku({ text: item.text, color: item.color, plainText: true, playerComment: true });
       } else {
         appendComment(next.item);
         addDanmaku(next.item);

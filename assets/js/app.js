@@ -288,7 +288,7 @@ function shouldFilterChatMessage(data, content) {
     if (!data || data.type && data.type !== 'user') return false;
     const uid = String(data.uid ?? '0');
     if (uid !== '0' && chatFilterRules.blockedUserIds.includes(uid)) return true;
-    if (uid === '0' && chatFilterRules.blockedNicknames.includes(String(data.uname || '').trim())) return true;
+    if (uid === '0' && chatFilterRules.blockedNicknames.includes(String(data.playerUserName ?? data.uname ?? '').trim())) return true;
     if (chatFilterRules.blockedIpGeos.includes(String(data.ipGeo || '').trim())) return true;
     if (!chatFilterRules.keywordPatterns.length) return false;
     const text = (content || parseChatContent(data.content)).textContent || '';
@@ -321,6 +321,9 @@ function bufferChatMessage(data, position = 'append') {
 
 function applyChatFilterRules() {
     rerenderChatFromBuffer();
+    if (chatOnly && window.parent !== window) {
+        window.parent.postMessage({ type: 'saidao-chat-filters-changed' }, location.origin);
+    }
 }
 
 async function loadChatFilterRules() {
@@ -2883,7 +2886,7 @@ function renderAiLabel(contentAnalysis) {
             const messageText = messageElement.querySelector('.message-text');
             if (data.playerCommentColor) messageText.style.color = data.playerCommentColor;
             if (data.playerPlatform) {
-                messageElement.querySelector('.message-footer').textContent = `来自：${data.playerPlatform.toUpperCase()}`;
+                messageElement.querySelector('.message-footer').textContent = `该评论来自：${data.playerPlatform.toUpperCase()}`;
             }
             if (mobileChat) messageText.textContent = content.textContent;
             else if (data.messageKind !== 'voice') messageText.append(content);
@@ -3314,11 +3317,13 @@ function renderAiLabel(contentAnalysis) {
 
             const blockItem = document.createElement('div');
             blockItem.className = 'context-menu-item';
-            blockItem.textContent = Number(messageData.uid) === 0 ? `屏蔽 ${messageData.uname}` : '屏蔽此用户';
+            const blockByNickname = Number(messageData.uid ?? 0) === 0;
+            const blockedNickname = messageData.playerUserName ?? messageData.uname;
+            blockItem.textContent = blockByNickname ? `屏蔽 ${blockedNickname}` : '屏蔽此用户';
             styleMenuItem(blockItem);
             blockItem.addEventListener('click', async () => {
                 const rules = { ...chatFilterRules };
-                if (Number(messageData.uid) === 0) rules.blockedNicknames = [...rules.blockedNicknames, messageData.uname];
+                if (blockByNickname) rules.blockedNicknames = [...rules.blockedNicknames, blockedNickname];
                 else rules.blockedUserIds = [...rules.blockedUserIds, String(messageData.uid)];
                 try {
                     await saveChatFilterRules(rules);
@@ -3833,6 +3838,8 @@ function renderAiLabel(contentAnalysis) {
                 if (typeof item.text !== 'string' || !item.text.trim()) return;
                 const data = {
                     type: 'user',
+                    uid: 0,
+                    playerUserName: String(item.user || 'YouTube观众'),
                     uname: escapeHtml(String(item.user || 'YouTube观众').slice(0, 100)),
                     content: escapeHtml(item.text.slice(0, 2000)),
                     playerPlatform: String(item.platform || ''),
@@ -3840,7 +3847,11 @@ function renderAiLabel(contentAnalysis) {
                     timestamp: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
                     playerCommentColor: ['#248e87', '#5288ca', '#ba892e', '#cd687f'].includes(item.color) ? item.color : '#248e87'
                 };
-                if (!captureReplayMessage(data)) addMessageToChat(data);
+                const rendered = captureReplayMessage(data) ? null : addMessageToChat(data);
+                if (rendered) {
+                    window.parent.postMessage({ type: 'saidao-chat-danmaku', text: item.text.slice(0, 2000),
+                        color: data.playerCommentColor, playerComment: true }, location.origin);
+                }
             });
             window.parent.postMessage({ type: 'saidao-chat-ready' }, location.origin);
         }
